@@ -226,7 +226,8 @@
     "publishLibrary": "Publish",
     "submit": "Submit",
     "confirm": "Confirm",
-    "embeddableInteractionButton": "Click to interact"
+    "embeddableInteractionButton": "Click to interact",
+    "test": "Ruler"
   },
   "alerts": {
     "clearReset": "This will clear the whole canvas. Are you sure?",

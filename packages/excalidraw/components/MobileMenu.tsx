@@ -90,8 +90,9 @@ export const MobileMenu = ({
                     <ShapesSwitcher
                       appState={appState}
                       activeTool={appState.activeTool}
-                      UIOptions={UIOptions}
                       app={app}
+                      UIOptions={UIOptions}
+                      actionManager={actionManager}
                     />
                   </Stack.Row>
                 </Island>

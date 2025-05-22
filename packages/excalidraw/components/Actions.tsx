@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { useState } from "react";
+import React from "react";
 
 import {
   CLASSES,
@@ -285,11 +286,13 @@ export const ShapesSwitcher = ({
   appState,
   app,
   UIOptions,
+  actionManager,
 }: {
   activeTool: UIAppState["activeTool"];
   appState: UIAppState;
   app: AppClassProperties;
   UIOptions: AppProps["UIOptions"];
+  actionManager: ActionManager;
 }) => {
   const [isExtraToolsMenuOpen, setIsExtraToolsMenuOpen] = useState(false);
 
@@ -304,22 +307,7 @@ export const ShapesSwitcher = ({
   return (
     <>
       {SHAPES.map(({ value, icon, key, numericKey, fillable }, index) => {
-        if (
-          UIOptions.tools?.[
-            value as Extract<typeof value, keyof AppProps["UIOptions"]["tools"]>
-          ] === false
-        ) {
-          return null;
-        }
-
-        const label = t(`toolBar.${value}`);
-        const letter =
-          key && capitalizeString(typeof key === "string" ? key : key[0]);
-        const shortcut = letter
-          ? `${letter} ${t("helpDialog.or")} ${numericKey}`
-          : `${numericKey}`;
-
-        return (
+        const renderButton = () => (
           <ToolButton
             className={clsx("Shape", { fillable })}
             key={value}
@@ -327,16 +315,15 @@ export const ShapesSwitcher = ({
             icon={icon}
             checked={activeTool.type === value}
             name="editor-current-shape"
-            title={`${capitalizeString(label)} — ${shortcut}`}
-            keyBindingLabel={numericKey || letter}
-            aria-label={capitalizeString(label)}
-            aria-keyshortcuts={shortcut}
+            title={`${capitalizeString(t(`toolBar.${value}`))} — ${ (key && capitalizeString(typeof key === "string" ? key : key[0])) ? `${(key && capitalizeString(typeof key === "string" ? key : key[0]))} ${t("helpDialog.or")} ${numericKey}` : `${numericKey}`}`}
+            keyBindingLabel={numericKey || (key && capitalizeString(typeof key === "string" ? key : key[0]))}
+            aria-label={capitalizeString(t(`toolBar.${value}`))}
+            aria-keyshortcuts={(key && capitalizeString(typeof key === "string" ? key : key[0])) ? `${(key && capitalizeString(typeof key === "string" ? key : key[0]))} ${t("helpDialog.or")} ${numericKey}` : `${numericKey}`}
             data-testid={`toolbar-${value}`}
             onPointerDown={({ pointerType }) => {
               if (!appState.penDetected && pointerType === "pen") {
                 app.togglePenMode(true);
               }
-
               if (value === "selection") {
                 if (appState.activeTool.type === "selection") {
                   app.setActiveTool({ type: "lasso" });
@@ -360,6 +347,24 @@ export const ShapesSwitcher = ({
             }}
           />
         );
+
+        if (UIOptions.tools?.[
+          value as Extract<typeof value, keyof AppProps["UIOptions"]["tools"]>
+        ] === false
+        ) {
+          return null;
+        }
+
+        if (value === "eraser" && actionManager) {
+          return (
+            <React.Fragment key={`eraser-testAction-wrapper`}>
+              {renderButton()}
+              {actionManager.renderAction("testAction")}
+            </React.Fragment>
+          );
+        }
+        
+        return renderButton();
       })}
       <div className="App-toolbar__divider" />
 

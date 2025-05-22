@@ -373,7 +373,8 @@ import { createRedoAction, createUndoAction } from "../actions/actionHistory";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
-import { actions } from "../actions/register";
+import { actions as registeredActions } from "../actions/register";
+import { actionTestAction } from "../actions/actionTest";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
 import { AnimationFrameHandler } from "../animation-frame-handler";
@@ -803,7 +804,10 @@ class App extends React.Component<AppProps, AppState> {
     this.fonts = new Fonts(this.scene);
     this.history = new History(this.store);
 
-    this.actionManager.registerAll(actions);
+    this.actionManager.registerAll([
+      ...registeredActions,
+      actionTestAction,
+    ]);
     this.actionManager.registerAction(createUndoAction(this.history));
     this.actionManager.registerAction(createRedoAction(this.history));
   }

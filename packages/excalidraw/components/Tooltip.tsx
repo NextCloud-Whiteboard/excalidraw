@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-
+// import { окружаIcon } from "./icons"; // Assuming you have an icon for the button
+import { useExcalidrawActionManager } from "./App"; // Import useExcalidrawActionManager
 import "./Tooltip.scss";
 
 export const getTooltipDiv = () => {
@@ -62,14 +63,38 @@ export const updateTooltipPosition = (
 const updateTooltip = (
   item: HTMLDivElement,
   tooltip: HTMLDivElement,
-  label: string,
+  label: string | HTMLElement,
   long: boolean,
+  actionManager?: any, // Add actionManager as an optional param
 ) => {
   tooltip.classList.add("excalidraw-tooltip--visible");
   tooltip.style.minWidth = long ? "50ch" : "10ch";
   tooltip.style.maxWidth = long ? "50ch" : "15ch";
 
-  tooltip.textContent = label;
+  tooltip.innerHTML = ""; // Clear existing content
+
+  if (typeof label === "string") {
+    const labelElement = document.createElement("div");
+    labelElement.textContent = label;
+    tooltip.appendChild(labelElement);
+  } else {
+    tooltip.appendChild(label);
+  }
+
+  // Render the test button using ActionManager if available
+  if (actionManager) {
+    const testButtonContainer = document.createElement("div");
+    const buttonElement = actionManager.renderAction("testAction");
+    if (buttonElement) {
+      const reactDomRender = async () => {
+        const ReactDOMClient = await import("react-dom/client");
+        const root = ReactDOMClient.createRoot(testButtonContainer);
+        root.render(buttonElement);
+      };
+      reactDomRender();
+    }
+    tooltip.appendChild(testButtonContainer);
+  }
 
   const itemRect = item.getBoundingClientRect();
   updateTooltipPosition(tooltip, itemRect);
@@ -77,10 +102,11 @@ const updateTooltip = (
 
 type TooltipProps = {
   children: React.ReactNode;
-  label: string;
+  label: string | HTMLElement;
   long?: boolean;
   style?: React.CSSProperties;
   disabled?: boolean;
+  showTestButton?: boolean; // Add new prop
 };
 
 export const Tooltip = ({
@@ -89,14 +115,19 @@ export const Tooltip = ({
   long = false,
   style,
   disabled,
+  showTestButton = false, // Default to false
 }: TooltipProps) => {
+  const actionManager = useExcalidrawActionManager(); // Get actionManager
+
   useEffect(() => {
     return () =>
       getTooltipDiv().classList.remove("excalidraw-tooltip--visible");
   }, []);
+
   if (disabled) {
-    return null;
+    return <>{children}</>; // Return children directly if disabled
   }
+
   return (
     <div
       className="excalidraw-tooltip-wrapper"
@@ -106,6 +137,7 @@ export const Tooltip = ({
           getTooltipDiv(),
           label,
           long,
+          showTestButton ? actionManager : undefined, // Pass actionManager
         )
       }
       onPointerLeave={() =>
