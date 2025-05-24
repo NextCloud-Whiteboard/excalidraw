@@ -4,19 +4,19 @@ import { t } from "../i18n";
 import { CaptureUpdateAction } from "@excalidraw/element";
 import type { AppClassProperties } from "../types";
 import { ToolButton } from "../components/ToolButton";
-import { PenModeIcon } from "../components/icons";
+import { RulerIcon } from "../components/icons";
 
 export const actionRuler = register({
   name: "ruler",
   label: t("buttons.ruler"),
   trackEvent: { category: "toolbar" },
-  icon: PenModeIcon,
+  icon: RulerIcon,
   perform: (elements, appState, value, app) => {
-    alert("ruler");
+    // Activate the line tool for measuring distances
+    app.setActiveTool({ type: "line" });
+    
     return {
       elements,
-      appState,
-      commitToHistory: false,
       captureUpdate: CaptureUpdateAction.NEVER,
     };
   },
@@ -24,12 +24,13 @@ export const actionRuler = register({
     return (
       <ToolButton
         type="button"
-        icon={PenModeIcon}
+        icon={RulerIcon}
         aria-label={t("buttons.ruler")}
-        title={t("buttons.ruler")}
+        title={`${t("buttons.ruler")} — Draw lines to measure distances`}
         onClick={() => {
           updateData(null);
         }}
+        data-testid="toolbar-ruler"
       />
     );
   },

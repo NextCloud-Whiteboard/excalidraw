@@ -356,16 +356,15 @@ export const ShapesSwitcher = ({
         }
 
         if (value === "eraser" && actionManager) {
-          return (
-            <React.Fragment key={`eraser-ruler-wrapper`}>
-              {renderButton()}
-              {actionManager.renderAction("ruler")}
-            </React.Fragment>
-          );
+          return renderButton();
         }
         
         return renderButton();
       })}
+      
+      {/* Ruler tool as standalone button */}
+      {actionManager && actionManager.renderAction("ruler")}
+      
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>

@@ -335,6 +335,15 @@ export const LineIcon = createIcon(
   modifiedTablerIconProps,
 );
 
+// custom ruler icon
+export const RulerIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path d="M3 5h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+    <path d="M4 6v2M6 6v3M8 6v2M10 6v3M12 6v2M14 6v3M16 6v2" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
 export const PenModeIcon = createIcon(
   <g strokeWidth="1.25">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
