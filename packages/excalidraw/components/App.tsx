@@ -374,7 +374,6 @@ import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
 import { actions as registeredActions } from "../actions/register";
-import { actionTestAction } from "../actions/actionTest";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
 import { AnimationFrameHandler } from "../animation-frame-handler";
@@ -458,6 +457,8 @@ import { isMaybeMermaidDefinition } from "../mermaid";
 import { LassoTrail } from "../lasso";
 
 import { EraserTrail } from "../eraser";
+
+import { actionRulerAction } from "../actions/actionRuler";
 
 import ConvertElementTypePopup, {
   getConversionTypeFromElements,
@@ -804,10 +805,7 @@ class App extends React.Component<AppProps, AppState> {
     this.fonts = new Fonts(this.scene);
     this.history = new History(this.store);
 
-    this.actionManager.registerAll([
-      ...registeredActions,
-      actionTestAction,
-    ]);
+    this.actionManager.registerAll([...registeredActions, actionRulerAction]);
     this.actionManager.registerAction(createUndoAction(this.history));
     this.actionManager.registerAction(createRedoAction(this.history));
   }
@@ -4854,7 +4852,7 @@ class App extends React.Component<AppProps, AppState> {
             ? {}
             : {
                 selectedElementIds: makeNextSelectedElementIds({}, prevState),
-                selectedGroupIds: makeNextSelectedElementIds({}, prevState),
+                selectedGroupIds: {},
                 editingGroupId: null,
                 multiElement: null,
               }),
@@ -9081,6 +9079,19 @@ class App extends React.Component<AppProps, AppState> {
         pointerDownState,
         childEvent,
       );
+
+      // START -- Ruler mode: auto-finalize line after two points
+      if (this.state.isRulerModeActive) {
+        const lineElement = multiElement || newElement;
+        if (
+          lineElement &&
+          isLinearElement(lineElement) &&
+          lineElement.points.length >= 2
+        ) {
+          this.actionManager.executeAction(actionFinalize);
+        }
+      }
+      // END -- Ruler mode
 
       if (newElement?.type === "freedraw") {
         const pointerCoords = viewportCoordsToSceneCoords(

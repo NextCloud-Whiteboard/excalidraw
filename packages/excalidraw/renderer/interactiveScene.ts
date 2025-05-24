@@ -3,6 +3,7 @@ import {
   type GlobalPoint,
   type LocalPoint,
   type Radians,
+  pointDistance,
 } from "@excalidraw/math";
 import oc from "open-color";
 
@@ -676,6 +677,81 @@ const renderTextBox = (
   context.restore();
 };
 
+const renderRulerDistance = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: NonDeleted<ExcalidrawLinearElement>,
+  elementsMap: ElementsMap,
+) => {
+  if (element.points.length < 2) {
+    return;
+  }
+
+  // Get the first and last points
+  const startPoint = element.points[0];
+  const endPoint = element.points[element.points.length - 1];
+
+  // Convert to global coordinates
+  const startGlobal: GlobalPoint = pointFrom(
+    element.x + startPoint[0],
+    element.y + startPoint[1],
+  );
+  const endGlobal: GlobalPoint = pointFrom(
+    element.x + endPoint[0],
+    element.y + endPoint[1],
+  );
+
+  // Calculate distance in pixels
+  const distance = pointDistance(startGlobal, endGlobal);
+  const distanceText = `${Math.round(distance)}px`;
+
+  // Calculate middle point
+  const midX = (startGlobal[0] + endGlobal[0]) / 2;
+  const midY = (startGlobal[1] + endGlobal[1]) / 2;
+
+  // Set text style
+  context.save();
+  context.font =
+    "14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+
+  // Measure text for background
+  const textMetrics = context.measureText(distanceText);
+  const textWidth = textMetrics.width;
+  const textHeight = 16; // Approximate height for 14px font
+
+  // Draw background rectangle
+  const padding = 4;
+  const bgWidth = textWidth + padding * 2;
+  const bgHeight = textHeight + padding * 2;
+
+  context.fillStyle = appState.theme === THEME.DARK ? "#1e1e1e" : "#ffffff";
+  context.strokeStyle = appState.theme === THEME.DARK ? "#ffffff" : "#000000";
+  context.lineWidth = 1;
+
+  // Draw rounded rectangle background
+  const cornerRadius = 4;
+  const bgX = midX - bgWidth / 2;
+  const bgY = midY - bgHeight / 2;
+
+  context.beginPath();
+  // Use roundRect if available, otherwise draw regular rectangle
+  if (typeof context.roundRect === "function") {
+    context.roundRect(bgX, bgY, bgWidth, bgHeight, cornerRadius);
+  } else {
+    context.rect(bgX, bgY, bgWidth, bgHeight);
+  }
+  context.fill();
+  context.stroke();
+
+  // Draw text
+  context.fillStyle = appState.theme === THEME.DARK ? "#ffffff" : "#000000";
+  context.fillText(distanceText, midX, midY);
+
+  context.restore();
+};
+
 const _renderInteractiveScene = ({
   canvas,
   elementsMap,
@@ -1076,6 +1152,19 @@ const _renderInteractiveScene = ({
       context.restore();
     }
   });
+
+  // Render ruler distance if in ruler mode
+  if (appState.isRulerModeActive) {
+    // Check for newElement or multiElement (line being drawn)
+    const rulerElement = appState.multiElement || appState.newElement;
+    if (
+      rulerElement &&
+      isLinearElement(rulerElement) &&
+      rulerElement.points.length >= 2
+    ) {
+      renderRulerDistance(context, appState, rulerElement, elementsMap);
+    }
+  }
 
   renderSnaps(context, appState);
 

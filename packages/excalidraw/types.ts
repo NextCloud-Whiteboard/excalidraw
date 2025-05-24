@@ -220,6 +220,7 @@ export type InteractiveCanvasAppState = Readonly<
     selectedGroupIds: AppState["selectedGroupIds"];
     selectedLinearElement: AppState["selectedLinearElement"];
     multiElement: AppState["multiElement"];
+    newElement: AppState["newElement"];
     isBindingEnabled: AppState["isBindingEnabled"];
     suggestedBindings: AppState["suggestedBindings"];
     isRotating: AppState["isRotating"];
@@ -235,6 +236,8 @@ export type InteractiveCanvasAppState = Readonly<
     croppingElementId: AppState["croppingElementId"];
     // Search matches
     searchMatches: AppState["searchMatches"];
+    // Ruler mode
+    isRulerModeActive: AppState["isRulerModeActive"];
   }
 >;
 
@@ -437,6 +440,8 @@ export interface AppState {
     focusedId: ExcalidrawElement["id"] | null;
     matches: readonly SearchMatch[];
   }> | null;
+  /** indicates if the ruler tool is active and should finalize after two points */
+  isRulerModeActive: boolean;
 }
 
 export type SearchMatch = {

@@ -138,6 +138,7 @@ export type ActionName =
   | "elementStats"
   | "searchMenu"
   | "testAction"
+  | "rulerAction"
   | "copyElementLink"
   | "linkToElement"
   | "cropEditor"

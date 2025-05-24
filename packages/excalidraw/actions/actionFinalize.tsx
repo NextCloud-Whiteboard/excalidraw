@@ -185,6 +185,7 @@ export const actionFinalize = register({
         editingTextElement: null,
         startBoundElement: null,
         suggestedBindings: [],
+        isRulerModeActive: false,
         selectedElementIds:
           multiPointElement &&
           !appState.activeTool.locked &&

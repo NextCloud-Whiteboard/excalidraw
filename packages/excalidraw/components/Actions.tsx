@@ -315,10 +315,27 @@ export const ShapesSwitcher = ({
             icon={icon}
             checked={activeTool.type === value}
             name="editor-current-shape"
-            title={`${capitalizeString(t(`toolBar.${value}`))} — ${ (key && capitalizeString(typeof key === "string" ? key : key[0])) ? `${(key && capitalizeString(typeof key === "string" ? key : key[0]))} ${t("helpDialog.or")} ${numericKey}` : `${numericKey}`}`}
-            keyBindingLabel={numericKey || (key && capitalizeString(typeof key === "string" ? key : key[0]))}
+            title={`${capitalizeString(t(`toolBar.${value}`))} — ${
+              key && capitalizeString(typeof key === "string" ? key : key[0])
+                ? `${
+                    key &&
+                    capitalizeString(typeof key === "string" ? key : key[0])
+                  } ${t("helpDialog.or")} ${numericKey}`
+                : `${numericKey}`
+            }`}
+            keyBindingLabel={
+              numericKey ||
+              (key && capitalizeString(typeof key === "string" ? key : key[0]))
+            }
             aria-label={capitalizeString(t(`toolBar.${value}`))}
-            aria-keyshortcuts={(key && capitalizeString(typeof key === "string" ? key : key[0])) ? `${(key && capitalizeString(typeof key === "string" ? key : key[0]))} ${t("helpDialog.or")} ${numericKey}` : `${numericKey}`}
+            aria-keyshortcuts={
+              key && capitalizeString(typeof key === "string" ? key : key[0])
+                ? `${
+                    key &&
+                    capitalizeString(typeof key === "string" ? key : key[0])
+                  } ${t("helpDialog.or")} ${numericKey}`
+                : `${numericKey}`
+            }
             data-testid={`toolbar-${value}`}
             onPointerDown={({ pointerType }) => {
               if (!appState.penDetected && pointerType === "pen") {
@@ -348,9 +365,10 @@ export const ShapesSwitcher = ({
           />
         );
 
-        if (UIOptions.tools?.[
-          value as Extract<typeof value, keyof AppProps["UIOptions"]["tools"]>
-        ] === false
+        if (
+          UIOptions.tools?.[
+            value as Extract<typeof value, keyof AppProps["UIOptions"]["tools"]>
+          ] === false
         ) {
           return null;
         }
@@ -359,11 +377,11 @@ export const ShapesSwitcher = ({
           return (
             <React.Fragment key={`eraser-testAction-wrapper`}>
               {renderButton()}
-              {actionManager.renderAction("testAction")}
+              {actionManager.renderAction("rulerAction")}
             </React.Fragment>
           );
         }
-        
+
         return renderButton();
       })}
       <div className="App-toolbar__divider" />
