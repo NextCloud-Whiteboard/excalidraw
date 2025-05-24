@@ -357,9 +357,9 @@ export const ShapesSwitcher = ({
 
         if (value === "eraser" && actionManager) {
           return (
-            <React.Fragment key={`eraser-testAction-wrapper`}>
+            <React.Fragment key={`eraser-ruler-wrapper`}>
               {renderButton()}
-              {actionManager.renderAction("testAction")}
+              {actionManager.renderAction("ruler")}
             </React.Fragment>
           );
         }

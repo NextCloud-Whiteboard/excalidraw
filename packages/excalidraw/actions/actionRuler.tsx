@@ -6,13 +6,13 @@ import type { AppClassProperties } from "../types";
 import { ToolButton } from "../components/ToolButton";
 import { PenModeIcon } from "../components/icons";
 
-export const actionTestAction = register({
-  name: "testAction",
-  label: t("buttons.test"),
+export const actionRuler = register({
+  name: "ruler",
+  label: t("buttons.ruler"),
   trackEvent: { category: "toolbar" },
   icon: PenModeIcon,
   perform: (elements, appState, value, app) => {
-    alert("test");
+    alert("ruler");
     return {
       elements,
       appState,
@@ -25,8 +25,8 @@ export const actionTestAction = register({
       <ToolButton
         type="button"
         icon={PenModeIcon}
-        aria-label={t("buttons.test")}
-        title={t("buttons.test")}
+        aria-label={t("buttons.ruler")}
+        title={t("buttons.ruler")}
         onClick={() => {
           updateData(null);
         }}

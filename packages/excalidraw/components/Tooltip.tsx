@@ -84,7 +84,7 @@ const updateTooltip = (
   // Render the test button using ActionManager if available
   if (actionManager) {
     const testButtonContainer = document.createElement("div");
-    const buttonElement = actionManager.renderAction("testAction");
+    const buttonElement = actionManager.renderAction("ruler");
     if (buttonElement) {
       const reactDomRender = async () => {
         const ReactDOMClient = await import("react-dom/client");

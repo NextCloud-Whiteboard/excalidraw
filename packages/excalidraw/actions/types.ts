@@ -137,7 +137,7 @@ export type ActionName =
   | "autoResize"
   | "elementStats"
   | "searchMenu"
-  | "testAction"
+  | "ruler"
   | "copyElementLink"
   | "linkToElement"
   | "cropEditor"

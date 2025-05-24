@@ -227,7 +227,7 @@
     "submit": "Submit",
     "confirm": "Confirm",
     "embeddableInteractionButton": "Click to interact",
-    "test": "Ruler"
+    "ruler": "Ruler"
   },
   "alerts": {
     "clearReset": "This will clear the whole canvas. Are you sure?",
