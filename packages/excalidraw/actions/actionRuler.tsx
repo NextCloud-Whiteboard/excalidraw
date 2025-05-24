@@ -7,7 +7,7 @@ import { t } from "../i18n";
 import { setCursorForShape } from "../cursor";
 
 import { ToolButton } from "../components/ToolButton";
-import { PenModeIcon } from "../components/icons";
+import { RulerIcon } from "../components/icons";
 
 import { register } from "./register";
 
@@ -15,7 +15,7 @@ export const actionRulerAction = register({
   name: "rulerAction",
   label: t("buttons.ruler"),
   trackEvent: { category: "toolbar" },
-  icon: PenModeIcon,
+  icon: RulerIcon,
   perform: (elements, appState, value, app) => {
     const nextActiveTool = updateActiveTool(appState, {
       type: "line",
@@ -41,7 +41,7 @@ export const actionRulerAction = register({
     return (
       <ToolButton
         type="button"
-        icon={PenModeIcon}
+        icon={RulerIcon}
         aria-label={t("buttons.ruler")}
         title={t("buttons.ruler")}
         onClick={() => {

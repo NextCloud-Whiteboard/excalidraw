@@ -711,27 +711,32 @@ const renderRulerDistance = (
 
   // Set text style
   context.save();
-  context.font =
-    "14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+  // Apply scroll offset
+  context.translate(appState.scrollX, appState.scrollY);
+
+  context.font = `${
+    14 / appState.zoom.value
+  }px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "middle";
 
   // Measure text for background
   const textMetrics = context.measureText(distanceText);
   const textWidth = textMetrics.width;
-  const textHeight = 16; // Approximate height for 14px font
+  const textHeight = 16 / appState.zoom.value; // Scale with zoom
 
   // Draw background rectangle
-  const padding = 4;
+  const padding = 4 / appState.zoom.value;
   const bgWidth = textWidth + padding * 2;
   const bgHeight = textHeight + padding * 2;
 
   context.fillStyle = appState.theme === THEME.DARK ? "#1e1e1e" : "#ffffff";
   context.strokeStyle = appState.theme === THEME.DARK ? "#ffffff" : "#000000";
-  context.lineWidth = 1;
+  context.lineWidth = 1 / appState.zoom.value;
 
   // Draw rounded rectangle background
-  const cornerRadius = 4;
+  const cornerRadius = 4 / appState.zoom.value;
   const bgX = midX - bgWidth / 2;
   const bgY = midY - bgHeight / 2;
 
@@ -1110,6 +1115,19 @@ const _renderInteractiveScene = ({
     context.restore();
   }
 
+  // Render ruler distance if in ruler mode
+  if (appState.isRulerModeActive) {
+    // Check for newElement or multiElement (line being drawn)
+    const rulerElement = appState.multiElement || appState.newElement;
+    if (
+      rulerElement &&
+      isLinearElement(rulerElement) &&
+      rulerElement.points.length >= 2
+    ) {
+      renderRulerDistance(context, appState, rulerElement, elementsMap);
+    }
+  }
+
   appState.searchMatches?.matches.forEach(({ id, focus, matchedLines }) => {
     const element = elementsMap.get(id);
 
@@ -1152,19 +1170,6 @@ const _renderInteractiveScene = ({
       context.restore();
     }
   });
-
-  // Render ruler distance if in ruler mode
-  if (appState.isRulerModeActive) {
-    // Check for newElement or multiElement (line being drawn)
-    const rulerElement = appState.multiElement || appState.newElement;
-    if (
-      rulerElement &&
-      isLinearElement(rulerElement) &&
-      rulerElement.points.length >= 2
-    ) {
-      renderRulerDistance(context, appState, rulerElement, elementsMap);
-    }
-  }
 
   renderSnaps(context, appState);
 

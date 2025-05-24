@@ -2244,3 +2244,12 @@ export const elementLinkIcon = createIcon(
   </g>,
   tablerIconProps,
 );
+
+// custom ruler icon
+export const RulerIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path d="M3 4h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+    <path d="M4 5v2M6 5v1.5M8 5v2M10 5v1.5M12 5v2M14 5v1.5M16 5v2" />
+  </g>,
+  modifiedTablerIconProps,
+);
