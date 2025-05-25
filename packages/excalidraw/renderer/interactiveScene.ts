@@ -3,6 +3,7 @@ import {
   type GlobalPoint,
   type LocalPoint,
   type Radians,
+  pointDistance,
 } from "@excalidraw/math";
 import oc from "open-color";
 
@@ -13,6 +14,7 @@ import {
   invariant,
   THEME,
   throttleRAF,
+  getFontString,
 } from "@excalidraw/common";
 
 import { FIXED_BINDING_DISTANCE, maxBindingGap } from "@excalidraw/element";
@@ -676,6 +678,81 @@ const renderTextBox = (
   context.restore();
 };
 
+const renderRulerDistances = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  elementsMap: ElementsMap,
+) => {
+  const elements = Array.from(elementsMap.values());
+  
+  elements.forEach((element) => {
+    // Show distance for all 2-point linear elements (lines)
+    // This will work for ruler tool and regular lines
+    if (
+      isLinearElement(element) &&
+      element.points.length === 2 &&
+      element.type === "line" // Only show for line elements, not arrows
+    ) {
+      const points = LinearElementEditor.getPointsGlobalCoordinates(
+        element,
+        elementsMap,
+      );
+      
+      if (points.length === 2) {
+        // Calculate distance in pixels
+        const distance = pointDistance(points[0], points[1]);
+        const distanceText = `${Math.round(distance)}px`;
+        
+        // Calculate midpoint
+        const midX = (points[0][0] + points[1][0]) / 2;
+        const midY = (points[0][1] + points[1][1]) / 2;
+        
+        context.save();
+        context.translate(appState.scrollX, appState.scrollY);
+        
+        // Set text style
+        context.font = getFontString({
+          fontFamily: 1, // Default font family
+          fontSize: 12,
+        });
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        
+        // Add background for better readability
+        const textMetrics = context.measureText(distanceText);
+        const padding = 3;
+        const bgWidth = textMetrics.width + padding * 2;
+        const bgHeight = 16;
+        
+        // Semi-transparent white background
+        context.fillStyle = "rgba(255, 255, 255, 0.9)";
+        context.fillRect(
+          midX - bgWidth / 2,
+          midY - bgHeight / 2,
+          bgWidth,
+          bgHeight
+        );
+        
+        // Black border for better visibility
+        context.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        context.lineWidth = 1;
+        context.strokeRect(
+          midX - bgWidth / 2,
+          midY - bgHeight / 2,
+          bgWidth,
+          bgHeight
+        );
+        
+        // Draw text in element color or black for better contrast
+        context.fillStyle = "#000000";
+        context.fillText(distanceText, midX, midY);
+        
+        context.restore();
+      }
+    }
+  });
+};
+
 const _renderInteractiveScene = ({
   canvas,
   elementsMap,
@@ -786,6 +863,9 @@ const _renderInteractiveScene = ({
   if (appState.elementsToHighlight) {
     renderElementsBoxHighlight(context, appState, appState.elementsToHighlight);
   }
+
+  // Render ruler distances
+  renderRulerDistances(context, appState, elementsMap);
 
   const isFrameSelected = selectedElements.some((element) =>
     isFrameLikeElement(element),
