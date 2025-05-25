@@ -6635,11 +6635,19 @@ class App extends React.Component<AppProps, AppState> {
       this.handleTextOnPointerDown(event, pointerDownState);
     } else if (
       this.state.activeTool.type === "arrow" ||
-      this.state.activeTool.type === "line"
+      this.state.activeTool.type === "line" ||
+      (this.state.activeTool.type === "custom" &&
+        this.state.activeTool.customType === "ruler")
     ) {
+      const linearType =
+        this.state.activeTool.type === "custom" &&
+        this.state.activeTool.customType === "ruler"
+          ? "line"
+          : this.state.activeTool.type;
+
       this.handleLinearElementOnPointerDown(
         event,
-        this.state.activeTool.type,
+        linearType as ExcalidrawLinearElement["type"],
         pointerDownState,
       );
     } else if (this.state.activeTool.type === "image") {
@@ -7877,6 +7885,15 @@ class App extends React.Component<AppProps, AppState> {
         startBoundElement: boundElement,
         suggestedBindings: [],
       });
+
+      // For the Ruler tool, we want only a 2-point line, so mark drag as occurred
+      // immediately to prevent multi-element (polyline) mode.
+      if (
+        this.state.activeTool.type === "custom" &&
+        this.state.activeTool.customType === "ruler"
+      ) {
+        pointerDownState.drag.hasOccurred = true;
+      }
     }
   };
 
@@ -8174,7 +8191,9 @@ class App extends React.Component<AppProps, AppState> {
       if (
         !pointerDownState.drag.hasOccurred &&
         (this.state.activeTool.type === "arrow" ||
-          this.state.activeTool.type === "line")
+          this.state.activeTool.type === "line" ||
+          (this.state.activeTool.type === "custom" &&
+            this.state.activeTool.customType === "ruler"))
       ) {
         if (
           pointDistance(
@@ -8640,7 +8659,6 @@ class App extends React.Component<AppProps, AppState> {
           return;
         }
       }
-
       if (this.state.selectionElement) {
         pointerDownState.lastCoords.x = pointerCoords.x;
         pointerDownState.lastCoords.y = pointerCoords.y;

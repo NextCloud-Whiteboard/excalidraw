@@ -12,9 +12,9 @@ export const actionRuler = register({
   trackEvent: { category: "toolbar" },
   icon: RulerIcon,
   perform: (elements, appState, value, app) => {
-    // Activate the line tool for measuring distances
-    app.setActiveTool({ type: "line" });
-    
+    // Activate custom ruler tool (behaves like line but tracked separately)
+    app.setActiveTool({ type: "custom", customType: "ruler" });
+
     return {
       elements,
       captureUpdate: CaptureUpdateAction.NEVER,
@@ -27,6 +27,10 @@ export const actionRuler = register({
         icon={RulerIcon}
         aria-label={t("buttons.ruler")}
         title={`${t("buttons.ruler")} — Draw lines to measure distances`}
+        selected={
+          appState.activeTool.type === "custom" &&
+          appState.activeTool.customType === "ruler"
+        }
         onClick={() => {
           updateData(null);
         }}
