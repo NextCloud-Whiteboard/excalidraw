@@ -707,6 +707,33 @@ const renderRulerDistances = (
         const midX = (points[0][0] + points[1][0]) / 2;
         const midY = (points[0][1] + points[1][1]) / 2;
         
+        // Calculate line direction vector
+        const dx = points[1][0] - points[0][0];
+        const dy = points[1][1] - points[0][1];
+        
+        // Calculate perpendicular vector (rotated 90 degrees)
+        let perpX = -dy;
+        let perpY = dx;
+        
+        // Ensure the perpendicular vector points "upward" (negative Y direction)
+        // If the perpendicular vector points downward, flip it
+        if (perpY > 0) {
+          perpX = -perpX;
+          perpY = -perpY;
+        }
+        
+        // Normalize the perpendicular vector
+        const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
+        const normalizedPerpX = perpLength > 0 ? perpX / perpLength : 0;
+        const normalizedPerpY = perpLength > 0 ? perpY / perpLength : 0;
+        
+        // Offset distance (account for zoom level)
+        const offsetDistance = 15 ;
+        
+        // Calculate text position with offset above the line
+        const textX = midX + normalizedPerpX * offsetDistance;
+        const textY = midY + normalizedPerpY * offsetDistance;
+        
         context.save();
         context.translate(appState.scrollX, appState.scrollY);
         
@@ -720,15 +747,15 @@ const renderRulerDistances = (
         
         // Add background for better readability
         const textMetrics = context.measureText(distanceText);
-        const padding = 3;
+        const padding = 1;
         const bgWidth = textMetrics.width + padding * 2;
         const bgHeight = 16;
         
         // Semi-transparent white background
         context.fillStyle = "rgba(255, 255, 255, 0.9)";
         context.fillRect(
-          midX - bgWidth / 2,
-          midY - bgHeight / 2,
+          textX - bgWidth / 2,
+          textY - bgHeight / 2,
           bgWidth,
           bgHeight
         );
@@ -737,15 +764,15 @@ const renderRulerDistances = (
         context.strokeStyle = "rgba(0, 0, 0, 0.3)";
         context.lineWidth = 1;
         context.strokeRect(
-          midX - bgWidth / 2,
-          midY - bgHeight / 2,
+          textX - bgWidth / 2,
+          textY - bgHeight / 2,
           bgWidth,
           bgHeight
         );
         
         // Draw text in element color or black for better contrast
         context.fillStyle = "#000000";
-        context.fillText(distanceText, midX, midY);
+        context.fillText(distanceText, textX, textY);
         
         context.restore();
       }
