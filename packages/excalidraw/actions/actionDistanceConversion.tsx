@@ -6,7 +6,7 @@ import { CaptureUpdateAction } from "@excalidraw/element";
 export const actionDistanceConversion = register({
   name: "distanceConversion",
   trackEvent: false,
-  label: t("labels.distanceConversion"),
+  label: t("labels.setScale"),
   perform: (elements, appState, value) => {
     // value expected to be { cmPerPx: number }
     if (typeof value?.cmPerPx !== "number" || !isFinite(value.cmPerPx)) {
@@ -21,9 +21,9 @@ export const actionDistanceConversion = register({
   PanelComponent: ({ appState, updateData }) => {
     return (
       <fieldset>
-        <legend>{t("labels.distanceConversion")}</legend>
+        <legend>{t("labels.setScale")}</legend>
         <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-          1&nbsp;px&nbsp;=
+          1&nbsp;cm&nbsp;=
           <input
             type="number"
             step="0.01"
