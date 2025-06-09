@@ -235,6 +235,8 @@ export type InteractiveCanvasAppState = Readonly<
     croppingElementId: AppState["croppingElementId"];
     // Search matches
     searchMatches: AppState["searchMatches"];
+    /** pixel to centimeter ratio for ruler tool */
+    cmPerPx: number;
   }
 >;
 
@@ -437,6 +439,8 @@ export interface AppState {
     focusedId: ExcalidrawElement["id"] | null;
     matches: readonly SearchMatch[];
   }> | null;
+  /** pixel to centimeter ratio for ruler tool */
+  cmPerPx: number;
 }
 
 export type SearchMatch = {

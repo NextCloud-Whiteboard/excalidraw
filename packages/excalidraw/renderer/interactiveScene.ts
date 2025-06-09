@@ -700,8 +700,11 @@ const renderRulerDistances = (
       
       if (points.length === 2) {
         // Calculate distance in pixels
-        const distance = pointDistance(points[0], points[1]);
-        const distanceText = `${Math.round(distance)}px`;
+        const distancePx = pointDistance(points[0], points[1]);
+        // Convert pixels to centimeters using the ratio from AppState
+        const cmPerPx = appState.cmPerPx ?? 1;
+        const distanceCm = distancePx * cmPerPx;
+        const distanceText = `${parseFloat(distanceCm.toFixed(2))} cm`;
         
         // Calculate midpoint
         const midX = (points[0][0] + points[1][0]) / 2;

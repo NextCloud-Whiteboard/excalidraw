@@ -321,6 +321,32 @@ export const ChangeCanvasBackground = () => {
 };
 ChangeCanvasBackground.displayName = "ChangeCanvasBackground";
 
+export const ChangeDistanceConversion = () => {
+  const { t } = useI18n();
+  const appState = useUIAppState();
+  const actionManager = useExcalidrawActionManager();
+
+  if (appState.viewModeEnabled) {
+    return null;
+  }
+
+  return (
+    <div style={{ marginTop: "0.5rem" }}>
+      <div
+        data-testid="distance-conversion-label"
+        style={{ fontSize: ".75rem", marginBottom: ".5rem" }}
+      >
+        {t("labels.distanceConversion")}
+      </div>
+      <div style={{ padding: "0 0.625rem" }}>
+        {actionManager.renderAction("distanceConversion")}
+      </div>
+    </div>
+  );
+};
+
+ChangeDistanceConversion.displayName = "ChangeDistanceConversion";
+
 export const Export = () => {
   const { t } = useI18n();
   const setAppState = useExcalidrawSetAppState();

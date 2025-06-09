@@ -375,6 +375,7 @@ import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
 import { actions as registeredActions } from "../actions/register";
 import { actionRuler } from "../actions/actionRuler";
+import { actionDistanceConversion } from "../actions/actionDistanceConversion";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
 import { AnimationFrameHandler } from "../animation-frame-handler";
@@ -807,6 +808,7 @@ class App extends React.Component<AppProps, AppState> {
     this.actionManager.registerAll([
       ...registeredActions,
       actionRuler,
+      actionDistanceConversion,
     ]);
     this.actionManager.registerAction(createUndoAction(this.history));
     this.actionManager.registerAction(createRedoAction(this.history));

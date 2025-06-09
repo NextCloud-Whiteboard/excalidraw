@@ -211,6 +211,9 @@ export const SelectedShapeActions = ({
 
       {renderAction("changeOpacity")}
 
+      {/* Distance conversion for ruler tool - always show */}
+      {renderAction("distanceConversion")}
+
       <fieldset>
         <legend>{t("labels.layers")}</legend>
         <div className="buttonList">

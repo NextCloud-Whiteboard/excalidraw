@@ -143,7 +143,8 @@ export type ActionName =
   | "cropEditor"
   | "wrapSelectionInFrame"
   | "toggleLassoTool"
-  | "toggleShapeSwitch";
+  | "toggleShapeSwitch"
+  | "distanceConversion";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];
