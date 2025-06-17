@@ -144,7 +144,8 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleLassoTool"
   | "toggleShapeSwitch"
-  | "distanceConversion";
+  | "distanceConversion"
+  | "pdfImport";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

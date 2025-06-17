@@ -375,6 +375,7 @@ import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
 import { actions as registeredActions } from "../actions/register";
 import { actionRuler } from "../actions/actionRuler";
+import { actionPdfImport } from "../actions/actionPdfImport";
 import { actionDistanceConversion } from "../actions/actionDistanceConversion";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
@@ -10147,6 +10148,104 @@ class App extends React.Component<AppProps, AppState> {
         {
           pendingImageElementId: null,
           newElement: null,
+          activeTool: updateActiveTool(this.state, { type: "selection" }),
+        },
+        () => {
+          this.actionManager.executeAction(actionFinalize);
+        },
+      );
+    }
+  };
+
+  public onPdfImportAction = async () => {
+    try {
+      const clientX = this.state.width / 2 + this.state.offsetLeft;
+      const clientY = this.state.height / 2 + this.state.offsetTop;
+
+      const { x, y } = viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        this.state,
+      );
+
+      // Open file dialog to select PDF using native input
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".pdf,application/pdf";
+      input.style.display = "none";
+      document.body.appendChild(input);
+      
+      const pdfFile = await new Promise<File>((resolve, reject) => {
+        input.onchange = (e: any) => {
+          const file = e.target?.files?.[0];
+          document.body.removeChild(input);
+          if (file && file.type === "application/pdf") {
+            resolve(file);
+          } else {
+            reject(new Error("Please select a valid PDF file"));
+          }
+        };
+        input.oncancel = () => {
+          document.body.removeChild(input);
+          reject(new Error("File selection cancelled"));
+        };
+        input.click();
+      });
+
+      // Convert PDF to image using the API
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+
+      const response = await fetch("http://localhost:5000/convert", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to convert PDF: ${response.statusText}`);
+      }
+
+      // Get the converted image as blob
+      const imageBlob = await response.blob();
+      
+      // Create a File object from the blob
+      const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
+        type: "image/png",
+      });
+
+      // Create image element using the same logic as the image tool
+      const imageElement = this.createImageElement({
+        sceneX: x,
+        sceneY: y,
+        addToFrameUnderCursor: false,
+      });
+
+      // Insert the image element
+      this.insertImageElement(imageElement, imageFile);
+      this.initializeImageDimensions(imageElement);
+
+      // Select the newly created element
+      this.setState(
+        {
+          selectedElementIds: makeNextSelectedElementIds(
+            { [imageElement.id]: true },
+            this.state,
+          ),
+        },
+        () => {
+          this.actionManager.executeAction(actionFinalize);
+        },
+      );
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("PDF import error:", error);
+        this.setToast({
+          message: `Failed to import PDF: ${error.message}`,
+          closable: true,
+          duration: 5000,
+        });
+      }
+      this.setState(
+        {
           activeTool: updateActiveTool(this.state, { type: "selection" }),
         },
         () => {

@@ -368,6 +368,9 @@ export const ShapesSwitcher = ({
       {/* Ruler tool as standalone button */}
       {actionManager && actionManager.renderAction("ruler")}
       
+      {/* PDF Import tool as standalone button */}
+      {actionManager && actionManager.renderAction("pdfImport")}
+      
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>
