@@ -7840,7 +7840,7 @@ class App extends React.Component<AppProps, AppState> {
                   ? []
                   : null,
             })
-          : newLinearElement({
+          :         newLinearElement({
               type: elementType,
               x: gridX,
               y: gridY,
@@ -7857,6 +7857,11 @@ class App extends React.Component<AppProps, AppState> {
                   : null,
               locked: false,
               frameId: topLayerFrame ? topLayerFrame.id : null,
+              // Mark elements created by ruler tool for distance display
+              customData: this.state.activeTool.type === "custom" &&
+                this.state.activeTool.customType === "ruler"
+                ? { tool: "ruler" }
+                : undefined,
             });
       this.setState((prevState) => {
         const nextSelectedElementIds = {
@@ -7889,14 +7894,8 @@ class App extends React.Component<AppProps, AppState> {
         suggestedBindings: [],
       });
 
-      // For the Ruler tool, we want only a 2-point line, so mark drag as occurred
-      // immediately to prevent multi-element (polyline) mode.
-      if (
-        this.state.activeTool.type === "custom" &&
-        this.state.activeTool.customType === "ruler"
-      ) {
-        pointerDownState.drag.hasOccurred = true;
-      }
+      // Remove the 2-point limitation for ruler tool to allow multi-point measurements
+      // The ruler tool can now create polylines for measuring cumulative distances
     }
   };
 

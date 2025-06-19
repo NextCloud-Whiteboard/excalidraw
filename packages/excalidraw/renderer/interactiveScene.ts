@@ -686,56 +686,84 @@ const renderRulerDistances = (
   const elements = Array.from(elementsMap.values());
   
   elements.forEach((element) => {
-    // Show distance for all 2-point linear elements (lines)
-    // This will work for ruler tool and regular lines
+    // Show distance only for lines created by the ruler tool
     if (
       isLinearElement(element) &&
-      element.points.length === 2 &&
-      element.type === "line" // Only show for line elements, not arrows
+      element.points.length >= 2 &&
+      element.type === "line" && // Only show for line elements, not arrows
+      element.customData?.tool === "ruler" // Only show for ruler-created lines
     ) {
       const points = LinearElementEditor.getPointsGlobalCoordinates(
         element,
         elementsMap,
       );
       
-      if (points.length === 2) {
-        // Calculate distance in pixels
-        const distancePx = pointDistance(points[0], points[1]);
-        // Convert pixels to centimeters using the ratio from AppState
-        const cmPerPx = appState.cmPerPx ?? 1;
-        const distanceCm = distancePx * cmPerPx;
-        const distanceText = `${parseFloat(distanceCm.toFixed(2))} cm`;
+      if (points.length >= 2) {
+        // Calculate cumulative distance for multi-point lines
+        let totalDistancePx = 0;
+        const segmentDistances: number[] = [];
         
-        // Calculate midpoint
-        const midX = (points[0][0] + points[1][0]) / 2;
-        const midY = (points[0][1] + points[1][1]) / 2;
-        
-        // Calculate line direction vector
-        const dx = points[1][0] - points[0][0];
-        const dy = points[1][1] - points[0][1];
-        
-        // Calculate perpendicular vector (rotated 90 degrees)
-        let perpX = -dy;
-        let perpY = dx;
-        
-        // Ensure the perpendicular vector points "upward" (negative Y direction)
-        // If the perpendicular vector points downward, flip it
-        if (perpY > 0) {
-          perpX = -perpX;
-          perpY = -perpY;
+        for (let i = 0; i < points.length - 1; i++) {
+          const segmentDistance = pointDistance(points[i], points[i + 1]);
+          segmentDistances.push(segmentDistance);
+          totalDistancePx += segmentDistance;
         }
         
-        // Normalize the perpendicular vector
-        const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
-        const normalizedPerpX = perpLength > 0 ? perpX / perpLength : 0;
-        const normalizedPerpY = perpLength > 0 ? perpY / perpLength : 0;
+        // Convert pixels to centimeters using the ratio from AppState
+        const cmPerPx = appState.cmPerPx ?? 1;
+        const totalDistanceCm = totalDistancePx * cmPerPx;
+        const distanceText = `${parseFloat(totalDistanceCm.toFixed(2))} cm`;
         
-        // Offset distance (account for zoom level)
-        const offsetDistance = 15 ;
+        // For multi-point lines, show total distance at the end point
+        // For 2-point lines, show at the midpoint
+        let textX: number, textY: number;
         
-        // Calculate text position with offset above the line
-        const textX = midX + normalizedPerpX * offsetDistance;
-        const textY = midY + normalizedPerpY * offsetDistance;
+        if (points.length === 2) {
+          // Calculate midpoint for 2-point lines
+          textX = (points[0][0] + points[1][0]) / 2;
+          textY = (points[0][1] + points[1][1]) / 2;
+          
+          // Calculate line direction vector for offset
+          const dx = points[1][0] - points[0][0];
+          const dy = points[1][1] - points[0][1];
+          
+          // Calculate perpendicular vector (rotated 90 degrees)
+          let perpX = -dy;
+          let perpY = dx;
+          
+          // Ensure the perpendicular vector points "upward" (negative Y direction)
+          if (perpY > 0) {
+            perpX = -perpX;
+            perpY = -perpY;
+          }
+          
+          // Normalize and apply offset
+          const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
+          const normalizedPerpX = perpLength > 0 ? perpX / perpLength : 0;
+          const normalizedPerpY = perpLength > 0 ? perpY / perpLength : 0;
+          const offsetDistance = 15;
+          
+          textX += normalizedPerpX * offsetDistance;
+          textY += normalizedPerpY * offsetDistance;
+        } else {
+          // For multi-point lines, position near the last point
+          const lastPoint = points[points.length - 1];
+          const secondLastPoint = points[points.length - 2];
+          
+          // Calculate direction from second-to-last to last point
+          const dx = lastPoint[0] - secondLastPoint[0];
+          const dy = lastPoint[1] - secondLastPoint[1];
+          
+          // Normalize direction
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const normalizedDx = length > 0 ? dx / length : 0;
+          const normalizedDy = length > 0 ? dy / length : 0;
+          
+          // Position text slightly beyond the last point
+          const offsetDistance = 20;
+          textX = lastPoint[0] + normalizedDx * offsetDistance;
+          textY = lastPoint[1] + normalizedDy * offsetDistance;
+        }
         
         context.save();
         context.translate(appState.scrollX, appState.scrollY);
@@ -750,7 +778,7 @@ const renderRulerDistances = (
         
         // Add background for better readability
         const textMetrics = context.measureText(distanceText);
-        const padding = 1;
+        const padding = 2;
         const bgWidth = textMetrics.width + padding * 2;
         const bgHeight = 16;
         
@@ -778,6 +806,44 @@ const renderRulerDistances = (
         context.fillText(distanceText, textX, textY);
         
         context.restore();
+        
+        // Optional: Show individual segment distances for multi-point lines
+        if (points.length > 2) {
+          for (let i = 0; i < points.length - 1; i++) {
+            const segmentDistanceCm = segmentDistances[i] * cmPerPx;
+            const segmentText = `${parseFloat(segmentDistanceCm.toFixed(1))}`;
+            
+            // Calculate midpoint of segment
+            const segMidX = (points[i][0] + points[i + 1][0]) / 2;
+            const segMidY = (points[i][1] + points[i + 1][1]) / 2;
+            
+            // Calculate perpendicular offset for segment label
+            const segDx = points[i + 1][0] - points[i][0];
+            const segDy = points[i + 1][1] - points[i][1];
+            let segPerpX = -segDy;
+            let segPerpY = segDx;
+            
+            if (segPerpY > 0) {
+              segPerpX = -segPerpX;
+              segPerpY = -segPerpY;
+            }
+            
+            const segPerpLength = Math.sqrt(segPerpX * segPerpX + segPerpY * segPerpY);
+            const segNormalizedPerpX = segPerpLength > 0 ? segPerpX / segPerpLength : 0;
+            const segNormalizedPerpY = segPerpLength > 0 ? segPerpY / segPerpLength : 0;
+            
+            const segTextX = segMidX + segNormalizedPerpX * 12;
+            const segTextY = segMidY + segNormalizedPerpY * 12;
+            
+            // Set smaller font for segment distances
+            context.font = getFontString({
+              fontFamily: 1,
+              fontSize: 10,
+            });
+            context.fillStyle = "rgba(0, 0, 0, 0.7)";
+            context.fillText(segmentText, segTextX, segTextY);
+          }
+        }
       }
     }
   });
