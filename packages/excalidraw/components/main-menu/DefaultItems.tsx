@@ -325,8 +325,20 @@ export const ChangeDistanceConversion = () => {
   const { t } = useI18n();
   const appState = useUIAppState();
   const actionManager = useExcalidrawActionManager();
+  const elements = useExcalidrawElements();
 
   if (appState.viewModeEnabled) {
+    return null;
+  }
+
+  // Only show when a ruler-created line is selected
+  const hasRulerLineSelected = elements.some((element) => 
+    element.type === "line" && 
+    element.customData?.tool === "ruler" &&
+    appState.selectedElementIds[element.id]
+  );
+
+  if (!hasRulerLineSelected) {
     return null;
   }
 
