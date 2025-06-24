@@ -10220,8 +10220,12 @@ class App extends React.Component<AppProps, AppState> {
       });
 
       // Insert the image element
-      this.insertImageElement(imageElement, imageFile);
-      this.initializeImageDimensions(imageElement);
+      const initializedImageElement = await this.insertImageElement(imageElement, imageFile);
+      
+      // For PDFs, resize to fill most of the screen
+      if (initializedImageElement) {
+        this.initializePdfImageDimensions(initializedImageElement);
+      }
 
       // Select the newly created element
       this.setState(
@@ -10311,6 +10315,42 @@ class App extends React.Component<AppProps, AppState> {
         crop: null,
       });
     }
+  };
+
+  initializePdfImageDimensions = (
+    imageElement: ExcalidrawImageElement,
+  ) => {
+    const image =
+      isInitializedImageElement(imageElement) &&
+      this.imageCache.get(imageElement.fileId)?.image;
+
+    if (!image || image instanceof Promise) {
+      return;
+    }
+
+    // For PDFs, we want to fill most of the screen (90% of available space)
+    const availableWidth = this.state.width * 0.85 / this.state.zoom.value;
+    const availableHeight = this.state.height * 0.85 / this.state.zoom.value;
+
+    // Calculate the scale factor to fit the image within the available space
+    const scaleX = availableWidth / image.naturalWidth;
+    const scaleY = availableHeight / image.naturalHeight;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to maintain aspect ratio
+
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+
+    // Center the image on the current positions
+    const x = imageElement.x + imageElement.width / 2 - width / 2;
+    const y = imageElement.y + imageElement.height / 2 - height / 2;
+
+    this.scene.mutateElement(imageElement, {
+      x,
+      y,
+      width,
+      height,
+      crop: null,
+    });
   };
 
   /** updates image cache, refreshing updated elements and/or setting status
