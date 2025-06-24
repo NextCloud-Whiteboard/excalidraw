@@ -10227,11 +10227,34 @@ class App extends React.Component<AppProps, AppState> {
         this.initializePdfImageDimensions(initializedImageElement);
       }
 
-      // Select the newly created element
+      // Create a frame around the PDF with some padding
+      const PADDING = 20;
+      const frame = newFrameElement({
+        x: initializedImageElement!.x - PADDING,
+        y: initializedImageElement!.y - PADDING,
+        width: initializedImageElement!.width + PADDING * 2,
+        height: initializedImageElement!.height + PADDING * 2,
+        opacity: this.state.currentItemOpacity,
+        locked: false,
+        name: pdfFile.name,
+        ...FRAME_STYLE,
+      });
+
+      // Add both the image and frame to the scene, with the frame containing the image
+      const elementsWithFrame = addElementsToFrame(
+        [...this.scene.getElementsIncludingDeleted(), frame],
+        [initializedImageElement!],
+        frame,
+        this.state,
+      );
+
+      this.scene.replaceAllElements(elementsWithFrame);
+
+      // Select the frame (which contains the PDF)
       this.setState(
         {
           selectedElementIds: makeNextSelectedElementIds(
-            { [imageElement.id]: true },
+            { [frame.id]: true },
             this.state,
           ),
         },
