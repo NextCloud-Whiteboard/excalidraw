@@ -14,4 +14,4 @@ RUN npm install -g serve
 EXPOSE 3000
 
 # Serve the built app
-CMD ["serve", "-s", "excalidraw-app/build", "-p", "3000"]
+CMD ["serve", "-s", "excalidraw-app/build", "-p", "3000"]
