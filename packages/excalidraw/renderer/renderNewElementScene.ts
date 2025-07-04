@@ -89,55 +89,49 @@ const renderRealTimeRulerDistance = (
     const totalDistanceCm = totalDistancePx * cmPerPx;
     const distanceText = `${parseFloat(totalDistanceCm.toFixed(2))} cm`;
     
-    // For multi-point lines, show total distance at the end point
-    // For 2-point lines, show at the midpoint
+    // Center the distance box aligned with the ruler line direction
+    const lastPoint = points[points.length - 1];
     let textX: number, textY: number;
+    let linkStartX: number, linkStartY: number;
     
     if (points.length === 2) {
-      // Calculate midpoint for 2-point lines
-      textX = (points[0][0] + points[1][0]) / 2;
-      textY = (points[0][1] + points[1][1]) / 2;
-      
-      // Calculate line direction vector for offset
+      // For 2-point lines, position the box along the line direction from the end point
       const dx = points[1][0] - points[0][0];
       const dy = points[1][1] - points[0][1];
       
-      // Calculate perpendicular vector (rotated 90 degrees)
-      let perpX = -dy;
-      let perpY = dx;
+      // Normalize the line direction vector
+      const lineLength = Math.sqrt(dx * dx + dy * dy);
+      const normalizedDx = lineLength > 0 ? dx / lineLength : 0;
+      const normalizedDy = lineLength > 0 ? dy / lineLength : 0;
+      const offsetDistance = 50;
       
-      // Ensure the perpendicular vector points "upward" (negative Y direction)
-      if (perpY > 0) {
-        perpX = -perpX;
-        perpY = -perpY;
-      }
+      // Position the text box along the line direction beyond the end point
+      textX = lastPoint[0] + normalizedDx * offsetDistance;
+      textY = lastPoint[1] + normalizedDy * offsetDistance;
       
-      // Normalize and apply offset
-      const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
-      const normalizedPerpX = perpLength > 0 ? perpX / perpLength : 0;
-      const normalizedPerpY = perpLength > 0 ? perpY / perpLength : 0;
-      const offsetDistance = 15;
-      
-      textX += normalizedPerpX * offsetDistance;
-      textY += normalizedPerpY * offsetDistance;
+      // Link connects from the end point to the text box
+      linkStartX = lastPoint[0];
+      linkStartY = lastPoint[1];
     } else {
-      // For multi-point lines, position near the last point
-      const lastPoint = points[points.length - 1];
+      // For multi-point lines, position the box along the last segment direction
       const secondLastPoint = points[points.length - 2];
       
-      // Calculate direction from second-to-last to last point
       const dx = lastPoint[0] - secondLastPoint[0];
       const dy = lastPoint[1] - secondLastPoint[1];
       
-      // Normalize direction
-      const length = Math.sqrt(dx * dx + dy * dy);
-      const normalizedDx = length > 0 ? dx / length : 0;
-      const normalizedDy = length > 0 ? dy / length : 0;
+      // Normalize the line direction vector
+      const lineLength = Math.sqrt(dx * dx + dy * dy);
+      const normalizedDx = lineLength > 0 ? dx / lineLength : 0;
+      const normalizedDy = lineLength > 0 ? dy / lineLength : 0;
+      const offsetDistance = 50;
       
-      // Position text slightly beyond the last point
-      const offsetDistance = 20;
+      // Position the text box along the line direction beyond the last point
       textX = lastPoint[0] + normalizedDx * offsetDistance;
       textY = lastPoint[1] + normalizedDy * offsetDistance;
+      
+      // Link connects from the last point to the text box
+      linkStartX = lastPoint[0];
+      linkStartY = lastPoint[1];
     }
     
     context.save();
@@ -156,6 +150,39 @@ const renderRealTimeRulerDistance = (
     const padding = 2;
     const bgWidth = textMetrics.width + padding * 2;
     const bgHeight = 16;
+    
+    // Calculate the intersection point on the box border
+    const dx = textX - linkStartX;
+    const dy = textY - linkStartY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 0) {
+      const normalizedDx = dx / distance;
+      const normalizedDy = dy / distance;
+      
+      // Calculate intersection with box border
+      const halfWidth = bgWidth / 2;
+      const halfHeight = bgHeight / 2;
+      
+      // Find which edge the line intersects
+      const tx = Math.abs(normalizedDx) > 0 ? halfWidth / Math.abs(normalizedDx) : Infinity;
+      const ty = Math.abs(normalizedDy) > 0 ? halfHeight / Math.abs(normalizedDy) : Infinity;
+      const t = Math.min(tx, ty);
+      
+      // Calculate the intersection point on the box border
+      const linkEndX = textX - normalizedDx * t;
+      const linkEndY = textY - normalizedDy * t;
+      
+      // Draw connecting link from end point to box border
+      context.strokeStyle = "rgba(0, 0, 0, 0.4)";
+      context.lineWidth = 1;
+      context.setLineDash([2, 2]);
+      context.beginPath();
+      context.moveTo(linkStartX, linkStartY);
+      context.lineTo(linkEndX, linkEndY);
+      context.stroke();
+      context.setLineDash([]);
+    }
     
     // Semi-transparent white background with slight transparency for real-time display
     context.fillStyle = "rgba(255, 255, 255, 0.85)";
