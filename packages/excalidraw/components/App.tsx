@@ -1778,14 +1778,15 @@ class App extends React.Component<AppProps, AppState> {
                               />
                             </ElementCanvasButtons>
                           )}
-                        {this.state.toast !== null && (
-                          <Toast
-                            message={this.state.toast.message}
-                            onClose={() => this.setToast(null)}
-                            duration={this.state.toast.duration}
-                            closable={this.state.toast.closable}
-                          />
-                        )}
+                                {this.state.toast !== null && (
+          <Toast
+            message={this.state.toast.message}
+            onClose={() => this.setToast(null)}
+            duration={this.state.toast.duration}
+            closable={this.state.toast.closable}
+            loading={this.state.toast.loading}
+          />
+        )}
                         {this.state.contextMenu && (
                           <ContextMenu
                             items={this.state.contextMenu.items}
@@ -3895,6 +3896,7 @@ class App extends React.Component<AppProps, AppState> {
     toast: {
       message: string;
       closable?: boolean;
+      loading?: boolean;
       duration?: number;
     } | null,
   ) => {
@@ -10194,6 +10196,7 @@ class App extends React.Component<AppProps, AppState> {
       this.setToast({
         message: "Converting PDF to image...",
         closable: false,
+        loading: true,
         duration: Infinity, // Don't auto-dismiss until we're done
       });
 

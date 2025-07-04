@@ -379,7 +379,7 @@ export interface AppState {
   previousSelectedElementIds: { [id: string]: true };
   selectedElementsAreBeingDragged: boolean;
   shouldCacheIgnoreZoom: boolean;
-  toast: { message: string; closable?: boolean; duration?: number } | null;
+  toast: { message: string; closable?: boolean; loading?: boolean; duration?: number } | null;
   zenModeEnabled: boolean;
   theme: Theme;
   /** grid cell px size */

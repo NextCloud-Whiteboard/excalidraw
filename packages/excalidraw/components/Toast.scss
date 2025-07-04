@@ -18,11 +18,15 @@
     text-align: center;
     width: 300px;
     z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     .Toast__message {
       padding: 0 $closeButtonSize + ($closeButtonPadding);
       color: var(--popup-text-color);
       white-space: pre-wrap;
+      flex: 1;
     }
 
     .close {
@@ -36,6 +40,27 @@
         height: $closeButtonSize;
       }
     }
+
+    &.Toast--loading {
+      .Toast__message {
+        padding-left: 32px; // Make room for spinner
+      }
+    }
+
+    .Toast__spinner {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--popup-text-color);
+      
+      svg {
+        animation: spin 1s linear infinite;
+      }
+    }
   }
 
   @keyframes fade-in {
@@ -44,6 +69,15 @@
     }
     to {
       opacity: 1;
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 }
