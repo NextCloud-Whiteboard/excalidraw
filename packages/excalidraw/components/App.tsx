@@ -10190,6 +10190,13 @@ class App extends React.Component<AppProps, AppState> {
         input.click();
       });
 
+      // Show loading toast
+      this.setToast({
+        message: "Converting PDF to image...",
+        closable: false,
+        duration: Infinity, // Don't auto-dismiss until we're done
+      });
+
       // Convert PDF to image using the API
       const formData = new FormData();
       formData.append("file", pdfFile);
@@ -10206,6 +10213,9 @@ class App extends React.Component<AppProps, AppState> {
 
       // Get the converted image as blob
       const imageBlob = await response.blob();
+      
+      // Clear the loading toast
+      this.setToast(null);
       
       // Create a File object from the blob
       const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
@@ -10263,6 +10273,9 @@ class App extends React.Component<AppProps, AppState> {
         },
       );
     } catch (error: any) {
+      // Clear any loading toast first
+      this.setToast(null);
+      
       if (error.name !== "AbortError") {
         console.error("PDF import error:", error);
         this.setToast({
