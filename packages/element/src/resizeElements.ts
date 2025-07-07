@@ -122,6 +122,9 @@ export const transformElements = (
       const origElement = originalElements.get(elementId);
 
       if (latestElement && origElement) {
+        // Force aspect ratio maintenance for frames
+        const forceAspectRatio = isFrameLikeElement(latestElement) ? true : shouldMaintainAspectRatio;
+        
         const { nextWidth, nextHeight } =
           getNextSingleWidthAndHeightFromPointer(
             latestElement,
@@ -130,7 +133,7 @@ export const transformElements = (
             pointerX,
             pointerY,
             {
-              shouldMaintainAspectRatio,
+              shouldMaintainAspectRatio: forceAspectRatio,
               shouldResizeFromCenter,
             },
           );
@@ -144,7 +147,7 @@ export const transformElements = (
           scene,
           transformHandleType,
           {
-            shouldMaintainAspectRatio,
+            shouldMaintainAspectRatio: forceAspectRatio,
             shouldResizeFromCenter,
           },
         );
@@ -165,6 +168,10 @@ export const transformElements = (
       );
       return true;
     } else if (transformHandleType) {
+      // Force aspect ratio maintenance if any selected element is a frame
+      const hasFrame = selectedElements.some(element => isFrameLikeElement(element));
+      const forceAspectRatio = hasFrame ? true : shouldMaintainAspectRatio;
+      
       const { nextWidth, nextHeight, flipByX, flipByY, originalBoundingBox } =
         getNextMultipleWidthAndHeightFromPointer(
           selectedElements,
@@ -174,7 +181,7 @@ export const transformElements = (
           pointerX,
           pointerY,
           {
-            shouldMaintainAspectRatio,
+            shouldMaintainAspectRatio: forceAspectRatio,
             shouldResizeFromCenter,
           },
         );
@@ -187,7 +194,7 @@ export const transformElements = (
         originalElements,
         {
           shouldResizeFromCenter,
-          shouldMaintainAspectRatio,
+          shouldMaintainAspectRatio: forceAspectRatio,
           flipByX,
           flipByY,
           nextWidth,
@@ -961,6 +968,66 @@ export const resizeSingleElement = (
       informMutation: shouldInformMutation,
       isDragging: false,
     });
+
+    // If resizing a frame, proportionally resize all children
+    if (isFrameLikeElement(latestElement)) {
+      const scaleX = Math.abs(nextWidth) / origElement.width;
+      const scaleY = Math.abs(nextHeight) / origElement.height;
+      
+      // Get all children of the frame
+      const frameChildren = scene.getNonDeletedElements().filter(
+        (element) => element.frameId === latestElement.id
+      );
+      
+      frameChildren.forEach((child) => {
+        const origChild = originalElementsMap.get(child.id) || child;
+        
+        // Calculate new position relative to frame origin
+        const relativeX = origChild.x - origElement.x;
+        const relativeY = origChild.y - origElement.y;
+        
+        const newChildX = newOrigin.x + (relativeX * scaleX);
+        const newChildY = newOrigin.y + (relativeY * scaleY);
+        const newChildWidth = origChild.width * scaleX;
+        const newChildHeight = origChild.height * scaleY;
+        
+                 // Handle text elements specially to maintain readability
+         if (isTextElement(child)) {
+           const origTextChild = origChild as ExcalidrawTextElement;
+           const newFontSize = Math.max(MIN_FONT_SIZE, origTextChild.fontSize * Math.min(scaleX, scaleY));
+           scene.mutateElement(child, {
+             x: newChildX,
+             y: newChildY,
+             width: newChildWidth,
+             height: newChildHeight,
+             fontSize: newFontSize,
+           });
+         } else if (isLinearElement(child) || isFreeDrawElement(child)) {
+          // Scale points for linear and freedraw elements
+          const scaledPoints = rescalePointsInElement(
+            origChild,
+            newChildWidth,
+            newChildHeight,
+            true,
+          );
+          scene.mutateElement(child, {
+            x: newChildX,
+            y: newChildY,
+            width: newChildWidth,
+            height: newChildHeight,
+            ...scaledPoints,
+          });
+        } else {
+          // For other elements (images, shapes, etc.)
+          scene.mutateElement(child, {
+            x: newChildX,
+            y: newChildY,
+            width: newChildWidth,
+            height: newChildHeight,
+          });
+        }
+      });
+    }
 
     if (boundTextElement && boundTextFont != null) {
       scene.mutateElement(boundTextElement, {
