@@ -833,44 +833,6 @@ const renderRulerDistances = (
         context.fillText(distanceText, textX, textY);
         
         context.restore();
-        
-        // Optional: Show individual segment distances for multi-point lines
-        if (points.length > 2) {
-          for (let i = 0; i < points.length - 1; i++) {
-            const segmentDistanceCm = segmentDistances[i] * cmPerPx;
-            const segmentText = `${parseFloat(segmentDistanceCm.toFixed(1))}`;
-            
-            // Calculate midpoint of segment
-            const segMidX = (points[i][0] + points[i + 1][0]) / 2;
-            const segMidY = (points[i][1] + points[i + 1][1]) / 2;
-            
-            // Calculate perpendicular offset for segment label
-            const segDx = points[i + 1][0] - points[i][0];
-            const segDy = points[i + 1][1] - points[i][1];
-            let segPerpX = -segDy;
-            let segPerpY = segDx;
-            
-            if (segPerpY > 0) {
-              segPerpX = -segPerpX;
-              segPerpY = -segPerpY;
-            }
-            
-            const segPerpLength = Math.sqrt(segPerpX * segPerpX + segPerpY * segPerpY);
-            const segNormalizedPerpX = segPerpLength > 0 ? segPerpX / segPerpLength : 0;
-            const segNormalizedPerpY = segPerpLength > 0 ? segPerpY / segPerpLength : 0;
-            
-            const segTextX = segMidX + segNormalizedPerpX * 12;
-            const segTextY = segMidY + segNormalizedPerpY * 12;
-            
-            // Set smaller font for segment distances
-            context.font = getFontString({
-              fontFamily: 1,
-              fontSize: 10,
-            });
-            context.fillStyle = "rgba(0, 0, 0, 0.7)";
-            context.fillText(segmentText, segTextX, segTextY);
-          }
-        }
       }
     }
   });
