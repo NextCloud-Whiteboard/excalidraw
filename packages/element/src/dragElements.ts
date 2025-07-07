@@ -83,6 +83,29 @@ export const dragSelectedElements = (
     }
   }
 
+  // Special handling for PDF elements: when dragging a PDF, move the entire frame
+  // For other elements in frames, only move that specific element
+  const pdfFrameIds = new Set<string>();
+  for (const element of selectedElements) {
+    if (element.frameId !== null && isImageElement(element)) {
+      // Only treat image elements (PDFs) as requiring full frame movement
+      pdfFrameIds.add(element.frameId);
+    }
+  }
+
+  if (pdfFrameIds.size > 0) {
+    for (const element of scene.getNonDeletedElements()) {
+      // Include the parent frame itself
+      if (isFrameLikeElement(element) && pdfFrameIds.has(element.id)) {
+        elementsToUpdate.add(element);
+      }
+      // Include ALL other children of the same frame only for PDF elements
+      if (element.frameId !== null && pdfFrameIds.has(element.frameId)) {
+        elementsToUpdate.add(element);
+      }
+    }
+  }
+
   const origElements: ExcalidrawElement[] = [];
 
   for (const element of elementsToUpdate) {

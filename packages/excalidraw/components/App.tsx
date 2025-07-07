@@ -7361,11 +7361,10 @@ class App extends React.Component<AppProps, AppState> {
                     delete nextSelectedElementIds[element.id];
                   });
                 } else if (hitElement.frameId) {
-                  // if hitElement is in a frame and its frame has been selected
-                  // disable selection for the given element
-                  if (nextSelectedElementIds[hitElement.frameId]) {
-                    delete nextSelectedElementIds[hitElement.id];
-                  }
+                  // if hitElement is in a frame, select the frame instead
+                  // to ensure frame and its contents move together
+                  nextSelectedElementIds[hitElement.frameId] = true;
+                  delete nextSelectedElementIds[hitElement.id];
                 } else {
                   // hitElement is neither a frame nor an element in a frame
                   // but since hitElement could be in a group with some frames
@@ -8323,7 +8322,10 @@ class App extends React.Component<AppProps, AppState> {
         !isSelectingPointsInLineEditor &&
         this.state.activeTool.type !== "lasso"
       ) {
-        const selectedElements = this.scene.getSelectedElements(this.state);
+        const selectedElements = this.scene.getSelectedElements({
+          ...this.state,
+          includeElementsInFrames: true,
+        });
 
         if (selectedElements.every((element) => element.locked)) {
           return;
