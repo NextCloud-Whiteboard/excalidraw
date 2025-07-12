@@ -9923,26 +9923,26 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     const existingFileData = this.files[fileId];
-    if (!existingFileData?.dataURL) {
-      try {
-        imageFile = await resizeImageFile(imageFile, {
-          maxWidthOrHeight: DEFAULT_MAX_IMAGE_WIDTH_OR_HEIGHT,
-        });
-      } catch (error: any) {
-        console.error(
-          "Error trying to resizing image file on insertion",
-          error,
-        );
-      }
+    // if (!existingFileData?.dataURL) {
+    //   try {
+    //     imageFile = await resizeImageFile(imageFile, {
+    //       maxWidthOrHeight: DEFAULT_MAX_IMAGE_WIDTH_OR_HEIGHT,
+    //     });
+    //   } catch (error: any) {
+    //     console.error(
+    //       "Error trying to resizing image file on insertion",
+    //       error,
+    //     );
+    //   }
 
-      if (imageFile.size > MAX_ALLOWED_FILE_BYTES) {
-        throw new Error(
-          t("errors.fileTooBig", {
-            maxSize: `${Math.trunc(MAX_ALLOWED_FILE_BYTES / 1024 / 1024)}MB`,
-          }),
-        );
-      }
-    }
+    //   if (imageFile.size > MAX_ALLOWED_FILE_BYTES) {
+    //     throw new Error(
+    //       t("errors.fileTooBig", {
+    //         maxSize: `${Math.trunc(MAX_ALLOWED_FILE_BYTES / 1024 / 1024)}MB`,
+    //       }),
+    //     );
+    //   }
+    // }
 
     if (showCursorImagePreview) {
       const dataURL = this.files[fileId]?.dataURL;
