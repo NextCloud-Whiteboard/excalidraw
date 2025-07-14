@@ -123,6 +123,7 @@ export const getDefaultAppState = (): Omit<
     croppingElementId: null,
     searchMatches: null,
     cmPerPx: 1,
+    selectedMetric: "cm" as const,
   };
 };
 
@@ -248,6 +249,7 @@ const APP_STATE_STORAGE_CONF = (<
   croppingElementId: { browser: false, export: false, server: false },
   searchMatches: { browser: false, export: false, server: false },
   cmPerPx: { browser: true, export: false, server: false },
+  selectedMetric: { browser: true, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <

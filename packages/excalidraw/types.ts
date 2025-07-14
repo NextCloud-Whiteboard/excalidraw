@@ -237,6 +237,8 @@ export type InteractiveCanvasAppState = Readonly<
     searchMatches: AppState["searchMatches"];
     /** pixel to centimeter ratio for ruler tool */
     cmPerPx: number;
+    /** selected metric unit for ruler display */
+    selectedMetric: "mm" | "cm" | "m";
   }
 >;
 
@@ -441,6 +443,8 @@ export interface AppState {
   }> | null;
   /** pixel to centimeter ratio for ruler tool */
   cmPerPx: number;
+  /** selected metric unit for ruler display */
+  selectedMetric: "mm" | "cm" | "m";
 }
 
 export type SearchMatch = {

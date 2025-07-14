@@ -361,7 +361,8 @@ export const ShapesSwitcher = ({
           return null;
         }
 
-        if (value === "eraser" && actionManager) {
+        if (actionManager) {
+        // if (value === "eraser" && actionManager) {
           return renderButton();
         }
         

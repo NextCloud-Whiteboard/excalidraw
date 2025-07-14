@@ -678,12 +678,29 @@ const renderTextBox = (
   context.restore();
 };
 
+// Metric conversion constants (to centimeters)
+const METRIC_CONVERSIONS = {
+  mm: 0.1,    // 1 mm = 0.1 cm
+  cm: 1,      // 1 cm = 1 cm
+  m: 100,     // 1 m = 100 cm
+} as const;
+
+type MetricUnit = keyof typeof METRIC_CONVERSIONS;
+
+// Convert from cm (internal storage) to any metric for display
+const convertFromCm = (valueCm: number, metric: MetricUnit): number => {
+  return valueCm / METRIC_CONVERSIONS[metric];
+};
+
 const renderRulerDistances = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
   elementsMap: ElementsMap,
 ) => {
   const elements = Array.from(elementsMap.values());
+  
+  // Get selected metric from app state, default to cm
+  const selectedMetric = (appState as any).selectedMetric || "cm";
   
   elements.forEach((element) => {
     // Show distance only for lines created by the ruler tool
@@ -712,7 +729,11 @@ const renderRulerDistances = (
         // Convert pixels to centimeters using the ratio from AppState
         const cmPerPx = appState.cmPerPx ?? 1;
         const totalDistanceCm = totalDistancePx * cmPerPx;
-        const distanceText = `${parseFloat(totalDistanceCm.toFixed(2))} cm`;
+        
+        // Convert to selected metric for display
+        const totalDistanceInMetric = convertFromCm(totalDistanceCm, selectedMetric);
+        const precision = selectedMetric === 'mm' ? 1 : 2;
+        const distanceText = `${parseFloat(totalDistanceInMetric.toFixed(precision))} ${selectedMetric}`;
         
         // Center the distance box aligned with the ruler line direction
         const lastPoint = points[points.length - 1];

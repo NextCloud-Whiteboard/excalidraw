@@ -6,6 +6,15 @@ import { LinearElementEditor } from "@excalidraw/element";
 import { pointDistance } from "@excalidraw/math";
 import { isLinearElement } from "@excalidraw/element";
 
+// Metric conversion constants (to centimeters)
+const METRIC_CONVERSIONS = {
+  mm: 0.1,    // 1 mm = 0.1 cm
+  cm: 1,      // 1 cm = 1 cm
+  m: 100,     // 1 m = 100 cm
+} as const;
+
+type MetricUnit = keyof typeof METRIC_CONVERSIONS;
+
 // Helper function to calculate pixel distance of a ruler element
 const calculateRulerPixelDistance = (element: any, elementsMap: any) => {
   if (!isLinearElement(element) || 
@@ -29,23 +38,47 @@ const calculateRulerPixelDistance = (element: any, elementsMap: any) => {
   return totalDistancePx;
 };
 
+// Convert from any metric to cm (for internal storage)
+const convertToCm = (value: number, metric: MetricUnit): number => {
+  return value * METRIC_CONVERSIONS[metric];
+};
+
+// Convert from cm (internal storage) to any metric for display
+const convertFromCm = (valueCm: number, metric: MetricUnit): number => {
+  return valueCm / METRIC_CONVERSIONS[metric];
+};
+
 export const actionDistanceConversion = register({
   name: "distanceConversion",
   trackEvent: false,
   label: t("labels.setScale"),
   perform: (elements, appState, value) => {
-    // value expected to be { cmPerPx: number }
-    if (typeof value?.cmPerPx !== "number" || !isFinite(value.cmPerPx)) {
+    // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit }
+    const updates: any = {};
+    
+    if (typeof value?.cmPerPx === "number" && isFinite(value.cmPerPx)) {
+      updates.cmPerPx = value.cmPerPx;
+    }
+    
+    if (value?.selectedMetric && ["mm", "cm", "m"].includes(value.selectedMetric)) {
+      updates.selectedMetric = value.selectedMetric;
+    }
+    
+    if (Object.keys(updates).length === 0) {
       return { elements, appState: { ...appState }, captureUpdate: CaptureUpdateAction.NEVER };
     }
+    
     return {
       elements,
-      appState: { ...appState, cmPerPx: value.cmPerPx },
+      appState: { ...appState, ...updates },
       captureUpdate: CaptureUpdateAction.NEVER,
     };
   },
   PanelComponent: ({ appState, updateData, elements }) => {
     const [calibrationDistance, setCalibrationDistance] = useState("");
+    
+    // Use selectedMetric from app state instead of local state
+    const selectedMetric = appState.selectedMetric || "cm";
     
     // Find selected ruler elements
     const selectedRulerElements = elements.filter((element: any) => 
@@ -62,45 +95,92 @@ export const actionDistanceConversion = register({
     const rulerPixelDistance = selectedRulerElement ? 
       calculateRulerPixelDistance(selectedRulerElement, elementsMap) : 0;
     
-    // Calculate what the current scale shows for this ruler
-    const currentShownDistance = rulerPixelDistance * appState.cmPerPx;
+    // Calculate what the current scale shows for this ruler in the selected metric
+    const currentShownDistanceCm = rulerPixelDistance * appState.cmPerPx;
+    const currentShownDistance = convertFromCm(currentShownDistanceCm, selectedMetric);
     
-    // Update calibrationDistance when a new ruler is selected
+    // Update calibrationDistance when a new ruler is selected or metric changes
     React.useEffect(() => {
       if (selectedRulerElement && currentShownDistance > 0) {
-        setCalibrationDistance(parseFloat(currentShownDistance.toFixed(2)).toString());
+        setCalibrationDistance(parseFloat(currentShownDistance.toFixed(selectedMetric === 'mm' ? 1 : 2)).toString());
       } else {
         setCalibrationDistance("");
       }
-    }, [selectedRulerElement?.id, currentShownDistance]);
+    }, [selectedRulerElement?.id, currentShownDistance, selectedMetric]);
     
     const handleCalibration = () => {
       const desiredDistance = parseFloat(calibrationDistance);
       if (!isNaN(desiredDistance) && desiredDistance > 0 && rulerPixelDistance > 0) {
-        // Calculate new cmPerPx: desired_cm = pixel_distance * cmPerPx
-        // So: cmPerPx = desired_cm / pixel_distance
-        const newCmPerPx = desiredDistance / rulerPixelDistance;
+        // Convert desired distance to cm, then calculate new cmPerPx
+        const desiredDistanceCm = convertToCm(desiredDistance, selectedMetric);
+        const newCmPerPx = desiredDistanceCm / rulerPixelDistance;
         updateData({ cmPerPx: newCmPerPx });
       }
+    };
+
+    // Calculate scale value in selected metric for manual scale setting
+    const scaleInSelectedMetric = convertFromCm(appState.cmPerPx, selectedMetric);
+
+    const handleManualScaleChange = (value: number) => {
+      if (!isNaN(value)) {
+        // Convert from selected metric to cm for storage
+        const cmPerPx = convertToCm(value, selectedMetric);
+        updateData({ cmPerPx });
+      }
+    };
+
+    const handleMetricChange = (newMetric: MetricUnit) => {
+      updateData({ selectedMetric: newMetric });
     };
 
     return (
       <fieldset>
         <legend>{t("labels.setScale")}</legend>
         
+        {/* Metric Selection */}
+        <div style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid var(--input-border-color)" }}>
+          <div style={{ 
+            fontSize: "0.75rem", 
+            marginBottom: "0.5rem", 
+            fontWeight: "600",
+            color: "var(--text-primary-color)"
+          }}>
+            Measurement Unit
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            {(Object.keys(METRIC_CONVERSIONS) as MetricUnit[]).map((metric) => (
+              <label key={metric} style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.25rem", 
+                cursor: "pointer",
+                fontSize: "0.875rem"
+              }}>
+                <input
+                  type="radio"
+                  name="metric"
+                  value={metric}
+                  checked={selectedMetric === metric}
+                  onChange={(e) => handleMetricChange(e.target.value as MetricUnit)}
+                  style={{ margin: "0" }}
+                />
+                {metric}
+              </label>
+            ))}
+          </div>
+        </div>
+        
         {/* Manual Scale Setting */}
         <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginBottom: "0.75rem" }}>
-          1&nbsp;cm&nbsp;=
+          1&nbsp;{selectedMetric}&nbsp;=
           <input
             type="number"
-            step="0.01"
+            step={selectedMetric === 'mm' ? "0.1" : "0.01"}
             min="0"
-            value={appState.cmPerPx}
+            value={parseFloat(scaleInSelectedMetric.toFixed(selectedMetric === 'mm' ? 1 : 2))}
             onChange={(e) => {
               const value = parseFloat(e.target.value);
-              if (!isNaN(value)) {
-                updateData({ cmPerPx: value });
-              }
+              handleManualScaleChange(value);
             }}
             style={{
               width: "4rem",
@@ -160,19 +240,19 @@ export const actionDistanceConversion = register({
                 marginBottom: "0.5rem",
                 color: "var(--text-secondary-color)"
               }}>
-                {t("labels.calibrationCurrentDistance", { distance: parseFloat(currentShownDistance.toFixed(2)) })}
+                Selected ruler measures {parseFloat(currentShownDistance.toFixed(selectedMetric === 'mm' ? 1 : 2))} {selectedMetric}
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flex: 1, minWidth: 0 }}>
                   <input
                     type="number"
-                    step="0.01"
+                    step={selectedMetric === 'mm' ? "0.1" : "0.01"}
                     min="0"
                     value={calibrationDistance}
                     onChange={(e) => setCalibrationDistance(e.target.value)}
                     style={{
-                      width: "3rem",
+                      width: "4rem",
                       height: "1.5rem",
                       padding: "0.25rem 0.5rem",
                       fontSize: "0.875rem",
@@ -190,7 +270,7 @@ export const actionDistanceConversion = register({
                       e.target.style.borderColor = "var(--input-border-color)";
                     }}
                   />
-                  &nbsp;cm
+                  &nbsp;{selectedMetric}
                 </div>
                 
                 <button
