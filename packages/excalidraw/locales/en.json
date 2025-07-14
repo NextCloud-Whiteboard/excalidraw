@@ -36,7 +36,7 @@
     "calibration": "Calibration",
     "calibrationDescription": "Enter the exact distance to be shown.",
     "calibrationCurrentDistance": "Selected ruler measures {{distance}} cm",
-    "calibrationSetScale": "Set Scale",
+    "calibrationSetScale": "Apply",
     "calibrationSelectRuler": "Select a ruler line to calibrate scale",
     "opacity": "Opacity",
     "textAlign": "Text align",
