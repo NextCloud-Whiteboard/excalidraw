@@ -174,6 +174,7 @@ export const actionDistanceConversion = register({
         <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginBottom: "0.75rem" }}>
           1&nbsp;{selectedMetric}&nbsp;=
           <input
+          disabled
             type="number"
             step={selectedMetric === 'mm' ? "0.1" : "0.01"}
             min="0"
