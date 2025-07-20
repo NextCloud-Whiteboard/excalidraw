@@ -5513,6 +5513,12 @@ class App extends React.Component<AppProps, AppState> {
       this.state,
     );
 
+    // Check if we're double-clicking on a PDF element - if so, do nothing
+    const hitElement = this.getElementAtPosition(sceneX, sceneY);
+    if (hitElement && isImageElement(hitElement) && hitElement.customData?.isPdf === true) {
+      return;
+    }
+
     if (selectedElements.length === 1 && isLinearElement(selectedElements[0])) {
       if (
         event[KEYS.CTRL_OR_CMD] &&
