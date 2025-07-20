@@ -210,4 +210,43 @@ describe("deleting selected elements when frame selected should keep children + 
       { id: r1.id, isDeleted: false, selected: true },
     ]);
   });
+
+  it("PDF frame deletion should delete all children", async () => {
+    const f1 = API.createElement({
+      type: "frame",
+    });
+
+    const pdfImage = API.createElement({
+      type: "image",
+      frameId: f1.id,
+    });
+
+    const r1 = API.createElement({
+      type: "rectangle",
+      frameId: f1.id,
+    });
+
+    // Set the frame name and PDF properties using mutateElement
+    h.app.scene.mutateElement(f1, {
+      name: "test.pdf",
+    });
+
+    h.app.scene.mutateElement(pdfImage, {
+      customData: { isPdf: true, originalPdfName: "test.pdf" },
+    });
+
+    API.setElements([f1, pdfImage, r1]);
+
+    API.setSelectedElements([f1]);
+
+    act(() => {
+      h.app.actionManager.executeAction(actionDeleteSelected);
+    });
+
+    assertElements(h.elements, [
+      { id: f1.id, isDeleted: true },
+      { id: pdfImage.id, isDeleted: true },
+      { id: r1.id, isDeleted: true },
+    ]);
+  });
 });

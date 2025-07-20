@@ -9,6 +9,7 @@ import {
   isBoundToContainer,
   isElbowArrow,
   isFrameLikeElement,
+  isImageElement,
 } from "@excalidraw/element";
 import { getFrameChildren } from "@excalidraw/element";
 
@@ -30,6 +31,17 @@ import { register } from "./register";
 
 import type { AppClassProperties, AppState } from "../types";
 
+// Helper function to check if a frame contains PDF elements
+const isPdfFrame = (
+  frameId: string,
+  elements: readonly ExcalidrawElement[],
+): boolean => {
+  const frameChildren = getFrameChildren(elements, frameId);
+  return frameChildren.some(
+    (child) => isImageElement(child) && child.customData?.isPdf === true,
+  );
+};
+
 const deleteSelectedElements = (
   elements: readonly ExcalidrawElement[],
   appState: AppState,
@@ -50,18 +62,23 @@ const deleteSelectedElements = (
 
   for (const frameId of framesToBeDeleted) {
     const frameChildren = getFrameChildren(elements, frameId);
+    const isAPdfFrame = isPdfFrame(frameId, elements);
+    
     for (const el of frameChildren) {
       if (processedElements.has(el.id)) {
         continue;
       }
 
-      if (isBoundToContainer(el)) {
-        const containerElement = getContainerElement(el, elementsMap);
-        if (containerElement) {
-          selectedElementIds[containerElement.id] = true;
+      // For PDF frames, don't select children since they'll be deleted
+      if (!isAPdfFrame) {
+        if (isBoundToContainer(el)) {
+          const containerElement = getContainerElement(el, elementsMap);
+          if (containerElement) {
+            selectedElementIds[containerElement.id] = true;
+          }
+        } else {
+          selectedElementIds[el.id] = true;
         }
-      } else {
-        selectedElementIds[el.id] = true;
       }
       processedElements.add(el.id);
     }
@@ -107,12 +124,21 @@ const deleteSelectedElements = (
     }
 
     // if deleting a frame, remove the children from it and select them
+    // For PDF frames, delete all children instead of just removing them from the frame
     if (el.frameId && framesToBeDeleted.has(el.frameId)) {
       shouldSelectEditingGroup = false;
-      if (!isBoundToContainer(el)) {
-        selectedElementIds[el.id] = true;
+      
+      // Check if this is a PDF frame
+      if (isPdfFrame(el.frameId, elements)) {
+        // For PDF frames, delete all children
+        return newElementWith(el, { isDeleted: true });
+      } else {
+        // For regular frames, keep existing behavior: remove from frame and select
+        if (!isBoundToContainer(el)) {
+          selectedElementIds[el.id] = true;
+        }
+        return newElementWith(el, { frameId: null });
       }
-      return newElementWith(el, { frameId: null });
     }
 
     if (isBoundToContainer(el) && appState.selectedElementIds[el.containerId]) {
