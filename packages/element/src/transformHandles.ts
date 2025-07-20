@@ -283,7 +283,9 @@ export const getTransformHandles = (
   if (
     element.locked ||
     // Elbow arrows cannot be rotated
-    isElbowArrow(element)
+    isElbowArrow(element) ||
+    // PDF elements cannot be resized
+    (isImageElement(element) && element.customData?.isPdf === true)
   ) {
     return {};
   }

@@ -121,6 +121,11 @@ export const transformElements = (
       const latestElement = elementsMap.get(elementId);
       const origElement = originalElements.get(elementId);
 
+      // Prevent resizing PDF elements
+      if (latestElement && isImageElement(latestElement) && latestElement.customData?.isPdf === true) {
+        return false;
+      }
+
       if (latestElement && origElement) {
         // Force aspect ratio maintenance for frames
         const forceAspectRatio = isFrameLikeElement(latestElement) ? true : shouldMaintainAspectRatio;
@@ -155,6 +160,11 @@ export const transformElements = (
     }
     return true;
   } else if (selectedElements.length > 1) {
+    // Prevent resizing if any selected element is a PDF
+    if (selectedElements.some((element) => isImageElement(element) && element.customData?.isPdf === true)) {
+      return false;
+    }
+
     if (transformHandleType === "rotation") {
       rotateMultipleElements(
         originalElements,

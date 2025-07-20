@@ -1,7 +1,7 @@
 import { pointFrom, pointRotateRads } from "@excalidraw/math";
 
 import { getBoundTextElement } from "@excalidraw/element";
-import { isFrameLikeElement, isTextElement } from "@excalidraw/element";
+import { isFrameLikeElement, isTextElement, isImageElement } from "@excalidraw/element";
 
 import {
   getSelectedGroupIds,
@@ -48,6 +48,10 @@ export const isPropertyEditable = (
     return false;
   }
   if (property === "angle" && isFrameLikeElement(element)) {
+    return false;
+  }
+  // PDF elements cannot be resized
+  if ((property === "width" || property === "height") && isImageElement(element) && element.customData?.isPdf === true) {
     return false;
   }
   return true;

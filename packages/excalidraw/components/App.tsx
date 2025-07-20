@@ -10234,6 +10234,11 @@ class App extends React.Component<AppProps, AppState> {
         addToFrameUnderCursor: false,
       });
 
+      // Mark this image element as a PDF so it can't be resized
+      this.scene.mutateElement(imageElement, {
+        customData: { isPdf: true, originalPdfName: pdfFile.name },
+      });
+
       // Insert the image element
       const initializedImageElement = await this.insertImageElement(imageElement, imageFile);
       
@@ -11061,6 +11066,8 @@ class App extends React.Component<AppProps, AppState> {
       (selectedFrames.length > 0 && transformHandleType === "rotation") ||
       // Elbow arrows cannot be transformed (resized or rotated).
       (selectedElements.length === 1 && isElbowArrow(selectedElements[0])) ||
+      // PDF elements cannot be resized
+      selectedElements.some((element) => isImageElement(element) && element.customData?.isPdf === true) ||
       // Do not resize when in crop mode
       this.state.croppingElementId
     ) {
