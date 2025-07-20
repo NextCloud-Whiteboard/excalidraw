@@ -7360,6 +7360,13 @@ class App extends React.Component<AppProps, AppState> {
                   ).forEach((element) => {
                     delete nextSelectedElementIds[element.id];
                   });
+                } else if (
+                  hitElement.frameId && 
+                  (isImageElement(hitElement) && hitElement.customData?.isPdf === true)
+                ) {
+                  // For PDF elements: always select the frame instead of the PDF
+                  nextSelectedElementIds[hitElement.frameId] = true;
+                  delete nextSelectedElementIds[hitElement.id];
                 } else if (hitElement.frameId) {
                   // if hitElement is in a frame, select the frame instead
                   // to ensure frame and its contents move together
@@ -9637,6 +9644,12 @@ class App extends React.Component<AppProps, AppState> {
             hitElement.frameId &&
             this.state.selectedElementIds[hitElement.frameId]
           ) {
+            // Special handling for PDF elements: keep frame selected, don't select the PDF
+            if (isImageElement(hitElement) && hitElement.customData?.isPdf === true) {
+              // For PDF elements, do nothing - keep the frame selected
+              return;
+            }
+            
             // when hitElement is part of a selected frame, deselect the frame
             // to avoid frame and containing elements selected simultaneously
             this.setState((prevState) => {
