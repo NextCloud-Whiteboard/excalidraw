@@ -138,7 +138,7 @@ export const actionDistanceConversion = register({
         <legend>{t("labels.setScale")}</legend>
         
         {/* Metric Selection */}
-        <div style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid var(--input-border-color)" }}>
+        <div style={{ marginBottom: "1rem", paddingBottom: "0.75rem", }}>
           <div style={{ 
             fontSize: "0.75rem", 
             marginBottom: "0.5rem", 
@@ -171,7 +171,7 @@ export const actionDistanceConversion = register({
         </div>
         
         {/* Manual Scale Setting */}
-        <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginBottom: "0.75rem" }}>
+        {/* <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginBottom: "0.75rem" }}>
           1&nbsp;{selectedMetric}&nbsp;=
           <input
           disabled
@@ -203,11 +203,10 @@ export const actionDistanceConversion = register({
             }}
           />
           &nbsp;pixels
-        </label>
+        </label> */}
 
         {/* Calibration Section */}
         <div style={{ 
-          borderTop: "1px solid var(--input-border-color)", 
           paddingTop: "0.75rem",
           marginTop: "0.5rem"
         }}>

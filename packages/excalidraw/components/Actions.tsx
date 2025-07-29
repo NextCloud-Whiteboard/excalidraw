@@ -407,7 +407,7 @@ export const ShapesSwitcher = ({
           onSelect={() => setIsExtraToolsMenuOpen(false)}
           className="App-toolbar__extra-tools-dropdown"
         >
-          <DropdownMenu.Item
+          {/* <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "frame" })}
             icon={frameToolIcon}
             shortcut={KEYS.F.toLocaleUpperCase()}
@@ -415,15 +415,15 @@ export const ShapesSwitcher = ({
             selected={frameToolSelected}
           >
             {t("toolBar.frame")}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
+          </DropdownMenu.Item> */}
+          {/* <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "embeddable" })}
             icon={EmbedIcon}
             data-testid="toolbar-embeddable"
             selected={embeddableToolSelected}
           >
             {t("toolBar.embeddable")}
-          </DropdownMenu.Item>
+          </DropdownMenu.Item> */}
           <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "laser" })}
             icon={laserPointerToolIcon}
@@ -441,7 +441,7 @@ export const ShapesSwitcher = ({
           >
             {t("toolBar.lasso")}
           </DropdownMenu.Item>
-          <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
+          {/* <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
             Generate
           </div>
           {app.props.aiEnabled !== false && <TTDDialogTriggerTunnel.Out />}
@@ -463,7 +463,7 @@ export const ShapesSwitcher = ({
                 <DropdownMenu.Item.Badge>AI</DropdownMenu.Item.Badge>
               </DropdownMenu.Item>
             </>
-          )}
+          )} */}
         </DropdownMenu.Content>
       </DropdownMenu>
     </>
