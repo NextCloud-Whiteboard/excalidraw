@@ -1785,6 +1785,7 @@ class App extends React.Component<AppProps, AppState> {
             duration={this.state.toast.duration}
             closable={this.state.toast.closable}
             loading={this.state.toast.loading}
+            progress={this.state.toast.progress}
           />
         )}
                         {this.state.contextMenu && (
@@ -3897,6 +3898,7 @@ class App extends React.Component<AppProps, AppState> {
       message: string;
       closable?: boolean;
       loading?: boolean;
+      progress?: number;
       duration?: number;
     } | null,
   ) => {
@@ -10180,6 +10182,11 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public onPdfImportAction = async () => {
+    // Progress tracking variables - declare outside try block for scope
+    let currentProgress = 0;
+    let progressInterval: number | undefined;
+    let isRequestComplete = false;
+
     try {
       const clientX = this.state.width / 2 + this.state.offsetLeft;
       const clientY = this.state.height / 2 + this.state.offsetTop;
@@ -10213,13 +10220,65 @@ class App extends React.Component<AppProps, AppState> {
         input.click();
       });
 
-      // Show loading toast
+      // Function to calculate progress with slowdown at 90%
+      const updateProgress = () => {
+        if (isRequestComplete) {
+          currentProgress = 100;
+          this.setToast({
+            message: `✅ Conversion complete!`,
+            closable: false,
+            progress: 100,
+            duration: Infinity,
+          });
+          clearInterval(progressInterval);
+          return;
+        }
+
+        // Slow down significantly after 90%
+        if (currentProgress >= 90) {
+          currentProgress += Math.random() * 0.5; // Very slow increment
+        } else if (currentProgress >= 70) {
+          currentProgress += Math.random() * 2; // Moderate increment
+        } else {
+          currentProgress += Math.random() * 8; // Fast increment initially
+        }
+
+        // Cap at 95% until request is done
+        currentProgress = Math.min(currentProgress, 95);
+
+        // Different messages based on progress
+        let message = '';
+        if (currentProgress < 15) {
+          message = `📄 Importing ${pdfFile.name}...`;
+        } else if (currentProgress < 35) {
+          message = `🔍 Analyzing document structure...`;
+        } else if (currentProgress < 60) {
+          message = `⚙️ Processing pages...`;
+        } else if (currentProgress < 80) {
+          message = `🎨 Converting to image format...`;
+        } else if (currentProgress < 95) {
+          message = `✨ Finalizing conversion...`;
+        } else {
+          message = `⏳ Almost ready...`;
+        }
+
+        this.setToast({
+          message,
+          closable: false,
+          progress: Math.round(currentProgress),
+          duration: Infinity,
+        });
+      };
+
+      // Start progress simulation
       this.setToast({
-        message: "Converting PDF to image...",
+        message: `📄 Importing ${pdfFile.name}...`,
         closable: false,
-        loading: true,
-        duration: Infinity, // Don't auto-dismiss until we're done
+        progress: 0,
+        duration: Infinity,
       });
+
+      progressInterval = window.setInterval(updateProgress, 200) as any;
 
       // Convert PDF to image using the API
       const formData = new FormData();
@@ -10235,10 +10294,15 @@ class App extends React.Component<AppProps, AppState> {
         throw new Error(`Failed to convert PDF: ${response.statusText}`);
       }
 
+      // Mark request as complete to allow progress to reach 100%
+      isRequestComplete = true;
+      updateProgress();
+
       // Get the converted image as blob
       const imageBlob = await response.blob();
       
-      // Clear the loading toast
+      // Clear the progress interval and toast
+      clearInterval(progressInterval);
       this.setToast(null);
       
       // Create a File object from the blob
@@ -10302,7 +10366,10 @@ class App extends React.Component<AppProps, AppState> {
         },
       );
     } catch (error: any) {
-      // Clear any loading toast first
+      // Clear any loading toast and progress interval first
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       this.setToast(null);
       
       if (error.name !== "AbortError") {
