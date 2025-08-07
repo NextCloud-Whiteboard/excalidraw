@@ -1497,6 +1497,25 @@ export const fixDuplicatedBindingsAfterDuplication = (
         }),
       );
     }
+
+    // Handle PDF parent-child relationships during duplication
+    if (duplicateElement.customData?.pdfParentId) {
+      const newPdfParentId = origIdToDuplicateId.get(duplicateElement.customData.pdfParentId);
+      if (newPdfParentId) {
+        Object.assign(duplicateElement, {
+          customData: {
+            ...duplicateElement.customData,
+            pdfParentId: newPdfParentId,
+          },
+        });
+      } else {
+        // If PDF parent wasn't duplicated, remove the parent relationship
+        const { pdfParentId, ...restCustomData } = duplicateElement.customData;
+        Object.assign(duplicateElement, {
+          customData: Object.keys(restCustomData).length > 0 ? restCustomData : undefined,
+        });
+      }
+    }
   }
 };
 

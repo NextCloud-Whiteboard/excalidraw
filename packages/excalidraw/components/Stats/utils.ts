@@ -50,10 +50,6 @@ export const isPropertyEditable = (
   if (property === "angle" && isFrameLikeElement(element)) {
     return false;
   }
-  // PDF elements cannot be resized
-  if ((property === "width" || property === "height") && isImageElement(element) && element.customData?.isPdf === true) {
-    return false;
-  }
   return true;
 };
 
@@ -215,6 +211,52 @@ export const moveElement = (
       );
       updateBindings(latestChildElement, scene, {
         simultaneouslyUpdated: originalChildren,
+      });
+    });
+  }
+
+  // Handle PDF children movement when PDF image is moved
+  if (isImageElement(originalElement) && originalElement.customData?.isPdf === true) {
+    const pdfChildren = scene.getNonDeletedElements().filter(
+      (child) => child.customData?.pdfParentId === originalElement.id
+    );
+    
+    pdfChildren.forEach((child) => {
+      const latestChildElement = elementsMap.get(child.id);
+
+      if (!latestChildElement) {
+        return;
+      }
+
+      const [childCX, childCY] = [
+        child.x + child.width / 2,
+        child.y + child.height / 2,
+      ];
+      const [childTopLeftX, childTopLeftY] = pointRotateRads(
+        pointFrom(child.x, child.y),
+        pointFrom(childCX, childCY),
+        child.angle,
+      );
+
+      const childNewTopLeftX = Math.round(childTopLeftX + changeInX);
+      const childNewTopLeftY = Math.round(childTopLeftY + changeInY);
+
+      const [childX, childY] = pointRotateRads(
+        pointFrom(childNewTopLeftX, childNewTopLeftY),
+        pointFrom(childCX + changeInX, childCY + changeInY),
+        -child.angle as Radians,
+      );
+
+      scene.mutateElement(
+        latestChildElement,
+        {
+          x: childX,
+          y: childY,
+        },
+        { informMutation: shouldInformMutation, isDragging: false },
+      );
+      updateBindings(latestChildElement, scene, {
+        simultaneouslyUpdated: pdfChildren,
       });
     });
   }

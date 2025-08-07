@@ -121,11 +121,6 @@ export const transformElements = (
       const latestElement = elementsMap.get(elementId);
       const origElement = originalElements.get(elementId);
 
-      // Prevent resizing PDF elements
-      if (latestElement && isImageElement(latestElement) && latestElement.customData?.isPdf === true) {
-        return false;
-      }
-
       if (latestElement && origElement) {
         // Force aspect ratio maintenance for frames
         const forceAspectRatio = isFrameLikeElement(latestElement) ? true : shouldMaintainAspectRatio;
@@ -160,11 +155,6 @@ export const transformElements = (
     }
     return true;
   } else if (selectedElements.length > 1) {
-    // Prevent resizing if any selected element is a PDF
-    if (selectedElements.some((element) => isImageElement(element) && element.customData?.isPdf === true)) {
-      return false;
-    }
-
     if (transformHandleType === "rotation") {
       rotateMultipleElements(
         originalElements,
@@ -246,6 +236,9 @@ const rotateSingleElement = (
   }
   const boundTextElementId = getBoundTextElementId(element);
 
+  const originalAngle = element.angle;
+  const angleChange = angle - originalAngle;
+
   scene.mutateElement(element, { angle });
   if (boundTextElementId) {
     const textElement =
@@ -254,6 +247,39 @@ const rotateSingleElement = (
     if (textElement && !isArrowElement(element)) {
       scene.mutateElement(textElement, { angle });
     }
+  }
+
+  // Handle PDF children rotation when PDF image is rotated
+  if (isImageElement(element) && element.customData?.isPdf === true) {
+    const pdfChildren = scene.getNonDeletedElements().filter(
+      (child) => child.customData?.pdfParentId === element.id
+    );
+
+    pdfChildren.forEach((child) => {
+      // Calculate child's position relative to PDF center
+      const [childCX, childCY] = [
+        child.x + child.width / 2,
+        child.y + child.height / 2,
+      ];
+
+      // Rotate child around PDF center
+      const [rotatedCX, rotatedCY] = pointRotateRads(
+        pointFrom(childCX, childCY),
+        pointFrom(cx, cy),
+        angleChange as Radians,
+      );
+
+      // Calculate new child position
+      const newChildX = child.x + (rotatedCX - childCX);
+      const newChildY = child.y + (rotatedCY - childCY);
+      const newChildAngle = normalizeRadians((child.angle + angleChange) as Radians);
+
+      scene.mutateElement(child, {
+        x: newChildX,
+        y: newChildY,
+        angle: newChildAngle,
+      });
+    });
   }
 };
 
@@ -1013,6 +1039,66 @@ export const resizeSingleElement = (
              fontSize: newFontSize,
            });
          } else if (isLinearElement(child) || isFreeDrawElement(child)) {
+          // Scale points for linear and freedraw elements
+          const scaledPoints = rescalePointsInElement(
+            origChild,
+            newChildWidth,
+            newChildHeight,
+            true,
+          );
+          scene.mutateElement(child, {
+            x: newChildX,
+            y: newChildY,
+            width: newChildWidth,
+            height: newChildHeight,
+            ...scaledPoints,
+          });
+        } else {
+          // For other elements (images, shapes, etc.)
+          scene.mutateElement(child, {
+            x: newChildX,
+            y: newChildY,
+            width: newChildWidth,
+            height: newChildHeight,
+          });
+        }
+      });
+    }
+
+    // Handle PDF children scaling when PDF image is resized
+    if (isImageElement(latestElement) && latestElement.customData?.isPdf === true) {
+      const scaleX = Math.abs(nextWidth) / origElement.width;
+      const scaleY = Math.abs(nextHeight) / origElement.height;
+      
+      // Get all children of the PDF
+      const pdfChildren = scene.getNonDeletedElements().filter(
+        (element) => element.customData?.pdfParentId === latestElement.id
+      );
+      
+      pdfChildren.forEach((child) => {
+        const origChild = originalElementsMap.get(child.id) || child;
+        
+        // Calculate new position relative to PDF origin
+        const relativeX = origChild.x - origElement.x;
+        const relativeY = origChild.y - origElement.y;
+        
+        const newChildX = newOrigin.x + (relativeX * scaleX);
+        const newChildY = newOrigin.y + (relativeY * scaleY);
+        const newChildWidth = origChild.width * scaleX;
+        const newChildHeight = origChild.height * scaleY;
+        
+        // Handle text elements specially to maintain readability
+        if (isTextElement(child)) {
+          const origTextChild = origChild as ExcalidrawTextElement;
+          const newFontSize = Math.max(MIN_FONT_SIZE, origTextChild.fontSize * Math.min(scaleX, scaleY));
+          scene.mutateElement(child, {
+            x: newChildX,
+            y: newChildY,
+            width: newChildWidth,
+            height: newChildHeight,
+            fontSize: newFontSize,
+          });
+        } else if (isLinearElement(child) || isFreeDrawElement(child)) {
           // Scale points for linear and freedraw elements
           const scaledPoints = rescalePointsInElement(
             origChild,

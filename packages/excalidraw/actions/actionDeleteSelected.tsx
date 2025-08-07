@@ -84,6 +84,14 @@ const deleteSelectedElements = (
     }
   }
 
+  // Collect PDF parent IDs that are being deleted
+  const pdfParentsToBeDeleted = new Set<string>();
+  for (const el of elements) {
+    if (appState.selectedElementIds[el.id] && isImageElement(el) && el.customData?.isPdf === true) {
+      pdfParentsToBeDeleted.add(el.id);
+    }
+  }
+
   let shouldSelectEditingGroup = true;
 
   const nextElements = elements.map((el) => {
@@ -120,6 +128,11 @@ const deleteSelectedElements = (
           }
         });
       }
+      return newElementWith(el, { isDeleted: true });
+    }
+
+    // Delete PDF children when their parent PDF is deleted
+    if (el.customData?.pdfParentId && pdfParentsToBeDeleted.has(el.customData.pdfParentId)) {
       return newElementWith(el, { isDeleted: true });
     }
 

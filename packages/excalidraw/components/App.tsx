@@ -5459,6 +5459,14 @@ class App extends React.Component<AppProps, AppState> {
     this.setState({ editingTextElement: element });
 
     if (!existingTextElement) {
+      // Check if we're creating an element over a PDF image and set parent relationship
+      const pdfParent = this.getPdfImageAtPosition(sceneX, sceneY);
+      if (pdfParent) {
+        this.scene.mutateElement(element, {
+          customData: { pdfParentId: pdfParent.id },
+        });
+      }
+
       if (container && shouldBindToContainer) {
         const containerIndex = this.scene.getElementIndex(container.id);
         this.scene.insertElementAtIndex(element, containerIndex + 1);
@@ -5515,11 +5523,7 @@ class App extends React.Component<AppProps, AppState> {
       this.state,
     );
 
-    // Check if we're double-clicking on a PDF element - if so, do nothing
-    const hitElement = this.getElementAtPosition(sceneX, sceneY);
-    if (hitElement && isImageElement(hitElement) && hitElement.customData?.isPdf === true) {
-      return;
-    }
+
 
     if (selectedElements.length === 1 && isLinearElement(selectedElements[0])) {
       if (
@@ -5793,6 +5797,24 @@ class App extends React.Component<AppProps, AppState> {
       );
 
     return frames.length ? frames[frames.length - 1] : null;
+  };
+
+  private getPdfImageAtPosition = (x: number, y: number): ExcalidrawImageElement | null => {
+    // Get all elements at this position, prioritizing the topmost PDF image
+    const elements = this.scene.getNonDeletedElements();
+    
+    // Look for PDF images from top to bottom (reverse order since elements are rendered in order)
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const element = elements[i];
+      if (
+        isImageElement(element) &&
+        element.customData?.isPdf === true &&
+        this.hitElement(x, y, element)
+      ) {
+        return element;
+      }
+    }
+    return null;
   };
 
   private handleCanvasPointerMove = (
@@ -7368,13 +7390,6 @@ class App extends React.Component<AppProps, AppState> {
                   ).forEach((element) => {
                     delete nextSelectedElementIds[element.id];
                   });
-                } else if (
-                  hitElement.frameId && 
-                  (isImageElement(hitElement) && hitElement.customData?.isPdf === true)
-                ) {
-                  // For PDF elements: always select the frame instead of the PDF
-                  nextSelectedElementIds[hitElement.frameId] = true;
-                  delete nextSelectedElementIds[hitElement.id];
                 } else if (hitElement.frameId) {
                   // if hitElement is in a frame, select the frame instead
                   // to ensure frame and its contents move together
@@ -7571,6 +7586,14 @@ class App extends React.Component<AppProps, AppState> {
       points: [pointFrom<LocalPoint>(0, 0)],
       pressures: simulatePressure ? [] : [event.pressure],
     });
+
+    // Check if we're creating an element over a PDF image and set parent relationship
+    const pdfParent = this.getPdfImageAtPosition(gridX, gridY);
+    if (pdfParent) {
+      this.scene.mutateElement(element, {
+        customData: { pdfParentId: pdfParent.id },
+      });
+    }
 
     this.scene.insertElement(element);
 
@@ -7903,6 +7926,17 @@ class App extends React.Component<AppProps, AppState> {
         isElbowArrow(element),
       );
 
+      // Check if we're creating an element over a PDF image and set parent relationship
+      const pdfParent = this.getPdfImageAtPosition(gridX, gridY);
+      if (pdfParent) {
+        this.scene.mutateElement(element, {
+          customData: { 
+            ...element.customData,
+            pdfParentId: pdfParent.id 
+          },
+        });
+      }
+
       this.scene.insertElement(element);
       this.setState({
         newElement: element,
@@ -7983,6 +8017,14 @@ class App extends React.Component<AppProps, AppState> {
         selectionElement: element,
       });
     } else {
+      // Check if we're creating an element over a PDF image and set parent relationship
+      const pdfParent = this.getPdfImageAtPosition(gridX, gridY);
+      if (pdfParent) {
+        this.scene.mutateElement(element, {
+          customData: { pdfParentId: pdfParent.id },
+        });
+      }
+      
       this.scene.insertElement(element);
       this.setState({
         multiElement: null,
@@ -9652,11 +9694,6 @@ class App extends React.Component<AppProps, AppState> {
             hitElement.frameId &&
             this.state.selectedElementIds[hitElement.frameId]
           ) {
-            // Special handling for PDF elements: keep frame selected, don't select the PDF
-            if (isImageElement(hitElement) && hitElement.customData?.isPdf === true) {
-              // For PDF elements, do nothing - keep the frame selected
-              return;
-            }
             
             // when hitElement is part of a selected frame, deselect the frame
             // to avoid frame and containing elements selected simultaneously
@@ -10330,34 +10367,11 @@ class App extends React.Component<AppProps, AppState> {
         this.initializePdfImageDimensions(initializedImageElement);
       }
 
-      // Create a frame around the PDF with some padding
-      const PADDING = 20;
-      const frame = newFrameElement({
-        x: initializedImageElement!.x - PADDING,
-        y: initializedImageElement!.y - PADDING,
-        width: initializedImageElement!.width + PADDING * 2,
-        height: initializedImageElement!.height + PADDING * 2,
-        opacity: this.state.currentItemOpacity,
-        locked: false,
-        name: pdfFile.name,
-        ...FRAME_STYLE,
-      });
-
-      // Add both the image and frame to the scene, with the frame containing the image
-      const elementsWithFrame = addElementsToFrame(
-        [...this.scene.getElementsIncludingDeleted(), frame],
-        [initializedImageElement!],
-        frame,
-        this.state,
-      );
-
-      this.scene.replaceAllElements(elementsWithFrame);
-
-      // Select the frame (which contains the PDF)
+      // Select the imported PDF image
       this.setState(
         {
           selectedElementIds: makeNextSelectedElementIds(
-            { [frame.id]: true },
+            { [initializedImageElement!.id]: true },
             this.state,
           ),
         },
@@ -11152,8 +11166,6 @@ class App extends React.Component<AppProps, AppState> {
       (selectedFrames.length > 0 && transformHandleType === "rotation") ||
       // Elbow arrows cannot be transformed (resized or rotated).
       (selectedElements.length === 1 && isElbowArrow(selectedElements[0])) ||
-      // PDF elements cannot be resized
-      selectedElements.some((element) => isImageElement(element) && element.customData?.isPdf === true) ||
       // Do not resize when in crop mode
       this.state.croppingElementId
     ) {
