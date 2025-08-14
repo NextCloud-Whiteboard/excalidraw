@@ -24,12 +24,115 @@ import {
   isFrameLikeElement,
   isImageElement,
   isTextElement,
+  isLinearElement,
 } from "./typeChecks";
+
+import { pointFrom } from "@excalidraw/math";
+import type { LocalPoint } from "@excalidraw/math";
 
 import type { Scene } from "./Scene";
 
 import type { Bounds } from "./bounds";
 import type { ExcalidrawElement } from "./types";
+
+const updateTextBubbleConnection = (
+  bubbleElement: ExcalidrawElement,
+  scene: Scene,
+) => {
+  // Only process if this is a text bubble
+  if (!bubbleElement.customData?.isTextBubble) {
+    return;
+  }
+
+  // Find the connection line for this bubble
+  const connectionLine = scene.getNonDeletedElements().find(
+    (element) =>
+      element.customData?.isTextBubbleConnection &&
+      element.customData?.bubbleId === bubbleElement.id
+  );
+
+  if (connectionLine && isLinearElement(connectionLine)) {
+    const anchorPoint = connectionLine.customData?.anchorPoint;
+    if (anchorPoint) {
+      // Calculate new endpoint (center of the bubble)
+      const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+      const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+      
+      // Update the connection line points
+      const newPoints = [
+        pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+        pointFrom<LocalPoint>(
+          bubbleCenterX - anchorPoint.x,
+          bubbleCenterY - anchorPoint.y
+        ), // End at bubble center
+      ];
+
+      // Update the connection line
+      scene.mutateElement(connectionLine, {
+        x: anchorPoint.x,
+        y: anchorPoint.y,
+        width: bubbleCenterX - anchorPoint.x,
+        height: bubbleCenterY - anchorPoint.y,
+        points: newPoints,
+      });
+    }
+  }
+};
+
+const updateTextBubbleConnectionAfterPdfMove = (
+  connectionLine: ExcalidrawElement,
+  scene: Scene,
+) => {
+  if (!connectionLine.customData?.isTextBubbleConnection) {
+    return;
+  }
+
+  const pdfParentId = connectionLine.customData.pdfParentId;
+  const relativeAnchor = connectionLine.customData.relativeAnchor;
+  const bubbleId = connectionLine.customData.bubbleId;
+
+  if (!pdfParentId || !relativeAnchor || !bubbleId) {
+    return;
+  }
+
+  // Find the PDF parent and bubble
+  const pdfElement = scene.getNonDeletedElementsMap().get(pdfParentId);
+  const bubbleElement = scene.getNonDeletedElementsMap().get(bubbleId);
+
+  if (!pdfElement || !bubbleElement || !isLinearElement(connectionLine)) {
+    return;
+  }
+
+  // Calculate new absolute anchor position based on relative position
+  const newAnchorX = pdfElement.x + (relativeAnchor.x * pdfElement.width);
+  const newAnchorY = pdfElement.y + (relativeAnchor.y * pdfElement.height);
+
+  // Calculate bubble center
+  const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+  const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+
+  // Update the connection line points
+  const newPoints = [
+    pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+    pointFrom<LocalPoint>(
+      bubbleCenterX - newAnchorX,
+      bubbleCenterY - newAnchorY
+    ), // End at bubble center
+  ];
+
+  // Update the connection line with new anchor position
+  scene.mutateElement(connectionLine, {
+    x: newAnchorX,
+    y: newAnchorY,
+    width: bubbleCenterX - newAnchorX,
+    height: bubbleCenterY - newAnchorY,
+    points: newPoints,
+    customData: {
+      ...connectionLine.customData,
+      anchorPoint: { x: newAnchorX, y: newAnchorY } // Update absolute anchor point
+    }
+  });
+};
 
 export const dragSelectedElements = (
   pointerDownState: PointerDownState,
@@ -93,8 +196,10 @@ export const dragSelectedElements = (
 
   if (pdfParentIds.size > 0) {
     for (const element of scene.getNonDeletedElements()) {
-      // Include all children of selected PDF elements
-      if (element.customData?.pdfParentId && pdfParentIds.has(element.customData.pdfParentId)) {
+      // Include all children of selected PDF elements, except text bubble connection lines
+      if (element.customData?.pdfParentId && 
+          pdfParentIds.has(element.customData.pdfParentId) &&
+          !element.customData?.isTextBubbleConnection) {
         elementsToUpdate.add(element);
       }
     }
@@ -139,7 +244,31 @@ export const dragSelectedElements = (
         simultaneouslyUpdated: Array.from(elementsToUpdate),
       });
     }
+    
+    // Update text bubble connections when a text bubble is moved
+    if (element.customData?.isTextBubble) {
+      updateTextBubbleConnection(element, scene);
+    }
+    
+    // Also update if a text element bound to a text bubble is moved
+    if (isTextElement(element) && element.containerId) {
+      const container = scene.getNonDeletedElementsMap().get(element.containerId);
+      if (container?.customData?.isTextBubble) {
+        updateTextBubbleConnection(container, scene);
+      }
+    }
   });
+
+  // Update text bubble connection lines when their parent PDF is moved
+  if (pdfParentIds.size > 0) {
+    for (const element of scene.getNonDeletedElements()) {
+      if (element.customData?.isTextBubbleConnection && 
+          element.customData?.pdfParentId && 
+          pdfParentIds.has(element.customData.pdfParentId)) {
+        updateTextBubbleConnectionAfterPdfMove(element, scene);
+      }
+    }
+  }
 };
 
 const calculateOffset = (

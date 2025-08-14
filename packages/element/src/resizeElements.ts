@@ -76,6 +76,109 @@ import type {
   ExcalidrawElbowArrowElement,
 } from "./types";
 
+const updateTextBubbleConnection = (
+  bubbleElement: ExcalidrawElement,
+  scene: Scene,
+) => {
+  // Only process if this is a text bubble
+  if (!bubbleElement.customData?.isTextBubble) {
+    return;
+  }
+
+  // Find the connection line for this bubble
+  const connectionLine = scene.getNonDeletedElements().find(
+    (element) =>
+      element.customData?.isTextBubbleConnection &&
+      element.customData?.bubbleId === bubbleElement.id
+  );
+
+  if (connectionLine && isLinearElement(connectionLine)) {
+    const anchorPoint = connectionLine.customData?.anchorPoint;
+    if (anchorPoint) {
+      // Calculate new endpoint (center of the bubble)
+      const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+      const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+      
+      // Update the connection line points
+      const newPoints = [
+        pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+        pointFrom<LocalPoint>(
+          bubbleCenterX - anchorPoint.x,
+          bubbleCenterY - anchorPoint.y
+        ), // End at bubble center
+      ];
+
+      // Update the connection line
+      scene.mutateElement(connectionLine, {
+        x: anchorPoint.x,
+        y: anchorPoint.y,
+        width: bubbleCenterX - anchorPoint.x,
+        height: bubbleCenterY - anchorPoint.y,
+        points: newPoints,
+      });
+    }
+  }
+};
+
+const updateTextBubbleConnectionsAfterPdfResize = (
+  pdfElement: ExcalidrawElement,
+  scene: Scene,
+) => {
+  if (!isImageElement(pdfElement) || !pdfElement.customData?.isPdf) {
+    return;
+  }
+
+  // Find all text bubble connection lines that reference this PDF
+  const connectionLines = scene.getNonDeletedElements().filter(
+    (element) =>
+      element.customData?.isTextBubbleConnection &&
+      element.customData?.pdfParentId === pdfElement.id
+  );
+
+  connectionLines.forEach((connectionLine) => {
+    if (!isLinearElement(connectionLine)) return;
+
+    const relativeAnchor = connectionLine.customData?.relativeAnchor;
+    const bubbleId = connectionLine.customData?.bubbleId;
+
+    if (!relativeAnchor || !bubbleId) return;
+
+    // Find the bubble
+    const bubbleElement = scene.getNonDeletedElementsMap().get(bubbleId);
+    if (!bubbleElement) return;
+
+    // Calculate new absolute anchor position based on relative position
+    const newAnchorX = pdfElement.x + (relativeAnchor.x * pdfElement.width);
+    const newAnchorY = pdfElement.y + (relativeAnchor.y * pdfElement.height);
+
+    // Calculate bubble center
+    const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+    const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+
+    // Update the connection line points
+    const newPoints = [
+      pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+      pointFrom<LocalPoint>(
+        bubbleCenterX - newAnchorX,
+        bubbleCenterY - newAnchorY
+      ), // End at bubble center
+    ];
+
+    // Update the connection line with new anchor position
+    scene.mutateElement(connectionLine, {
+      x: newAnchorX,
+      y: newAnchorY,
+      width: bubbleCenterX - newAnchorX,
+      height: bubbleCenterY - newAnchorY,
+      points: newPoints,
+      customData: {
+        ...connectionLine.customData,
+        anchorPoint: { x: newAnchorX, y: newAnchorY } // Update absolute anchor point
+      }
+    });
+  });
+};
+
 // Returns true when transform (resizing/rotation) happened
 export const transformElements = (
   originalElements: PointerDownState["originalElements"],
@@ -115,6 +218,15 @@ export const transformElements = (
         pointerY,
       );
       updateBoundElements(element, scene);
+      
+      // Update text bubble connections when text element in a text bubble is resized
+      if (element.containerId) {
+        const container = elementsMap.get(element.containerId);
+        if (container?.customData?.isTextBubble) {
+          updateTextBubbleConnection(container, scene);
+        }
+      }
+      
       return true;
     } else if (transformHandleType) {
       const elementId = selectedElements[0].id;
@@ -256,29 +368,95 @@ const rotateSingleElement = (
     );
 
     pdfChildren.forEach((child) => {
-      // Calculate child's position relative to PDF center
-      const [childCX, childCY] = [
-        child.x + child.width / 2,
-        child.y + child.height / 2,
-      ];
+      // Skip text bubble connection lines during regular rotation - handle them separately
+      if (child.customData?.isTextBubbleConnection) {
+        // Text bubble connection lines will be updated after all PDF children are rotated
+        return;
+      } else {
+        // Regular PDF child rotation
+        // Calculate child's position relative to PDF center
+        const [childCX, childCY] = [
+          child.x + child.width / 2,
+          child.y + child.height / 2,
+        ];
 
-      // Rotate child around PDF center
-      const [rotatedCX, rotatedCY] = pointRotateRads(
-        pointFrom(childCX, childCY),
-        pointFrom(cx, cy),
-        angleChange as Radians,
-      );
+        // Rotate child around PDF center
+        const [rotatedCX, rotatedCY] = pointRotateRads(
+          pointFrom(childCX, childCY),
+          pointFrom(cx, cy),
+          angleChange as Radians,
+        );
 
-      // Calculate new child position
-      const newChildX = child.x + (rotatedCX - childCX);
-      const newChildY = child.y + (rotatedCY - childCY);
-      const newChildAngle = normalizeRadians((child.angle + angleChange) as Radians);
+        // Calculate new child position
+        const newChildX = child.x + (rotatedCX - childCX);
+        const newChildY = child.y + (rotatedCY - childCY);
+        const newChildAngle = normalizeRadians((child.angle + angleChange) as Radians);
 
-      scene.mutateElement(child, {
-        x: newChildX,
-        y: newChildY,
-        angle: newChildAngle,
-      });
+        scene.mutateElement(child, {
+          x: newChildX,
+          y: newChildY,
+          angle: newChildAngle,
+        });
+      }
+    });
+
+    // Update text bubble connection lines after all PDF children have been rotated
+    const connectionLines = pdfChildren.filter(
+      (child) => child.customData?.isTextBubbleConnection && isLinearElement(child)
+    );
+    
+    connectionLines.forEach((connectionLine) => {
+      const relativeAnchor = connectionLine.customData?.relativeAnchor;
+      const bubbleId = connectionLine.customData?.bubbleId;
+      
+             if (relativeAnchor && bubbleId) {
+         // Find the bubble element (now in its rotated position)
+         const bubbleElement = scene.getNonDeletedElementsMap().get(bubbleId);
+         if (bubbleElement) {
+           // Calculate original anchor position before rotation
+           const originalAnchorX = element.x + (relativeAnchor.x * element.width);
+           const originalAnchorY = element.y + (relativeAnchor.y * element.height);
+           
+           // Rotate the anchor point around PDF center
+           const [newAnchorX, newAnchorY] = pointRotateRads(
+             pointFrom(originalAnchorX, originalAnchorY),
+             pointFrom(cx, cy),
+             angleChange as Radians,
+           );
+          
+          // Calculate bubble center (now in its rotated position)
+          const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+          const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+          
+          // Update the connection line
+          const newPoints = [
+            pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+            pointFrom<LocalPoint>(
+              bubbleCenterX - newAnchorX,
+              bubbleCenterY - newAnchorY
+            ), // End at bubble center
+          ];
+          
+                     // Update the relative anchor position for the rotated PDF
+           const newRelativeAnchor = {
+             x: (newAnchorX - element.x) / element.width,
+             y: (newAnchorY - element.y) / element.height
+           };
+
+           scene.mutateElement(connectionLine as ExcalidrawLinearElement, {
+             x: newAnchorX,
+             y: newAnchorY,
+             width: bubbleCenterX - newAnchorX,
+             height: bubbleCenterY - newAnchorY,
+             points: newPoints,
+             customData: {
+               ...connectionLine.customData,
+               anchorPoint: { x: newAnchorX, y: newAnchorY },
+               relativeAnchor: newRelativeAnchor
+             }
+           });
+        }
+      }
     });
   }
 };
@@ -1070,9 +1248,10 @@ export const resizeSingleElement = (
       const scaleX = Math.abs(nextWidth) / origElement.width;
       const scaleY = Math.abs(nextHeight) / origElement.height;
       
-      // Get all children of the PDF
+      // Get all children of the PDF, excluding text bubble connection lines
       const pdfChildren = scene.getNonDeletedElements().filter(
-        (element) => element.customData?.pdfParentId === latestElement.id
+        (element) => element.customData?.pdfParentId === latestElement.id &&
+                    !element.customData?.isTextBubbleConnection
       );
       
       pdfChildren.forEach((child) => {
@@ -1141,6 +1320,16 @@ export const resizeSingleElement = (
       // TODO: confirm with MARK if this actually makes sense
       newSize: { width: nextWidth, height: nextHeight },
     });
+    
+    // Update text bubble connections when a text bubble is resized
+    if (latestElement.customData?.isTextBubble) {
+      updateTextBubbleConnection(latestElement, scene);
+    }
+    
+    // Update text bubble connection lines when their parent PDF is resized
+    if (isImageElement(latestElement) && latestElement.customData?.isPdf === true) {
+      updateTextBubbleConnectionsAfterPdfResize(latestElement, scene);
+    }
   }
 };
 
@@ -1699,6 +1888,16 @@ export const resizeMultipleElements = (
           angle: isLinearElement(element) ? undefined : angle,
         });
         handleBindTextResize(element, scene, handleDirection, true);
+      }
+      
+      // Update text bubble connections when a text bubble is resized
+      if (element.customData?.isTextBubble) {
+        updateTextBubbleConnection(element, scene);
+      }
+      
+      // Update text bubble connection lines when their parent PDF is resized
+      if (isImageElement(element) && element.customData?.isPdf === true) {
+        updateTextBubbleConnectionsAfterPdfResize(element, scene);
       }
     }
 

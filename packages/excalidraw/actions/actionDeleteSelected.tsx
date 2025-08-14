@@ -10,6 +10,7 @@ import {
   isElbowArrow,
   isFrameLikeElement,
   isImageElement,
+  isTextElement,
 } from "@excalidraw/element";
 import { getFrameChildren } from "@excalidraw/element";
 
@@ -20,7 +21,7 @@ import {
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
+import type { ExcalidrawElement, ExcalidrawTextElement } from "@excalidraw/element/types";
 
 import { t } from "../i18n";
 import { getSelectedElements, isSomeElementSelected } from "../scene";
@@ -92,6 +93,54 @@ const deleteSelectedElements = (
     }
   }
 
+  // Collect text bubble and connection line IDs that need to be deleted together
+  const textBubbleElementsToDelete = new Set<string>();
+  for (const el of elements) {
+    if (appState.selectedElementIds[el.id]) {
+      // If a text bubble is selected, also delete its connection line
+      if (el.customData?.isTextBubble) {
+        const connectionLine = elements.find(
+          (other) =>
+            other.customData?.isTextBubbleConnection &&
+            other.customData?.bubbleId === el.id
+        );
+        if (connectionLine) {
+          textBubbleElementsToDelete.add(connectionLine.id);
+        }
+      }
+      
+      // If a connection line is selected, also delete its text bubble
+      if (el.customData?.isTextBubbleConnection) {
+        const bubbleId = el.customData.bubbleId;
+        if (bubbleId) {
+          textBubbleElementsToDelete.add(bubbleId);
+        }
+      }
+
+      // If a text element inside a text bubble is selected, delete both bubble and connection line
+      if (isTextElement(el)) {
+        const textElement = el as ExcalidrawTextElement;
+        if (textElement.containerId) {
+          const container = elements.find(c => c.id === textElement.containerId);
+          if (container?.customData?.isTextBubble) {
+            // Delete the text bubble container
+            textBubbleElementsToDelete.add(container.id);
+            
+            // Find and delete the connection line
+            const connectionLine = elements.find(
+              (other) =>
+                other.customData?.isTextBubbleConnection &&
+                other.customData?.bubbleId === container.id
+            );
+            if (connectionLine) {
+              textBubbleElementsToDelete.add(connectionLine.id);
+            }
+          }
+        }
+      }
+    }
+  }
+
   let shouldSelectEditingGroup = true;
 
   const nextElements = elements.map((el) => {
@@ -133,6 +182,11 @@ const deleteSelectedElements = (
 
     // Delete PDF children when their parent PDF is deleted
     if (el.customData?.pdfParentId && pdfParentsToBeDeleted.has(el.customData.pdfParentId)) {
+      return newElementWith(el, { isDeleted: true });
+    }
+
+    // Delete text bubble elements that are linked to selected elements
+    if (textBubbleElementsToDelete.has(el.id)) {
       return newElementWith(el, { isDeleted: true });
     }
 

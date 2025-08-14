@@ -749,6 +749,30 @@ class App extends React.Component<AppProps, AppState> {
     );
     this.scene = new Scene();
 
+    // Override scene's mutateElement to add text bubble connection updates
+    const originalMutateElement = this.scene.mutateElement.bind(this.scene);
+    this.scene.mutateElement = <TElement extends Mutable<ExcalidrawElement>>(
+      element: TElement,
+      updates: ElementUpdate<TElement>,
+      options: {
+        informMutation: boolean;
+        isDragging: boolean;
+      } = {
+        informMutation: true,
+        isDragging: false,
+      },
+    ) => {
+      // Call the original mutateElement first
+      const result = originalMutateElement(element, updates, options);
+      
+      // Check if position was updated (x or y changed) and update text bubble connections
+      if ((typeof updates.x !== "undefined" || typeof updates.y !== "undefined") && element.customData?.isTextBubble) {
+        this.updateTextBubbleConnections(element, this.scene);
+      }
+      
+      return result;
+    };
+
     this.canvas = document.createElement("canvas");
     this.rc = rough.canvas(this.canvas);
     this.renderer = new Renderer(this.scene);
@@ -4498,6 +4522,11 @@ class App extends React.Component<AppProps, AppState> {
           updateBoundElements(element, this.scene, {
             simultaneouslyUpdated: selectedElements,
           });
+          
+          // Update text bubble connections when moved with arrow keys
+          if (element.customData?.isTextBubble) {
+            this.updateTextBubbleConnections(element, this.scene);
+          }
         });
 
         this.setState({
@@ -4689,6 +4718,23 @@ class App extends React.Component<AppProps, AppState> {
         this.openEyeDropper({
           type: isPickingStroke ? "stroke" : "background",
         });
+      }
+      // -----------------------------------------------------------------------
+
+      // text bubble creation (j key)
+      // -----------------------------------------------------------------------
+              if (event.key.toLowerCase() === "t" && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+        const scenePointer = viewportCoordsToSceneCoords(
+          { clientX: this.lastPointerMoveEvent?.clientX || 0, clientY: this.lastPointerMoveEvent?.clientY || 0 } as React.PointerEvent<HTMLCanvasElement>,
+          this.state
+        );
+        
+        const pdfImage = this.getPdfImageAtPosition(scenePointer.x, scenePointer.y);
+        if (pdfImage) {
+          event.preventDefault();
+          this.createTextBubble(scenePointer.x, scenePointer.y, pdfImage);
+          return;
+        }
       }
       // -----------------------------------------------------------------------
     },
@@ -5421,7 +5467,7 @@ class App extends React.Component<AppProps, AppState> {
       newTextElement({
         x: parentCenterPosition ? parentCenterPosition.elementCenterX : sceneX,
         y: parentCenterPosition ? parentCenterPosition.elementCenterY : sceneY,
-        strokeColor: this.state.currentItemStrokeColor,
+        strokeColor: container?.customData?.isTextBubble ? "#000000" : this.state.currentItemStrokeColor,
         backgroundColor: this.state.currentItemBackgroundColor,
         fillStyle: this.state.currentItemFillStyle,
         strokeWidth: this.state.currentItemStrokeWidth,
@@ -5815,6 +5861,257 @@ class App extends React.Component<AppProps, AppState> {
       }
     }
     return null;
+  };
+
+  private createTextBubble = (
+    anchorX: number,
+    anchorY: number,
+    pdfImage: ExcalidrawImageElement,
+  ) => {
+    // Constants for text bubble appearance
+    const BUBBLE_WIDTH = 200;
+    const BUBBLE_HEIGHT = 100;
+    const BUBBLE_OFFSET = 80; // Distance from anchor point
+    
+    // Calculate bubble position (offset from anchor point)
+    const bubbleX = anchorX + BUBBLE_OFFSET;
+    const bubbleY = anchorY - BUBBLE_HEIGHT / 2;
+
+    // Create the rectangle (bubble background)
+          const bubbleRect = newElement({
+        type: "rectangle",
+        x: bubbleX,
+        y: bubbleY,
+        width: BUBBLE_WIDTH,
+        height: BUBBLE_HEIGHT,
+        strokeColor: "#000000",
+        backgroundColor: this.state.currentItemBackgroundColor || "#ffffff",
+        fillStyle: "solid",
+        strokeWidth: 1,
+        roughness: 0,
+        roundness: { type: 1, value: 8 },
+        customData: { 
+          isTextBubble: true, 
+          pdfParentId: pdfImage.id,
+          anchorPoint: { x: anchorX, y: anchorY },
+          relativePosition: {
+            x: (bubbleX - pdfImage.x) / pdfImage.width,
+            y: (bubbleY - pdfImage.y) / pdfImage.height
+          }
+        },
+      }) as ExcalidrawTextContainer;
+
+    // Create the dotted connection line
+    const connectionLine = newLinearElement({
+      type: "line",
+      x: anchorX,
+      y: anchorY,
+      width: bubbleX - anchorX,
+      height: bubbleY + BUBBLE_HEIGHT / 2 - anchorY,
+      points: [
+        pointFrom<LocalPoint>(0, 0), // Start at anchor point
+        pointFrom<LocalPoint>(bubbleX - anchorX, bubbleY + BUBBLE_HEIGHT / 2 - anchorY), // End at bubble center
+              ],
+        strokeStyle: "dotted",
+        strokeColor: "#000000",
+        strokeWidth: 1,
+      customData: { 
+        isTextBubbleConnection: true, 
+        bubbleId: bubbleRect.id,
+        pdfParentId: pdfImage.id,
+        anchorPoint: { x: anchorX, y: anchorY }, // Absolute coordinates at creation time
+        relativeAnchor: { 
+          x: (anchorX - pdfImage.x) / pdfImage.width, 
+          y: (anchorY - pdfImage.y) / pdfImage.height 
+        } // Relative position on the PDF (0-1 range)
+      },
+    });
+
+    // Insert elements into the scene
+    this.scene.insertElement(bubbleRect);
+    this.scene.insertElement(connectionLine);
+
+    // Text bubble now has pdfParentId to move with PDF
+
+    // Start text editing inside the bubble
+    this.startTextEditing({
+      sceneX: bubbleX + BUBBLE_WIDTH / 2,
+      sceneY: bubbleY + BUBBLE_HEIGHT / 2,
+      container: bubbleRect,
+      autoEdit: true,
+    });
+
+    // Remove PDF parent relationship from text element in bubble (it should be independent)
+    // We use a microtask to ensure the text element has been created by startTextEditing
+    Promise.resolve().then(() => {
+      // Clean text elements
+      const textElements = this.scene.getNonDeletedElements().filter(
+        (el) => isTextElement(el) && el.containerId === bubbleRect.id
+      );
+      textElements.forEach((textElement) => {
+        if (textElement.customData?.pdfParentId) {
+          this.scene.mutateElement(textElement, {
+            customData: undefined, // Remove the PDF parent relationship
+          });
+        }
+      });
+
+      // Text bubble now keeps its pdfParentId to move with PDF
+    });
+
+    // Schedule a history capture
+    this.store.scheduleCapture();
+  };
+
+  private updateTextBubbleConnections = (
+    bubbleElement: ExcalidrawElement,
+    scene: Scene,
+  ) => {
+    // Only process if this is a text bubble
+    if (!bubbleElement.customData?.isTextBubble) {
+      return;
+    }
+
+    // Find the connection line for this bubble
+    const connectionLine = scene.getNonDeletedElements().find(
+      (element) =>
+        element.customData?.isTextBubbleConnection &&
+        element.customData?.bubbleId === bubbleElement.id
+    );
+
+    if (connectionLine && isLinearElement(connectionLine)) {
+      const anchorPoint = connectionLine.customData?.anchorPoint;
+      if (anchorPoint) {
+        // Calculate new endpoint (center of the bubble)
+        const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
+        const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
+        
+        // Update the connection line points
+        const newPoints = [
+          pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
+          pointFrom<LocalPoint>(
+            bubbleCenterX - anchorPoint.x,
+            bubbleCenterY - anchorPoint.y
+          ), // End at bubble center
+        ];
+
+        // Update the connection line
+        scene.mutateElement(connectionLine, {
+          x: anchorPoint.x,
+          y: anchorPoint.y,
+          width: bubbleCenterX - anchorPoint.x,
+          height: bubbleCenterY - anchorPoint.y,
+          points: newPoints,
+        });
+      }
+    }
+  };
+
+  private updateTextBubbleConnectionAnchor = (
+    newLinearElementEditor: LinearElementEditor,
+    oldLinearElementEditor: LinearElementEditor,
+  ) => {
+    // Get the element being edited
+    const elementId = newLinearElementEditor.elementId;
+    const element = this.scene.getNonDeletedElementsMap().get(elementId);
+    
+    if (!element || !isLinearElement(element) || !element.customData?.isTextBubbleConnection) {
+      return;
+    }
+
+    // Calculate the current absolute anchor position
+    const currentAnchorX = element.x + element.points[0][0];
+    const currentAnchorY = element.y + element.points[0][1];
+    
+    // Get the stored anchor position
+    const storedAnchor = element.customData.anchorPoint;
+    
+    if (!storedAnchor) {
+      return;
+    }
+
+    // Check if the anchor point has moved
+    const hasMovedX = Math.abs(currentAnchorX - storedAnchor.x) > 0.1;
+    const hasMovedY = Math.abs(currentAnchorY - storedAnchor.y) > 0.1;
+    
+    if (hasMovedX || hasMovedY) {
+      // The anchor point was moved, update the relative position
+      const pdfParentId = element.customData.pdfParentId;
+      if (pdfParentId) {
+        const pdfElement = this.scene.getNonDeletedElementsMap().get(pdfParentId);
+        if (pdfElement) {
+          // Calculate the new relative position on the PDF
+          const newRelativeAnchor = {
+            x: (currentAnchorX - pdfElement.x) / pdfElement.width,
+            y: (currentAnchorY - pdfElement.y) / pdfElement.height,
+          };
+
+          // Update the connection line's custom data
+          this.scene.mutateElement(element, {
+            customData: {
+              ...element.customData,
+              anchorPoint: { x: currentAnchorX, y: currentAnchorY },
+              relativeAnchor: newRelativeAnchor,
+            },
+          });
+        }
+      }
+    }
+  };
+
+  private updateTextBubbleConnectionAnchorOnFinish = (
+    linearElementEditor: LinearElementEditor | null,
+  ) => {
+    if (!linearElementEditor) {
+      return;
+    }
+
+    // Get the element being edited
+    const elementId = linearElementEditor.elementId;
+    const element = this.scene.getNonDeletedElementsMap().get(elementId);
+    
+    if (!element || !isLinearElement(element) || !element.customData?.isTextBubbleConnection) {
+      return;
+    }
+
+    // Calculate the current absolute anchor position
+    const currentAnchorX = element.x + element.points[0][0];
+    const currentAnchorY = element.y + element.points[0][1];
+    
+    // Get the stored anchor position
+    const storedAnchor = element.customData.anchorPoint;
+    
+    if (!storedAnchor) {
+      return;
+    }
+
+    // Check if the anchor point has moved significantly
+    const hasMovedX = Math.abs(currentAnchorX - storedAnchor.x) > 0.1;
+    const hasMovedY = Math.abs(currentAnchorY - storedAnchor.y) > 0.1;
+    
+    if (hasMovedX || hasMovedY) {
+      // The anchor point was moved, update the relative position
+      const pdfParentId = element.customData.pdfParentId;
+      if (pdfParentId) {
+        const pdfElement = this.scene.getNonDeletedElementsMap().get(pdfParentId);
+        if (pdfElement) {
+          // Calculate the new relative position on the PDF
+          const newRelativeAnchor = {
+            x: (currentAnchorX - pdfElement.x) / pdfElement.width,
+            y: (currentAnchorY - pdfElement.y) / pdfElement.height,
+          };
+
+          // Update the connection line's custom data
+          this.scene.mutateElement(element, {
+            customData: {
+              ...element.customData,
+              anchorPoint: { x: currentAnchorX, y: currentAnchorY },
+              relativeAnchor: newRelativeAnchor,
+            },
+          });
+        }
+      }
+    }
   };
 
   private handleCanvasPointerMove = (
@@ -8353,6 +8650,9 @@ class App extends React.Component<AppProps, AppState> {
           pointerDownState.lastCoords.y = pointerCoords.y;
           pointerDownState.drag.hasOccurred = true;
 
+          // Check if we're editing a text bubble connection line's anchor point
+          this.updateTextBubbleConnectionAnchor(newLinearElementEditor, linearElementEditor);
+
           this.setState({
             editingLinearElement: this.state.editingLinearElement
               ? newLinearElementEditor
@@ -9071,10 +9371,16 @@ class App extends React.Component<AppProps, AppState> {
             this.scene,
           );
           if (editingLinearElement !== this.state.editingLinearElement) {
+            // Store the current editing element before updating state
+            const currentEditingElement = this.state.editingLinearElement;
+            
             this.setState({
               editingLinearElement,
               suggestedBindings: [],
             });
+            
+            // Check if we need to update text bubble connection anchor after state update
+            this.updateTextBubbleConnectionAnchorOnFinish(currentEditingElement);
           }
         }
       } else if (this.state.selectedLinearElement) {
@@ -9776,7 +10082,7 @@ class App extends React.Component<AppProps, AppState> {
         !(hitElement && isElbowArrow(hitElement)) &&
         // not dragged
         !pointerDownState.drag.hasOccurred &&
-        // not resized
+        // not resizing
         !this.state.isResizing &&
         // only hitting the bounding box of the previous hit element
         ((hitElement &&

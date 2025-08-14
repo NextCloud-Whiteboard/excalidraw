@@ -66,7 +66,7 @@ export const SHAPES = [
   {
     icon: TextIcon,
     value: "text",
-    key: KEYS.T,
+    key: KEYS.J,
     numericKey: KEYS["8"],
     fillable: false,
   },
