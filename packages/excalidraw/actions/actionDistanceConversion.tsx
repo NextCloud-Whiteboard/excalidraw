@@ -53,9 +53,33 @@ export const actionDistanceConversion = register({
   trackEvent: false,
   label: t("labels.setScale"),
   perform: (elements, appState, value) => {
-    // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit }
+    // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit, pdfCalibration?: { pdfId: string, cmPerPx: number } }
     const updates: any = {};
+    let nextElements = elements;
     
+    // Handle per-PDF calibration if provided
+    if (
+      value?.pdfCalibration &&
+      typeof value.pdfCalibration.cmPerPx === "number" &&
+      isFinite(value.pdfCalibration.cmPerPx) &&
+      typeof value.pdfCalibration.pdfId === "string"
+    ) {
+      const { pdfId, cmPerPx } = value.pdfCalibration;
+      nextElements = elements.map((el: any) => {
+        if (el.id === pdfId) {
+          return {
+            ...el,
+            customData: {
+              ...(el.customData || {}),
+              pdfCmPerPx: cmPerPx,
+            },
+          };
+        }
+        return el;
+      });
+    }
+
+    // Fallback/global scale update
     if (typeof value?.cmPerPx === "number" && isFinite(value.cmPerPx)) {
       updates.cmPerPx = value.cmPerPx;
     }
@@ -64,12 +88,12 @@ export const actionDistanceConversion = register({
       updates.selectedMetric = value.selectedMetric;
     }
     
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0 && nextElements === elements) {
       return { elements, appState: { ...appState }, captureUpdate: CaptureUpdateAction.NEVER };
     }
     
     return {
-      elements,
+      elements: nextElements,
       appState: { ...appState, ...updates },
       captureUpdate: CaptureUpdateAction.NEVER,
     };
@@ -95,8 +119,13 @@ export const actionDistanceConversion = register({
     const rulerPixelDistance = selectedRulerElement ? 
       calculateRulerPixelDistance(selectedRulerElement, elementsMap) : 0;
     
+    // Determine the effective cmPerPx: prefer PDF-specific scale if the ruler is tied to a PDF
+    const pdfParentId: string | undefined = selectedRulerElement?.customData?.pdfParentId;
+    const pdfElement = pdfParentId ? (elementsMap.get(pdfParentId) as any) : null;
+    const effectiveCmPerPx: number = (pdfElement?.customData?.pdfCmPerPx ?? appState.cmPerPx) ?? 1;
+    
     // Calculate what the current scale shows for this ruler in the selected metric
-    const currentShownDistanceCm = rulerPixelDistance * appState.cmPerPx;
+    const currentShownDistanceCm = rulerPixelDistance * effectiveCmPerPx;
     const currentShownDistance = convertFromCm(currentShownDistanceCm, selectedMetric);
     
     // Update calibrationDistance when a new ruler is selected or metric changes
@@ -114,11 +143,17 @@ export const actionDistanceConversion = register({
         // Convert desired distance to cm, then calculate new cmPerPx
         const desiredDistanceCm = convertToCm(desiredDistance, selectedMetric);
         const newCmPerPx = desiredDistanceCm / rulerPixelDistance;
-        updateData({ cmPerPx: newCmPerPx });
+        
+        // If ruler belongs to a PDF, update that PDF's calibration; otherwise update global
+        if (pdfParentId) {
+          updateData({ pdfCalibration: { pdfId: pdfParentId, cmPerPx: newCmPerPx } });
+        } else {
+          updateData({ cmPerPx: newCmPerPx });
+        }
       }
     };
 
-    // Calculate scale value in selected metric for manual scale setting
+    // Calculate scale value in selected metric for manual scale setting (global only / UI disabled)
     const scaleInSelectedMetric = convertFromCm(appState.cmPerPx, selectedMetric);
 
     const handleManualScaleChange = (value: number) => {
@@ -170,41 +205,6 @@ export const actionDistanceConversion = register({
           </div>
         </div>
         
-        {/* Manual Scale Setting */}
-        {/* <label className="control-label" style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginBottom: "0.75rem" }}>
-          1&nbsp;{selectedMetric}&nbsp;=
-          <input
-          disabled
-            type="number"
-            step={selectedMetric === 'mm' ? "0.1" : "0.01"}
-            min="0"
-            value={parseFloat(scaleInSelectedMetric.toFixed(selectedMetric === 'mm' ? 1 : 2))}
-            onChange={(e) => {
-              const value = parseFloat(e.target.value);
-              handleManualScaleChange(value);
-            }}
-            style={{
-              width: "4rem",
-              height: "1.5rem",
-              padding: "0.25rem 0.5rem",
-              fontSize: "0.875rem",
-              fontFamily: "inherit",
-              color: "var(--text-primary-color)",
-              backgroundColor: "var(--input-bg-color)",
-              border: "1px solid var(--input-border-color)",
-              borderRadius: "0.25rem",
-              outline: "none",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "var(--color-brand-hover)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "var(--input-border-color)";
-            }}
-          />
-          &nbsp;pixels
-        </label> */}
-
         {/* Calibration Section */}
         <div style={{ 
           paddingTop: "0.75rem",

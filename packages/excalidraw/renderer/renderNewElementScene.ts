@@ -98,8 +98,10 @@ const renderRealTimeRulerDistance = (
       totalDistancePx += segmentDistance;
     }
     
-    // Convert pixels to centimeters using the ratio from AppState
-    const cmPerPx = appState.cmPerPx ?? 1;
+    // Determine effective cmPerPx: prefer parent PDF calibration if available
+    const pdfParentId = (element as any)?.customData?.pdfParentId as string | undefined;
+    const pdfElement = pdfParentId ? (elementsMap.get(pdfParentId) as any) : null;
+    const cmPerPx = (pdfElement?.customData?.pdfCmPerPx ?? appState.cmPerPx) ?? 1;
     const totalDistanceCm = totalDistancePx * cmPerPx;
     
     // Get selected metric from app state, default to cm
@@ -205,8 +207,8 @@ const renderRealTimeRulerDistance = (
       context.setLineDash([]);
     }
     
-    // Semi-transparent white background with slight transparency for real-time display
-    context.fillStyle = "rgba(255, 255, 255, 0.85)";
+    // Semi-transparent white background
+    context.fillStyle = "rgba(255, 255, 255, 0.9)";
     context.fillRect(
       textX - bgWidth / 2,
       textY - bgHeight / 2,
@@ -214,8 +216,8 @@ const renderRealTimeRulerDistance = (
       bgHeight
     );
     
-    // Lighter border for real-time display
-    context.strokeStyle = "rgba(0, 0, 0, 0.2)";
+    // Black border for better visibility
+    context.strokeStyle = "rgba(0, 0, 0, 0.3)";
     context.lineWidth = 1;
     context.strokeRect(
       textX - bgWidth / 2,
@@ -224,8 +226,8 @@ const renderRealTimeRulerDistance = (
       bgHeight
     );
     
-    // Draw text in a semi-transparent color to indicate it's real-time
-    context.fillStyle = "rgba(0, 0, 0, 0.8)";
+    // Draw text in element color or black for better contrast
+    context.fillStyle = "#000000";
     context.fillText(distanceText, textX, textY);
     
     context.restore();

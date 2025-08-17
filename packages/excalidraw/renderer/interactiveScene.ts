@@ -726,8 +726,10 @@ const renderRulerDistances = (
           totalDistancePx += segmentDistance;
         }
         
-        // Convert pixels to centimeters using the ratio from AppState
-        const cmPerPx = appState.cmPerPx ?? 1;
+        // Determine effective cmPerPx: prefer parent PDF calibration if available
+        const pdfParentId = (element as any).customData?.pdfParentId as string | undefined;
+        const pdfElement = pdfParentId ? (elementsMap.get(pdfParentId) as any) : null;
+        const cmPerPx = (pdfElement?.customData?.pdfCmPerPx ?? (appState as any).cmPerPx) ?? 1;
         const totalDistanceCm = totalDistancePx * cmPerPx;
         
         // Convert to selected metric for display
