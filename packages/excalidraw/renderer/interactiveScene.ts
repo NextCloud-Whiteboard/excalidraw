@@ -702,6 +702,8 @@ const renderRulerDistances = (
   // Get selected metric from app state, default to cm
   const selectedMetric = (appState as any).selectedMetric || "cm";
   
+  const invZoom = 1 / appState.zoom.value;
+  
   elements.forEach((element) => {
     // Show distance only for lines created by the ruler tool
     if (
@@ -751,7 +753,7 @@ const renderRulerDistances = (
           const lineLength = Math.sqrt(dx * dx + dy * dy);
           const normalizedDx = lineLength > 0 ? dx / lineLength : 0;
           const normalizedDy = lineLength > 0 ? dy / lineLength : 0;
-          const offsetDistance = 50;
+          const offsetDistance = 50 * invZoom;
           
           // Position the text box along the line direction beyond the end point
           textX = lastPoint[0] + normalizedDx * offsetDistance;
@@ -771,7 +773,7 @@ const renderRulerDistances = (
           const lineLength = Math.sqrt(dx * dx + dy * dy);
           const normalizedDx = lineLength > 0 ? dx / lineLength : 0;
           const normalizedDy = lineLength > 0 ? dy / lineLength : 0;
-          const offsetDistance = 50;
+          const offsetDistance = 50 * invZoom;
           
           // Position the text box along the line direction beyond the last point
           textX = lastPoint[0] + normalizedDx * offsetDistance;
@@ -786,18 +788,19 @@ const renderRulerDistances = (
         context.translate(appState.scrollX, appState.scrollY);
         
         // Set text style
+        const baseFontSize = 14;
         context.font = getFontString({
           fontFamily: 1, // Default font family
-          fontSize: 12,
+          fontSize: baseFontSize * invZoom,
         });
         context.textAlign = "center";
         context.textBaseline = "middle";
         
         // Add background for better readability
         const textMetrics = context.measureText(distanceText);
-        const padding = 2;
+        const padding = 3 * invZoom;
         const bgWidth = textMetrics.width + padding * 2;
-        const bgHeight = 16;
+        const bgHeight = 20 * invZoom;
         
         // Calculate the intersection point on the box border
         const dx = textX - linkStartX;
@@ -823,8 +826,8 @@ const renderRulerDistances = (
           
           // Draw connecting link from end point to box border
           context.strokeStyle = "rgba(0, 0, 0, 0.4)";
-          context.lineWidth = 1;
-          context.setLineDash([2, 2]);
+          context.lineWidth = 1 * invZoom;
+          context.setLineDash([2 * invZoom, 2 * invZoom]);
           context.beginPath();
           context.moveTo(linkStartX, linkStartY);
           context.lineTo(linkEndX, linkEndY);
@@ -843,7 +846,7 @@ const renderRulerDistances = (
         
         // Black border for better visibility
         context.strokeStyle = "rgba(0, 0, 0, 0.3)";
-        context.lineWidth = 1;
+        context.lineWidth = 1 * invZoom;
         context.strokeRect(
           textX - bgWidth / 2,
           textY - bgHeight / 2,
