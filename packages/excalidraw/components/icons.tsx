@@ -344,6 +344,16 @@ export const RulerIcon = createIcon(
   modifiedTablerIconProps,
 );
 
+// custom magnifier icon
+export const MagnifierIcon = createIcon(
+  <g strokeWidth="1.5">
+    <circle cx="10" cy="10" r="6" />
+    <path d="m15 15 5 5" />
+    <circle cx="10" cy="10" r="2" fill="currentColor" opacity="0.3" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
 export const PenModeIcon = createIcon(
   <g strokeWidth="1.25">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>

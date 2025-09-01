@@ -375,6 +375,7 @@ import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
 import { actions as registeredActions } from "../actions/register";
 import { actionRuler } from "../actions/actionRuler";
+import { actionMagnifier } from "../actions/actionMagnifier";
 import { actionPdfImport } from "../actions/actionPdfImport";
 import { actionDistanceConversion } from "../actions/actionDistanceConversion";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
@@ -485,6 +486,7 @@ import {
 } from "./hyperlink/helpers";
 import { MagicIcon, copyIcon, fullscreenIcon } from "./icons";
 import { Toast } from "./Toast";
+import { Magnifier } from "./Magnifier";
 
 import { findShapeByKey } from "./shapes";
 
@@ -764,12 +766,16 @@ class App extends React.Component<AppProps, AppState> {
     ) => {
       // Call the original mutateElement first
       const result = originalMutateElement(element, updates, options);
-      
+
       // Check if position was updated (x or y changed) and update text bubble connections
-      if ((typeof updates.x !== "undefined" || typeof updates.y !== "undefined") && element.customData?.isTextBubble) {
+      if (
+        (typeof updates.x !== "undefined" ||
+          typeof updates.y !== "undefined") &&
+        element.customData?.isTextBubble
+      ) {
         this.updateTextBubbleConnections(element, this.scene);
       }
-      
+
       return result;
     };
 
@@ -833,6 +839,7 @@ class App extends React.Component<AppProps, AppState> {
     this.actionManager.registerAll([
       ...registeredActions,
       actionRuler,
+      actionMagnifier,
       actionDistanceConversion,
     ]);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -1802,16 +1809,16 @@ class App extends React.Component<AppProps, AppState> {
                               />
                             </ElementCanvasButtons>
                           )}
-                                {this.state.toast !== null && (
-          <Toast
-            message={this.state.toast.message}
-            onClose={() => this.setToast(null)}
-            duration={this.state.toast.duration}
-            closable={this.state.toast.closable}
-            loading={this.state.toast.loading}
-            progress={this.state.toast.progress}
-          />
-        )}
+                        {this.state.toast !== null && (
+                          <Toast
+                            message={this.state.toast.message}
+                            onClose={() => this.setToast(null)}
+                            duration={this.state.toast.duration}
+                            closable={this.state.toast.closable}
+                            loading={this.state.toast.loading}
+                            progress={this.state.toast.progress}
+                          />
+                        )}
                         {this.state.contextMenu && (
                           <ContextMenu
                             items={this.state.contextMenu.items}
@@ -1912,6 +1919,12 @@ class App extends React.Component<AppProps, AppState> {
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
                         )}
+                        <Magnifier
+                          appState={this.state}
+                          canvas={this.canvas}
+                          visibleElements={visibleElements}
+                          elementsMap={allElementsMap}
+                        />
                       </ExcalidrawActionManagerContext.Provider>
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>
@@ -4522,7 +4535,7 @@ class App extends React.Component<AppProps, AppState> {
           updateBoundElements(element, this.scene, {
             simultaneouslyUpdated: selectedElements,
           });
-          
+
           // Update text bubble connections when moved with arrow keys
           if (element.customData?.isTextBubble) {
             this.updateTextBubbleConnections(element, this.scene);
@@ -4723,13 +4736,24 @@ class App extends React.Component<AppProps, AppState> {
 
       // text bubble creation (j key)
       // -----------------------------------------------------------------------
-              if (event.key.toLowerCase() === "t" && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+      if (
+        event.key.toLowerCase() === "t" &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
         const scenePointer = viewportCoordsToSceneCoords(
-          { clientX: this.lastPointerMoveEvent?.clientX || 0, clientY: this.lastPointerMoveEvent?.clientY || 0 } as React.PointerEvent<HTMLCanvasElement>,
-          this.state
+          {
+            clientX: this.lastPointerMoveEvent?.clientX || 0,
+            clientY: this.lastPointerMoveEvent?.clientY || 0,
+          } as React.PointerEvent<HTMLCanvasElement>,
+          this.state,
         );
-        
-        const pdfImage = this.getPdfImageAtPosition(scenePointer.x, scenePointer.y);
+
+        const pdfImage = this.getPdfImageAtPosition(
+          scenePointer.x,
+          scenePointer.y,
+        );
         if (pdfImage) {
           event.preventDefault();
           this.createTextBubble(scenePointer.x, scenePointer.y, pdfImage);
@@ -4895,6 +4919,23 @@ class App extends React.Component<AppProps, AppState> {
         activeEmbeddable: null,
       } as const;
 
+      // Reset magnifier position when switching away from magnifier or ruler tools
+      const shouldResetMagnifier = !(
+        (nextActiveTool.type === "custom" &&
+          nextActiveTool.customType === "magnifier") ||
+        (nextActiveTool.type === "custom" &&
+          nextActiveTool.customType === "ruler")
+      );
+
+      const magnifierResets = shouldResetMagnifier
+        ? {
+            magnifier: {
+              ...prevState.magnifier,
+              position: null,
+            },
+          }
+        : {};
+
       if (nextActiveTool.type === "freedraw") {
         this.store.scheduleCapture();
       }
@@ -4912,6 +4953,7 @@ class App extends React.Component<AppProps, AppState> {
                 multiElement: null,
               }),
           ...commonResets,
+          ...magnifierResets,
         };
       } else if (nextActiveTool.type !== "selection") {
         return {
@@ -4922,12 +4964,14 @@ class App extends React.Component<AppProps, AppState> {
           editingGroupId: null,
           multiElement: null,
           ...commonResets,
+          ...magnifierResets,
         };
       }
       return {
         ...prevState,
         activeTool: nextActiveTool,
         ...commonResets,
+        ...magnifierResets,
       };
     });
   };
@@ -5467,7 +5511,9 @@ class App extends React.Component<AppProps, AppState> {
       newTextElement({
         x: parentCenterPosition ? parentCenterPosition.elementCenterX : sceneX,
         y: parentCenterPosition ? parentCenterPosition.elementCenterY : sceneY,
-        strokeColor: container?.customData?.isTextBubble ? "#000000" : this.state.currentItemStrokeColor,
+        strokeColor: container?.customData?.isTextBubble
+          ? "#000000"
+          : this.state.currentItemStrokeColor,
         backgroundColor: this.state.currentItemBackgroundColor,
         fillStyle: this.state.currentItemFillStyle,
         strokeWidth: this.state.currentItemStrokeWidth,
@@ -5568,8 +5614,6 @@ class App extends React.Component<AppProps, AppState> {
       event,
       this.state,
     );
-
-
 
     if (selectedElements.length === 1 && isLinearElement(selectedElements[0])) {
       if (
@@ -5845,10 +5889,13 @@ class App extends React.Component<AppProps, AppState> {
     return frames.length ? frames[frames.length - 1] : null;
   };
 
-  private getPdfImageAtPosition = (x: number, y: number): ExcalidrawImageElement | null => {
+  private getPdfImageAtPosition = (
+    x: number,
+    y: number,
+  ): ExcalidrawImageElement | null => {
     // Get all elements at this position, prioritizing the topmost PDF image
     const elements = this.scene.getNonDeletedElements();
-    
+
     // Look for PDF images from top to bottom (reverse order since elements are rendered in order)
     for (let i = elements.length - 1; i >= 0; i--) {
       const element = elements[i];
@@ -5872,34 +5919,34 @@ class App extends React.Component<AppProps, AppState> {
     const BUBBLE_WIDTH = 200;
     const BUBBLE_HEIGHT = 100;
     const BUBBLE_OFFSET = 80; // Distance from anchor point
-    
+
     // Calculate bubble position (offset from anchor point)
     const bubbleX = anchorX + BUBBLE_OFFSET;
     const bubbleY = anchorY - BUBBLE_HEIGHT / 2;
 
     // Create the rectangle (bubble background)
-          const bubbleRect = newElement({
-        type: "rectangle",
-        x: bubbleX,
-        y: bubbleY,
-        width: BUBBLE_WIDTH,
-        height: BUBBLE_HEIGHT,
-        strokeColor: "#000000",
-        backgroundColor: this.state.currentItemBackgroundColor || "#ffffff",
-        fillStyle: "solid",
-        strokeWidth: 1,
-        roughness: 0,
-        roundness: { type: 1, value: 8 },
-        customData: { 
-          isTextBubble: true, 
-          pdfParentId: pdfImage.id,
-          anchorPoint: { x: anchorX, y: anchorY },
-          relativePosition: {
-            x: (bubbleX - pdfImage.x) / pdfImage.width,
-            y: (bubbleY - pdfImage.y) / pdfImage.height
-          }
+    const bubbleRect = newElement({
+      type: "rectangle",
+      x: bubbleX,
+      y: bubbleY,
+      width: BUBBLE_WIDTH,
+      height: BUBBLE_HEIGHT,
+      strokeColor: "#000000",
+      backgroundColor: this.state.currentItemBackgroundColor || "#ffffff",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      roughness: 0,
+      roundness: { type: 1, value: 8 },
+      customData: {
+        isTextBubble: true,
+        pdfParentId: pdfImage.id,
+        anchorPoint: { x: anchorX, y: anchorY },
+        relativePosition: {
+          x: (bubbleX - pdfImage.x) / pdfImage.width,
+          y: (bubbleY - pdfImage.y) / pdfImage.height,
         },
-      }) as ExcalidrawTextContainer;
+      },
+    }) as ExcalidrawTextContainer;
 
     // Create the dotted connection line
     const connectionLine = newLinearElement({
@@ -5910,20 +5957,23 @@ class App extends React.Component<AppProps, AppState> {
       height: bubbleY + BUBBLE_HEIGHT / 2 - anchorY,
       points: [
         pointFrom<LocalPoint>(0, 0), // Start at anchor point
-        pointFrom<LocalPoint>(bubbleX - anchorX, bubbleY + BUBBLE_HEIGHT / 2 - anchorY), // End at bubble center
-              ],
-        strokeStyle: "dotted",
-        strokeColor: "#000000",
-        strokeWidth: 1,
-      customData: { 
-        isTextBubbleConnection: true, 
+        pointFrom<LocalPoint>(
+          bubbleX - anchorX,
+          bubbleY + BUBBLE_HEIGHT / 2 - anchorY,
+        ), // End at bubble center
+      ],
+      strokeStyle: "dotted",
+      strokeColor: "#000000",
+      strokeWidth: 1,
+      customData: {
+        isTextBubbleConnection: true,
         bubbleId: bubbleRect.id,
         pdfParentId: pdfImage.id,
         anchorPoint: { x: anchorX, y: anchorY }, // Absolute coordinates at creation time
-        relativeAnchor: { 
-          x: (anchorX - pdfImage.x) / pdfImage.width, 
-          y: (anchorY - pdfImage.y) / pdfImage.height 
-        } // Relative position on the PDF (0-1 range)
+        relativeAnchor: {
+          x: (anchorX - pdfImage.x) / pdfImage.width,
+          y: (anchorY - pdfImage.y) / pdfImage.height,
+        }, // Relative position on the PDF (0-1 range)
       },
     });
 
@@ -5945,9 +5995,9 @@ class App extends React.Component<AppProps, AppState> {
     // We use a microtask to ensure the text element has been created by startTextEditing
     Promise.resolve().then(() => {
       // Clean text elements
-      const textElements = this.scene.getNonDeletedElements().filter(
-        (el) => isTextElement(el) && el.containerId === bubbleRect.id
-      );
+      const textElements = this.scene
+        .getNonDeletedElements()
+        .filter((el) => isTextElement(el) && el.containerId === bubbleRect.id);
       textElements.forEach((textElement) => {
         if (textElement.customData?.pdfParentId) {
           this.scene.mutateElement(textElement, {
@@ -5973,11 +6023,13 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     // Find the connection line for this bubble
-    const connectionLine = scene.getNonDeletedElements().find(
-      (element) =>
-        element.customData?.isTextBubbleConnection &&
-        element.customData?.bubbleId === bubbleElement.id
-    );
+    const connectionLine = scene
+      .getNonDeletedElements()
+      .find(
+        (element) =>
+          element.customData?.isTextBubbleConnection &&
+          element.customData?.bubbleId === bubbleElement.id,
+      );
 
     if (connectionLine && isLinearElement(connectionLine)) {
       const anchorPoint = connectionLine.customData?.anchorPoint;
@@ -5985,13 +6037,13 @@ class App extends React.Component<AppProps, AppState> {
         // Calculate new endpoint (center of the bubble)
         const bubbleCenterX = bubbleElement.x + bubbleElement.width / 2;
         const bubbleCenterY = bubbleElement.y + bubbleElement.height / 2;
-        
+
         // Update the connection line points
         const newPoints = [
           pointFrom<LocalPoint>(0, 0), // Start at anchor point (relative to line origin)
           pointFrom<LocalPoint>(
             bubbleCenterX - anchorPoint.x,
-            bubbleCenterY - anchorPoint.y
+            bubbleCenterY - anchorPoint.y,
           ), // End at bubble center
         ];
 
@@ -6014,18 +6066,22 @@ class App extends React.Component<AppProps, AppState> {
     // Get the element being edited
     const elementId = newLinearElementEditor.elementId;
     const element = this.scene.getNonDeletedElementsMap().get(elementId);
-    
-    if (!element || !isLinearElement(element) || !element.customData?.isTextBubbleConnection) {
+
+    if (
+      !element ||
+      !isLinearElement(element) ||
+      !element.customData?.isTextBubbleConnection
+    ) {
       return;
     }
 
     // Calculate the current absolute anchor position
     const currentAnchorX = element.x + element.points[0][0];
     const currentAnchorY = element.y + element.points[0][1];
-    
+
     // Get the stored anchor position
     const storedAnchor = element.customData.anchorPoint;
-    
+
     if (!storedAnchor) {
       return;
     }
@@ -6033,12 +6089,14 @@ class App extends React.Component<AppProps, AppState> {
     // Check if the anchor point has moved
     const hasMovedX = Math.abs(currentAnchorX - storedAnchor.x) > 0.1;
     const hasMovedY = Math.abs(currentAnchorY - storedAnchor.y) > 0.1;
-    
+
     if (hasMovedX || hasMovedY) {
       // The anchor point was moved, update the relative position
       const pdfParentId = element.customData.pdfParentId;
       if (pdfParentId) {
-        const pdfElement = this.scene.getNonDeletedElementsMap().get(pdfParentId);
+        const pdfElement = this.scene
+          .getNonDeletedElementsMap()
+          .get(pdfParentId);
         if (pdfElement) {
           // Calculate the new relative position on the PDF
           const newRelativeAnchor = {
@@ -6069,18 +6127,22 @@ class App extends React.Component<AppProps, AppState> {
     // Get the element being edited
     const elementId = linearElementEditor.elementId;
     const element = this.scene.getNonDeletedElementsMap().get(elementId);
-    
-    if (!element || !isLinearElement(element) || !element.customData?.isTextBubbleConnection) {
+
+    if (
+      !element ||
+      !isLinearElement(element) ||
+      !element.customData?.isTextBubbleConnection
+    ) {
       return;
     }
 
     // Calculate the current absolute anchor position
     const currentAnchorX = element.x + element.points[0][0];
     const currentAnchorY = element.y + element.points[0][1];
-    
+
     // Get the stored anchor position
     const storedAnchor = element.customData.anchorPoint;
-    
+
     if (!storedAnchor) {
       return;
     }
@@ -6088,12 +6150,14 @@ class App extends React.Component<AppProps, AppState> {
     // Check if the anchor point has moved significantly
     const hasMovedX = Math.abs(currentAnchorX - storedAnchor.x) > 0.1;
     const hasMovedY = Math.abs(currentAnchorY - storedAnchor.y) > 0.1;
-    
+
     if (hasMovedX || hasMovedY) {
       // The anchor point was moved, update the relative position
       const pdfParentId = element.customData.pdfParentId;
       if (pdfParentId) {
-        const pdfElement = this.scene.getNonDeletedElementsMap().get(pdfParentId);
+        const pdfElement = this.scene
+          .getNonDeletedElementsMap()
+          .get(pdfParentId);
         if (pdfElement) {
           // Calculate the new relative position on the PDF
           const newRelativeAnchor = {
@@ -6207,6 +6271,33 @@ class App extends React.Component<AppProps, AppState> {
 
     const scenePointer = viewportCoordsToSceneCoords(event, this.state);
     const { x: scenePointerX, y: scenePointerY } = scenePointer;
+
+    // Handle magnifier tool
+    if (
+      this.state.activeTool.type === "custom" &&
+      this.state.activeTool.customType === "magnifier"
+    ) {
+      this.setState({
+        magnifier: {
+          ...this.state.magnifier,
+          position: { x: event.clientX, y: event.clientY },
+        },
+      });
+    }
+
+    // Handle magnifier for ruler tool when drawing
+    if (
+      this.state.activeTool.type === "custom" &&
+      this.state.activeTool.customType === "ruler" &&
+      (this.state.newElement || this.state.multiElement)
+    ) {
+      this.setState({
+        magnifier: {
+          ...this.state.magnifier,
+          position: { x: event.clientX, y: event.clientY },
+        },
+      });
+    }
 
     if (
       !this.state.newElement &&
@@ -8176,7 +8267,7 @@ class App extends React.Component<AppProps, AppState> {
                   ? []
                   : null,
             })
-          :         newLinearElement({
+          : newLinearElement({
               type: elementType,
               x: gridX,
               y: gridY,
@@ -8194,10 +8285,11 @@ class App extends React.Component<AppProps, AppState> {
               locked: false,
               frameId: topLayerFrame ? topLayerFrame.id : null,
               // Mark elements created by ruler tool for distance display
-              customData: this.state.activeTool.type === "custom" &&
+              customData:
+                this.state.activeTool.type === "custom" &&
                 this.state.activeTool.customType === "ruler"
-                ? { tool: "ruler" }
-                : undefined,
+                  ? { tool: "ruler" }
+                  : undefined,
             });
       this.setState((prevState) => {
         const nextSelectedElementIds = {
@@ -8227,9 +8319,9 @@ class App extends React.Component<AppProps, AppState> {
       const pdfParent = this.getPdfImageAtPosition(gridX, gridY);
       if (pdfParent) {
         this.scene.mutateElement(element, {
-          customData: { 
+          customData: {
             ...element.customData,
-            pdfParentId: pdfParent.id 
+            pdfParentId: pdfParent.id,
           },
         });
       }
@@ -8321,7 +8413,7 @@ class App extends React.Component<AppProps, AppState> {
           customData: { pdfParentId: pdfParent.id },
         });
       }
-      
+
       this.scene.insertElement(element);
       this.setState({
         multiElement: null,
@@ -8651,7 +8743,10 @@ class App extends React.Component<AppProps, AppState> {
           pointerDownState.drag.hasOccurred = true;
 
           // Check if we're editing a text bubble connection line's anchor point
-          this.updateTextBubbleConnectionAnchor(newLinearElementEditor, linearElementEditor);
+          this.updateTextBubbleConnectionAnchor(
+            newLinearElementEditor,
+            linearElementEditor,
+          );
 
           this.setState({
             editingLinearElement: this.state.editingLinearElement
@@ -9373,14 +9468,16 @@ class App extends React.Component<AppProps, AppState> {
           if (editingLinearElement !== this.state.editingLinearElement) {
             // Store the current editing element before updating state
             const currentEditingElement = this.state.editingLinearElement;
-            
+
             this.setState({
               editingLinearElement,
               suggestedBindings: [],
             });
-            
+
             // Check if we need to update text bubble connection anchor after state update
-            this.updateTextBubbleConnectionAnchorOnFinish(currentEditingElement);
+            this.updateTextBubbleConnectionAnchorOnFinish(
+              currentEditingElement,
+            );
           }
         }
       } else if (this.state.selectedLinearElement) {
@@ -10000,7 +10097,6 @@ class App extends React.Component<AppProps, AppState> {
             hitElement.frameId &&
             this.state.selectedElementIds[hitElement.frameId]
           ) {
-            
             // when hitElement is part of a selected frame, deselect the frame
             // to avoid frame and containing elements selected simultaneously
             this.setState((prevState) => {
@@ -10545,7 +10641,7 @@ class App extends React.Component<AppProps, AppState> {
       input.accept = ".pdf,application/pdf";
       input.style.display = "none";
       document.body.appendChild(input);
-      
+
       const pdfFile = await new Promise<File>((resolve, reject) => {
         input.onchange = (e: any) => {
           const file = e.target?.files?.[0];
@@ -10590,7 +10686,7 @@ class App extends React.Component<AppProps, AppState> {
         currentProgress = Math.min(currentProgress, 95);
 
         // Different messages based on progress
-        let message = '';
+        let message = "";
         if (currentProgress < 15) {
           message = `📄 Importing ${pdfFile.name}...`;
         } else if (currentProgress < 35) {
@@ -10643,11 +10739,11 @@ class App extends React.Component<AppProps, AppState> {
 
       // Get the converted image as blob
       const imageBlob = await response.blob();
-      
+
       // Clear the progress interval and toast
       clearInterval(progressInterval);
       this.setToast(null);
-      
+
       // Create a File object from the blob
       const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
         type: "image/png",
@@ -10666,8 +10762,11 @@ class App extends React.Component<AppProps, AppState> {
       });
 
       // Insert the image element
-      const initializedImageElement = await this.insertImageElement(imageElement, imageFile);
-      
+      const initializedImageElement = await this.insertImageElement(
+        imageElement,
+        imageFile,
+      );
+
       // For PDFs, resize to fill most of the screen
       if (initializedImageElement) {
         this.initializePdfImageDimensions(initializedImageElement);
@@ -10691,7 +10790,7 @@ class App extends React.Component<AppProps, AppState> {
         clearInterval(progressInterval);
       }
       this.setToast(null);
-      
+
       if (error.name !== "AbortError") {
         console.error("PDF import error:", error);
         this.setToast({
@@ -10769,9 +10868,7 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  initializePdfImageDimensions = (
-    imageElement: ExcalidrawImageElement,
-  ) => {
+  initializePdfImageDimensions = (imageElement: ExcalidrawImageElement) => {
     const image =
       isInitializedImageElement(imageElement) &&
       this.imageCache.get(imageElement.fileId)?.image;
@@ -10781,8 +10878,8 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     // For PDFs, we want to fill most of the screen (90% of available space)
-    const availableWidth = this.state.width * 0.85 / this.state.zoom.value;
-    const availableHeight = this.state.height * 0.85 / this.state.zoom.value;
+    const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
+    const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
 
     // Calculate the scale factor to fit the image within the available space
     const scaleX = availableWidth / image.naturalWidth;

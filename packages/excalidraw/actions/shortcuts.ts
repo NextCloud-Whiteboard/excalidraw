@@ -50,6 +50,7 @@ export type ShortcutName =
       | "saveToActiveFile"
       | "toggleShortcuts"
       | "wrapSelectionInFrame"
+      | "magnifier"
     >
   | "saveScene"
   | "imageExport"
@@ -110,6 +111,7 @@ const shortcutMap: Record<ShortcutName, string[]> = {
   zoomToFitSelectionInViewport: [getShortcutKey("Shift+2")],
   toggleEraserTool: [getShortcutKey("E")],
   toggleHandTool: [getShortcutKey("H")],
+  magnifier: [getShortcutKey("M")],
   setFrameAsActiveTool: [getShortcutKey("F")],
   saveFileToDisk: [getShortcutKey("CtrlOrCmd+S")],
   saveToActiveFile: [getShortcutKey("CtrlOrCmd+S")],

@@ -138,6 +138,7 @@ export type ActionName =
   | "elementStats"
   | "searchMenu"
   | "ruler"
+  | "magnifier"
   | "copyElementLink"
   | "linkToElement"
   | "cropEditor"

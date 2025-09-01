@@ -381,7 +381,13 @@ export interface AppState {
   previousSelectedElementIds: { [id: string]: true };
   selectedElementsAreBeingDragged: boolean;
   shouldCacheIgnoreZoom: boolean;
-  toast: { message: string; closable?: boolean; loading?: boolean; progress?: number; duration?: number } | null;
+  toast: {
+    message: string;
+    closable?: boolean;
+    loading?: boolean;
+    progress?: number;
+    duration?: number;
+  } | null;
   zenModeEnabled: boolean;
   theme: Theme;
   /** grid cell px size */
@@ -443,6 +449,12 @@ export interface AppState {
   }> | null;
   /** pixel to centimeter ratio for ruler tool */
   cmPerPx: number;
+  /** magnifier tool state */
+  magnifier: {
+    position: { x: number; y: number } | null;
+    zoom: number;
+    size: number;
+  };
   /** selected metric unit for ruler display */
   selectedMetric: "mm" | "cm" | "m";
 }
