@@ -1,5 +1,8 @@
 import React from "react";
 import type { AppState } from "../types";
+import { LinearElementEditor } from "@excalidraw/element";
+import { pointDistance } from "@excalidraw/math";
+import { isLinearElement } from "@excalidraw/element";
 
 interface MagnifierProps {
   appState: AppState;
@@ -8,8 +11,66 @@ interface MagnifierProps {
   elementsMap: any;
 }
 
-export const Magnifier: React.FC<MagnifierProps> = ({ appState, canvas }) => {
+export const Magnifier: React.FC<MagnifierProps> = ({
+  appState,
+  canvas,
+  elementsMap,
+}) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  // Helper function to calculate ruler distance
+  const calculateRulerDistance = (element: any) => {
+    if (
+      !isLinearElement(element) ||
+      element.type !== "line" ||
+      element.customData?.tool !== "ruler" ||
+      element.points.length < 2
+    ) {
+      return null;
+    }
+
+    const points = LinearElementEditor.getPointsGlobalCoordinates(
+      element,
+      elementsMap,
+    );
+
+    if (points.length < 2) return null;
+
+    // Calculate cumulative distance for multi-point lines
+    let totalDistancePx = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      const segmentDistance = pointDistance(points[i], points[i + 1]);
+      totalDistancePx += segmentDistance;
+    }
+
+    // Determine effective cmPerPx: prefer parent PDF calibration if available
+    const pdfParentId = element?.customData?.pdfParentId as string | undefined;
+    const pdfElement = pdfParentId
+      ? (elementsMap.get(pdfParentId) as any)
+      : null;
+    const cmPerPx =
+      pdfElement?.customData?.pdfCmPerPx ?? (appState as any).cmPerPx ?? 1;
+    const totalDistanceCm = totalDistancePx * cmPerPx;
+
+    // Get selected metric from app state, default to cm
+    const selectedMetric = (appState as any).selectedMetric || "cm";
+
+    // Metric conversion constants (to centimeters)
+    const METRIC_CONVERSIONS = {
+      mm: 0.1, // 1 mm = 0.1 cm
+      cm: 1, // 1 cm = 1 cm
+      m: 100, // 1 m = 100 cm
+    } as const;
+
+    // Convert to selected metric for display
+    const totalDistanceInMetric =
+      totalDistanceCm /
+      METRIC_CONVERSIONS[selectedMetric as keyof typeof METRIC_CONVERSIONS];
+    const precision = selectedMetric === "mm" ? 1 : 2;
+    return `${parseFloat(
+      totalDistanceInMetric.toFixed(precision),
+    )} ${selectedMetric}`;
+  };
 
   React.useEffect(() => {
     if (!canvasRef.current || !canvas || !appState.magnifier.position) {
@@ -150,7 +211,14 @@ export const Magnifier: React.FC<MagnifierProps> = ({ appState, canvas }) => {
       ctx.textAlign = "center";
       ctx.fillText("🔍", size / 2, size / 2 + 5);
     }
-  }, [appState.magnifier, appState.viewBackgroundColor, canvas]);
+  }, [
+    appState.magnifier,
+    appState.viewBackgroundColor,
+    appState.newElement,
+    appState.multiElement,
+    canvas,
+    elementsMap,
+  ]);
 
   if (
     !appState.magnifier.position ||
@@ -167,17 +235,55 @@ export const Magnifier: React.FC<MagnifierProps> = ({ appState, canvas }) => {
 
   const { position, size } = appState.magnifier;
 
+  // Calculate ruler distance if we're using ruler tool
+  let distanceText = null;
+  if (
+    appState.activeTool.type === "custom" &&
+    appState.activeTool.customType === "ruler" &&
+    (appState.newElement || appState.multiElement)
+  ) {
+    const element = appState.newElement || appState.multiElement;
+    distanceText = calculateRulerDistance(element);
+  }
+
   return (
-    <canvas
-      ref={canvasRef}
+    <div
       style={{
         position: "absolute",
         left: position.x - size / 2,
         top: position.y - size / 2,
         pointerEvents: "none",
         zIndex: 999,
-        filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
       }}
-    />
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
+        }}
+      />
+      {distanceText && (
+        <div
+          style={{
+            position: "absolute",
+            top: -35,
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            border: "1px solid rgba(0, 0, 0, 0.2)",
+            borderRadius: "4px",
+            padding: "4px 8px",
+            fontSize: "12px",
+            fontWeight: "600",
+            color: "#333",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+            whiteSpace: "nowrap",
+            zIndex: 1000,
+          }}
+        >
+          {distanceText}
+        </div>
+      )}
+    </div>
   );
 };
