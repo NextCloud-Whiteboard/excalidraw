@@ -220,6 +220,28 @@ export const Magnifier: React.FC<MagnifierProps> = ({
     elementsMap,
   ]);
 
+  // Determine if a ruler line is currently selected/editing under selection tool
+  const selectedRulerElementId =
+    appState.selectedLinearElement?.elementId ||
+    appState.editingLinearElement?.elementId ||
+    null;
+  let isRulerSelectedOrEditing = false;
+  let selectedRulerElement: any = null;
+  if (selectedRulerElementId) {
+    const el = elementsMap.get
+      ? elementsMap.get(selectedRulerElementId)
+      : null;
+    if (
+      el &&
+      isLinearElement(el) &&
+      el.type === "line" &&
+      (el as any)?.customData?.tool === "ruler"
+    ) {
+      isRulerSelectedOrEditing = true;
+      selectedRulerElement = el;
+    }
+  }
+
   if (
     !appState.magnifier.position ||
     !(
@@ -227,7 +249,9 @@ export const Magnifier: React.FC<MagnifierProps> = ({
         appState.activeTool.customType === "magnifier") ||
       (appState.activeTool.type === "custom" &&
         appState.activeTool.customType === "ruler" &&
-        (appState.newElement || appState.multiElement))
+        (appState.newElement || appState.multiElement)) ||
+      // Show when resizing/dragging points of a ruler line
+      (appState.activeTool.type === "selection" && isRulerSelectedOrEditing)
     )
   ) {
     return null;
@@ -236,7 +260,7 @@ export const Magnifier: React.FC<MagnifierProps> = ({
   const { position, size } = appState.magnifier;
 
   // Calculate ruler distance if we're using ruler tool
-  let distanceText = null;
+  let distanceText = null as string | null;
   if (
     appState.activeTool.type === "custom" &&
     appState.activeTool.customType === "ruler" &&
@@ -244,6 +268,12 @@ export const Magnifier: React.FC<MagnifierProps> = ({
   ) {
     const element = appState.newElement || appState.multiElement;
     distanceText = calculateRulerDistance(element);
+  } else if (
+    appState.activeTool.type === "selection" &&
+    isRulerSelectedOrEditing &&
+    selectedRulerElement
+  ) {
+    distanceText = calculateRulerDistance(selectedRulerElement);
   }
 
   return (

@@ -8580,6 +8580,21 @@ class App extends React.Component<AppProps, AppState> {
 
         flushSync(() => {
           if (this.state.selectedLinearElement) {
+            // If moving a fixed segment on a ruler line, update magnifier position too
+            let shouldShowRulerMagnifier = false;
+            try {
+              const el = LinearElementEditor.getElement(
+                this.state.selectedLinearElement.elementId,
+                this.scene.getNonDeletedElementsMap(),
+              );
+              shouldShowRulerMagnifier = !!(
+                el &&
+                isLinearElement(el) &&
+                el.type === "line" &&
+                (el as any)?.customData?.tool === "ruler"
+              );
+            } catch {}
+
             this.setState({
               selectedLinearElement: {
                 ...this.state.selectedLinearElement,
@@ -8587,6 +8602,16 @@ class App extends React.Component<AppProps, AppState> {
                 pointerDownState: ret.pointerDownState,
               },
             });
+
+            if (shouldShowRulerMagnifier) {
+              this.setState((prevState) => ({
+                magnifier: {
+                  position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                  zoom: prevState.magnifier.zoom,
+                  size: prevState.magnifier.size,
+                },
+              }));
+            }
           }
         });
         return;
@@ -8656,6 +8681,27 @@ class App extends React.Component<AppProps, AppState> {
       if (pointerDownState.resize.isResizing) {
         pointerDownState.lastCoords.x = pointerCoords.x;
         pointerDownState.lastCoords.y = pointerCoords.y;
+
+        // Show magnifier while resizing a ruler line
+        try {
+          const selectedElements = this.scene.getSelectedElements(this.state);
+          const isResizingRuler = selectedElements.some(
+            (el) =>
+              isLinearElement(el) &&
+              el.type === "line" &&
+              (el as any)?.customData?.tool === "ruler",
+          );
+          if (isResizingRuler) {
+            this.setState((prevState) => ({
+              magnifier: {
+                position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                zoom: prevState.magnifier.zoom,
+                size: prevState.magnifier.size,
+              },
+            }));
+          }
+        } catch {}
+
         if (this.maybeHandleCrop(pointerDownState, event)) {
           return true;
         }
@@ -8748,12 +8794,36 @@ class App extends React.Component<AppProps, AppState> {
             linearElementEditor,
           );
 
+          // If dragging a point on a ruler line, update magnifier position
+          let shouldShowRulerMagnifier = false;
+          try {
+            const rulerElement = this.scene.getElement(
+              newLinearElementEditor.elementId,
+            );
+            shouldShowRulerMagnifier = !!(
+              rulerElement &&
+              isLinearElement(rulerElement) &&
+              rulerElement.type === "line" &&
+              (rulerElement as any)?.customData?.tool === "ruler"
+            );
+          } catch {}
+
           this.setState({
             editingLinearElement: this.state.editingLinearElement
               ? newLinearElementEditor
               : null,
             selectedLinearElement: newLinearElementEditor,
           });
+
+          if (shouldShowRulerMagnifier) {
+            this.setState((prevState) => ({
+              magnifier: {
+                position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                zoom: prevState.magnifier.zoom,
+                size: prevState.magnifier.size,
+              },
+            }));
+          }
 
           return;
         }
@@ -9566,6 +9636,39 @@ class App extends React.Component<AppProps, AppState> {
         childEvent,
       );
 
+      // Hide magnifier after finishing ruler drawing or resizing/editing
+      try {
+        const wasRulerDrawing =
+          this.state.activeTool.type === "custom" &&
+          this.state.activeTool.customType === "ruler" &&
+          (this.state.newElement || this.state.multiElement);
+
+        const wasRulerEditing = (() => {
+          const id =
+            this.state.selectedLinearElement?.elementId ||
+            this.state.editingLinearElement?.elementId ||
+            null;
+          if (!id) return false;
+          const el = this.scene.getElement(id);
+          return !!(
+            el &&
+            isLinearElement(el) &&
+            el.type === "line" &&
+            (el as any)?.customData?.tool === "ruler"
+          );
+        })();
+
+        if (wasRulerDrawing || wasRulerEditing) {
+          this.setState((prevState) => ({
+            magnifier: {
+              position: null,
+              zoom: prevState.magnifier.zoom,
+              size: prevState.magnifier.size,
+            },
+          }));
+        }
+      } catch {}
+
       if (newElement?.type === "freedraw") {
         const pointerCoords = viewportCoordsToSceneCoords(
           childEvent,
@@ -9666,7 +9769,7 @@ class App extends React.Component<AppProps, AppState> {
           this.setState({ suggestedBindings: [], startBoundElement: null });
           if (!activeTool.locked) {
             resetCursor(this.interactiveCanvas);
-            this.setState((prevState) => ({
+          this.setState((prevState) => ({
               newElement: null,
               activeTool: updateActiveTool(this.state, {
                 type: "selection",
@@ -9686,8 +9789,8 @@ class App extends React.Component<AppProps, AppState> {
           } else {
             this.setState((prevState) => ({
               newElement: null,
-            }));
-          }
+          }));
+        }
           // so that the scene gets rendered again to display the newly drawn linear as well
           this.scene.triggerUpdate();
         }
