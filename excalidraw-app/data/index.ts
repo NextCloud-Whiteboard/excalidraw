@@ -101,6 +101,11 @@ export type SocketUpdateDataSource = {
       button: "down" | "up";
       selectedElementIds: AppState["selectedElementIds"];
       username: string;
+      magnifier?: {
+        position: { x: number; y: number } | null;
+        zoom: number;
+        size: number;
+      };
     };
   };
   USER_VISIBLE_SCENE_BOUNDS: {

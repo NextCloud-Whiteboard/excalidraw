@@ -46,7 +46,7 @@
     "arrowhead_diamond_outline": "",
     "fontSize": "Tekstgrootte",
     "fontFamily": "Lettertype",
-    "addWatermark": "Voeg \"Gemaakt met Excalidraw\" toe",
+    "addWatermark": "Voeg \"Gemaakt met In Zicht\" toe",
     "handDrawn": "Handgetekend",
     "normal": "Normaal",
     "code": "Code",
@@ -80,7 +80,7 @@
     "untitled": "Naamloos",
     "name": "Naam",
     "yourName": "Jouw naam",
-    "madeWithExcalidraw": "Gemaakt met Excalidraw",
+    "madeWithExcalidraw": "Gemaakt met In Zicht",
     "group": "Groeperen",
     "ungroup": "Groep opheffen",
     "collaborators": "Deelnemers",
@@ -107,7 +107,7 @@
     "showBackground": "Toon achtergrondkleur kiezer",
     "toggleTheme": "Thema aan/uit",
     "personalLib": "Persoonlijke bibliotheek",
-    "excalidrawLib": "Excalidraw bibliotheek",
+    "excalidrawLib": "In Zicht bibliotheek",
     "decreaseFontSize": "Letters verkleinen",
     "increaseFontSize": "Letters vergroten",
     "unbindText": "Ontkoppel tekst",
@@ -138,7 +138,15 @@
     "removeAllElementsFromFrame": "",
     "eyeDropper": "",
     "textToDiagram": "",
-    "prompt": ""
+    "prompt": "",
+    "distanceConversion": "Afstandsconversie",
+    "setScale": "Schaal instellen",
+    "calibration": "Kalibratie",
+    "calibrationDescription": "Voer de exacte afstand in die moet worden weergegeven.",
+    "calibrationCurrentDistance": "Geselecteerde liniaal meet {{distance}} cm",
+    "calibrationSetScale": "Toepassen",
+    "calibrationSelectRuler": "Selecteer een liniaal-lijn om de schaal te kalibreren",
+    "ruler": "Liniaal"
   },
   "library": {
     "noItems": "Nog geen items toegevoegd...",
@@ -181,7 +189,10 @@
     "publishLibrary": "Publiceren",
     "submit": "Versturen",
     "confirm": "Bevestigen",
-    "embeddableInteractionButton": "Klik voor interactie"
+    "embeddableInteractionButton": "Klik voor interactie",
+    "ruler": "Liniaal",
+    "magnifier": "Vergrootglas",
+    "pdfImport": "PDF importeren"
   },
   "alerts": {
     "clearReset": "Dit zal het hele canvas verwijderen. Weet je het zeker?",
@@ -211,13 +222,13 @@
     "imageInsertError": "Afbeelding invoegen mislukt. Probeer het later opnieuw...",
     "fileTooBig": "Bestand is te groot. Maximale grootte is {{maxSize}}.",
     "svgImageInsertError": "Kon geen SVG-afbeelding invoegen. De SVG-opmaak ziet er niet geldig uit.",
-    "failedToFetchImage": "",
+    "failedToFetchImage": "Afbeelding ophalen mislukt.",
     "invalidSVGString": "Ongeldige SVG.",
     "cannotResolveCollabServer": "Kan geen verbinding maken met de collab server. Herlaad de pagina en probeer het opnieuw.",
     "importLibraryError": "Kon bibliotheek niet laden",
     "collabSaveFailed": "Kan niet opslaan in de backend database. Als de problemen blijven bestaan, moet u het bestand lokaal opslaan om ervoor te zorgen dat u uw werk niet verliest.",
     "collabSaveFailed_sizeExceeded": "Kan de backend database niet opslaan, het canvas lijkt te groot te zijn. U moet het bestand lokaal opslaan om ervoor te zorgen dat u uw werk niet verliest.",
-    "imageToolNotSupported": "",
+    "imageToolNotSupported": "Afbeeldingen zijn uitgeschakeld.",
     "brave_measure_text_error": {
       "line1": "",
       "line2": "",
@@ -248,13 +259,13 @@
     "penMode": "Pen modus - Blokkeer aanraken",
     "link": "Link toevoegen / bijwerken voor een geselecteerde vorm",
     "eraser": "Gum",
-    "frame": "",
-    "magicframe": "",
+    "frame": "Frame",
+    "magicframe": "Wireframe naar code",
     "embeddable": "Web insluiten",
-    "laser": "",
-    "hand": "",
-    "extraTools": "",
-    "mermaidToExcalidraw": "",
+    "laser": "Laserpointer",
+    "hand": "Hand (pannen)",
+    "extraTools": "Meer tools",
+    "mermaidToExcalidraw": "Mermaid naar Excalidraw",
     "magicSettings": ""
   },
   "headings": {
@@ -273,18 +284,18 @@
     "linearElementMulti": "Klik op het laatste punt of druk op Escape of Enter om te stoppen",
     "lockAngle": "Je kunt de hoek beperken door SHIFT ingedrukt te houden",
     "resize": "Houd tijdens het vergroten SHIFT ingedrukt om verhoudingen te behouden,\ngebruik ALT om vanuit het midden te vergroten/verkleinen",
-    "resizeImage": "",
+    "resizeImage": "Je kunt vrij schalen door SHIFT ingedrukt te houden,\nhoud ALT ingedrukt om vanuit het midden te schalen",
     "rotate": "Je kan hoeken beperken door SHIFT ingedrukt te houden wanneer je draait",
     "lineEditor_info": "Houd CtrlOrCmd en Dubbelklik of druk op CtrlOrCmd + Enter om punten te bewerken",
-    "lineEditor_pointSelected": "",
-    "lineEditor_nothingSelected": "",
-    "placeImage": "",
+    "lineEditor_pointSelected": "Druk op Delete om punten te verwijderen,\nCtrlOfCmd+D om te dupliceren, of sleep om te verplaatsen",
+    "lineEditor_nothingSelected": "Selecteer een punt om te bewerken (houd SHIFT ingedrukt om meerdere te selecteren),\nof houd Alt ingedrukt en klik om nieuwe punten toe te voegen",
+    "placeImage": "Klik om de afbeelding te plaatsen, of klik en sleep om handmatig de grootte in te stellen",
     "publishLibrary": "Publiceer je eigen bibliotheek",
     "bindTextToElement": "Druk op enter om tekst toe te voegen",
-    "deepBoxSelect": "",
-    "eraserRevert": "",
-    "firefox_clipboard_write": "",
-    "disableSnapping": ""
+    "deepBoxSelect": "Houd CtrlOfCmd ingedrukt om diep te selecteren, en slepen te voorkomen",
+    "eraserRevert": "Houd Alt ingedrukt om de als verwijderd gemarkeerde elementen te herstellen",
+    "firefox_clipboard_write": "Deze functie kan mogelijk worden ingeschakeld door de vlag \"dom.events.asyncClipboard.clipboardItem\" op \"true\" te zetten. Ga naar de pagina \"about:config\" in Firefox om browservlaggen te wijzigen.",
+    "disableSnapping": "Houd CtrlOfCmd ingedrukt om uitlijnen uit te schakelen"
   },
   "canvasError": {
     "cannotShowPreview": "Kan voorbeeld niet tonen",
@@ -307,7 +318,7 @@
     "desc_inProgressIntro": "De live-samenwerkingssessie is nu gestart.",
     "desc_shareLink": "Deel deze link met iedereen waarmee je wil samenwerken:",
     "desc_exitSession": "Het stoppen van de sessie zal je loskoppelen van de kamer, maar je kunt lokaal doorwerken met de scène.\nPas op: dit heeft geen invloed op andere mensen en dat zij nog steeds in staat zullen zijn om samen te werken aan hun versie.",
-    "shareTitle": "Neem deel aan een live samenwerkingssessie op Excalidraw"
+    "shareTitle": "Neem deel aan een live samenwerkingssessie op In Zicht"
   },
   "errorDialog": {
     "title": "Fout"
@@ -521,5 +532,22 @@
     "description": "",
     "syntax": "",
     "preview": ""
+  },
+  "toolHints": {
+    "ruler": "Teken lijnen om afstanden te meten",
+    "magnifier": "Ingezoomde weergave die je cursor volgt",
+    "pdfImport": "Converteer en voeg PDF in als afbeelding"
+  },
+  "pdfImport": {
+    "invalidPdf": "Selecteer een geldig PDF-bestand",
+    "cancelled": "Bestandsselectie geannuleerd",
+    "conversionComplete": "Conversie voltooid!",
+    "importing": "{{name}} importeren...",
+    "analyzing": "Documentstructuur analyseren...",
+    "processing": "Pagina's verwerken...",
+    "converting": "Converteren naar afbeeldingsformaat...",
+    "finalizing": "Conversie afronden...",
+    "almostReady": "Bijna klaar...",
+    "failedToImport": "PDF importeren mislukt: {{message}}"
   }
 }

@@ -9,7 +9,7 @@ import { MagnifierIcon } from "../components/icons";
 
 export const actionMagnifier = register({
   name: "magnifier",
-  label: "Magnifier",
+  label: t("buttons.magnifier"),
   trackEvent: { category: "toolbar" },
   icon: MagnifierIcon,
   keyTest: (event) =>
@@ -36,8 +36,8 @@ export const actionMagnifier = register({
       <ToolButton
         type="button"
         icon={MagnifierIcon}
-        aria-label="Magnifier"
-        title="Magnifier — Zoom in view that follows your cursor"
+        aria-label={t("buttons.magnifier")}
+        title={`${t("buttons.magnifier")} — ${t("toolHints.magnifier")}`}
         selected={
           appState.activeTool.type === "custom" &&
           appState.activeTool.customType === "magnifier"

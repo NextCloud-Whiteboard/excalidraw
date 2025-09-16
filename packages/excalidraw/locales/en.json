@@ -63,7 +63,7 @@
     "arrowtype_elbowed": "Elbow arrow",
     "fontSize": "Font size",
     "fontFamily": "Font family",
-    "addWatermark": "Add \"Made with Excalidraw\"",
+    "addWatermark": "Add \"Made with In Zicht\"",
     "handDrawn": "Hand-drawn",
     "normal": "Normal",
     "code": "Code",
@@ -98,7 +98,7 @@
     "untitled": "Untitled",
     "name": "Name",
     "yourName": "Your name",
-    "madeWithExcalidraw": "Made with Excalidraw",
+    "madeWithExcalidraw": "Made with In Zicht",
     "group": "Group selection",
     "ungroup": "Ungroup selection",
     "collaborators": "Collaborators",
@@ -128,7 +128,7 @@
     "toggleTheme": "Toggle light/dark theme",
     "theme": "Theme",
     "personalLib": "Personal Library",
-    "excalidrawLib": "Excalidraw Library",
+    "excalidrawLib": "In Zicht Library",
     "decreaseFontSize": "Decrease font size",
     "increaseFontSize": "Increase font size",
     "unbindText": "Unbind text",
@@ -234,7 +234,9 @@
     "submit": "Submit",
     "confirm": "Confirm",
     "embeddableInteractionButton": "Click to interact",
-    "ruler": "Ruler"
+    "ruler": "Ruler",
+    "magnifier": "Magnifier",
+    "pdfImport": "Import PDF"
   },
   "alerts": {
     "clearReset": "This will clear the whole canvas. Are you sure?",
@@ -385,7 +387,7 @@
     "desc_inProgressIntro": "Live-collaboration session is now in progress.",
     "desc_shareLink": "Share this link with anyone you want to collaborate with:",
     "desc_exitSession": "Stopping the session will disconnect you from the room, but you'll be able to continue working with the scene, locally. Note that this won't affect other people, and they'll still be able to collaborate on their version.",
-    "shareTitle": "Join a live collaboration session on Excalidraw"
+    "shareTitle": "Join a live collaboration session on In Zicht"
   },
   "errorDialog": {
     "title": "Error"
@@ -603,9 +605,9 @@
     }
   },
   "mermaid": {
-    "title": "Mermaid to Excalidraw",
+    "title": "Mermaid to In Zicht",
     "button": "Insert",
-    "description": "Currently only <flowchartLink>Flowchart</flowchartLink>,<sequenceLink> Sequence, </sequenceLink> and <classLink>Class </classLink>Diagrams are supported. The other types will be rendered as image in Excalidraw.",
+    "description": "Currently only <flowchartLink>Flowchart</flowchartLink>,<sequenceLink> Sequence, </sequenceLink> and <classLink>Class </classLink>Diagrams are supported. The other types will be rendered as image in In Zicht.",
     "syntax": "Mermaid Syntax",
     "preview": "Preview"
   },
@@ -644,5 +646,22 @@
     },
     "itemNotAvailable": "Command is not available...",
     "shortcutHint": "For Command palette, use {{shortcut}}"
+  },
+  "toolHints": {
+    "ruler": "Draw lines to measure distances",
+    "magnifier": "Zoomed view that follows your cursor",
+    "pdfImport": "Convert and insert PDF as image"
+  },
+  "pdfImport": {
+    "invalidPdf": "Please select a valid PDF file",
+    "cancelled": "File selection cancelled",
+    "conversionComplete": "Conversion complete!",
+    "importing": "Importing {{name}}...",
+    "analyzing": "Analyzing document structure...",
+    "processing": "Processing pages...",
+    "converting": "Converting to image format...",
+    "finalizing": "Finalizing conversion...",
+    "almostReady": "Almost ready...",
+    "failedToImport": "Failed to import PDF: {{message}}"
   }
 }

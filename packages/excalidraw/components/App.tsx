@@ -2147,6 +2147,8 @@ class App extends React.Component<AppProps, AppState> {
     }
   }
 
+
+
   public onMagicframeToolSelect = () => {
     const selectedElements = this.scene.getSelectedElements({
       selectedElementIds: this.state.selectedElementIds,
@@ -6823,6 +6825,22 @@ class App extends React.Component<AppProps, AppState> {
   private handleCanvasPointerDown = (
     event: React.PointerEvent<HTMLElement>,
   ) => {
+    // Handle text bubble tool: click inserts a text bubble when over a PDF
+    if (
+      this.state.activeTool.type === "custom" &&
+      (this.state.activeTool as any).customType === "textbubble"
+    ) {
+      const { clientX, clientY } = event;
+      const { x, y } = viewportCoordsToSceneCoords({ clientX, clientY } as any, this.state);
+      const pdfImage = this.getPdfImageAtPosition(x, y);
+      if (pdfImage) {
+        this.createTextBubble(x, y, pdfImage);
+        // switch back to selection after creating bubble
+        this.setActiveTool({ type: "selection" });
+        return;
+      }
+      // if not over a PDF, ignore and keep tool active
+    }
     const target = event.target as HTMLElement;
     // capture subsequent pointer events to the canvas
     // this makes other elements non-interactive until pointer up
@@ -10752,12 +10770,12 @@ class App extends React.Component<AppProps, AppState> {
           if (file && file.type === "application/pdf") {
             resolve(file);
           } else {
-            reject(new Error("Please select a valid PDF file"));
+            reject(new Error(t("pdfImport.invalidPdf")));
           }
         };
         input.oncancel = () => {
           document.body.removeChild(input);
-          reject(new Error("File selection cancelled"));
+          reject(new Error(t("pdfImport.cancelled")));
         };
         input.click();
       });
@@ -10767,7 +10785,7 @@ class App extends React.Component<AppProps, AppState> {
         if (isRequestComplete) {
           currentProgress = 100;
           this.setToast({
-            message: `✅ Conversion complete!`,
+            message: `✅ ${t("pdfImport.conversionComplete")}`,
             closable: false,
             progress: 100,
             duration: Infinity,
@@ -10791,17 +10809,17 @@ class App extends React.Component<AppProps, AppState> {
         // Different messages based on progress
         let message = "";
         if (currentProgress < 15) {
-          message = `📄 Importing ${pdfFile.name}...`;
+          message = `📄 ${t("pdfImport.importing", { name: pdfFile.name })}`;
         } else if (currentProgress < 35) {
-          message = `🔍 Analyzing document structure...`;
+          message = `🔍 ${t("pdfImport.analyzing")}`;
         } else if (currentProgress < 60) {
-          message = `⚙️ Processing pages...`;
+          message = `⚙️ ${t("pdfImport.processing")}`;
         } else if (currentProgress < 80) {
-          message = `🎨 Converting to image format...`;
+          message = `🎨 ${t("pdfImport.converting")}`;
         } else if (currentProgress < 95) {
-          message = `✨ Finalizing conversion...`;
+          message = `✨ ${t("pdfImport.finalizing")}`;
         } else {
-          message = `⏳ Almost ready...`;
+          message = `⏳ ${t("pdfImport.almostReady")}`;
         }
 
         this.setToast({
@@ -10814,7 +10832,7 @@ class App extends React.Component<AppProps, AppState> {
 
       // Start progress simulation
       this.setToast({
-        message: `📄 Importing ${pdfFile.name}...`,
+        message: `📄 ${t("pdfImport.importing", { name: pdfFile.name })}`,
         closable: false,
         progress: 0,
         duration: Infinity,
@@ -10897,7 +10915,7 @@ class App extends React.Component<AppProps, AppState> {
       if (error.name !== "AbortError") {
         console.error("PDF import error:", error);
         this.setToast({
-          message: `Failed to import PDF: ${error.message}`,
+          message: t("pdfImport.failedToImport", { message: error.message }),
           closable: true,
           duration: 5000,
         });

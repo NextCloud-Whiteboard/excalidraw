@@ -33,7 +33,7 @@ export const actionRuler = register({
         type="button"
         icon={RulerIcon}
         aria-label={t("buttons.ruler")}
-        title={`${t("buttons.ruler")} — Draw lines to measure distances`}
+        title={`${t("buttons.ruler")} — ${t("toolHints.ruler")}`}
         selected={
           appState.activeTool.type === "custom" &&
           appState.activeTool.customType === "ruler"

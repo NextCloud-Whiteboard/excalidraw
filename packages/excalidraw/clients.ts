@@ -258,4 +258,102 @@ export const renderRemoteCursors = ({
     context.restore();
     context.closePath();
   }
+
+  // Render remote magnifiers
+  for (const [socketId, magnifierState] of renderConfig.remoteMagnifiers) {
+    if (!magnifierState.position) continue;
+
+    const collaborator = appState.collaborators.get(socketId);
+    if (!collaborator) continue;
+
+    let { x, y } = magnifierState.position;
+    const { size, zoom } = magnifierState;
+
+    // Convert to viewport coordinates if needed
+    x -= appState.offsetLeft;
+    y -= appState.offsetTop;
+
+    const isOutOfBounds =
+      x < 0 ||
+      x > normalizedWidth - size ||
+      y < 0 ||
+      y > normalizedHeight - size;
+
+    if (isOutOfBounds) continue;
+
+    const background = getClientColor(socketId, collaborator);
+
+    context.save();
+    context.globalAlpha = 0.9;
+
+    // Get the main canvas to sample from
+    const mainCanvas = context.canvas;
+    
+    try {
+      // Calculate source area on main canvas for magnification
+      const sourceSize = size / zoom;
+      const sourceX = (magnifierState.position.x - appState.offsetLeft) * window.devicePixelRatio - (sourceSize * window.devicePixelRatio) / 2;
+      const sourceY = (magnifierState.position.y - appState.offsetTop) * window.devicePixelRatio - (sourceSize * window.devicePixelRatio) / 2;
+
+      // Create a temporary canvas for the magnified content
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) continue;
+
+      tempCanvas.width = size;
+      tempCanvas.height = size;
+
+      // Fill background
+      tempCtx.fillStyle = "#ffffff";
+      tempCtx.fillRect(0, 0, size, size);
+
+      // Draw the magnified portion from the main canvas
+      tempCtx.drawImage(
+        mainCanvas,
+        Math.max(0, sourceX), // source x
+        Math.max(0, sourceY), // source y
+        sourceSize * window.devicePixelRatio, // source width
+        sourceSize * window.devicePixelRatio, // source height
+        0, // destination x
+        0, // destination y
+        size, // destination width
+        size, // destination height
+      );
+
+      // Create circular clipping mask
+      context.save();
+      context.beginPath();
+      context.arc(x, y, size / 2, 0, 2 * Math.PI);
+      context.clip();
+
+      // Draw the magnified content
+      context.drawImage(tempCanvas, x - size / 2, y - size / 2);
+
+      context.restore();
+
+      // Draw border around magnifier
+      context.strokeStyle = background;
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(x, y, size / 2 - 1.5, 0, 2 * Math.PI);
+      context.stroke();
+
+      // Draw inner highlight
+      context.strokeStyle = "#fff";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.arc(x, y, size / 2 - 3, 0, 2 * Math.PI);
+      context.stroke();
+
+    } catch (error) {
+      // Fallback: show magnifier icon if canvas drawing fails
+      context.fillStyle = background;
+      context.font = "16px sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText("🔍", x, y);
+    }
+
+    context.restore();
+  }
 };

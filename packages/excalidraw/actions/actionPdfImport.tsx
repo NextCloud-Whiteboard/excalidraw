@@ -1,11 +1,12 @@
 import React from "react";
 import { register } from "./register";
+import { t } from "../i18n";
 import { CaptureUpdateAction } from "@excalidraw/element";
 import type { AppClassProperties } from "../types";
 import { ToolButton } from "../components/ToolButton";
 
-// PDF icon component
-const PdfIcon = () => (
+// Upload icon component
+const UploadIcon = () => (
   <svg
     viewBox="0 0 20 20"
     fill="none"
@@ -14,19 +15,17 @@ const PdfIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4l-4-2z" />
-    <polyline points="14,2 14,8 20,8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10,9 9,9 8,9" />
+    <path d="M3 14v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+    <path d="M10 3v8" />
+    <path d="M6 7l4-4 4 4" />
   </svg>
 );
 
 export const actionPdfImport = register({
   name: "pdfImport",
-  label: "Import PDF",
+  label: t("buttons.pdfImport"),
   trackEvent: { category: "toolbar" },
-  icon: PdfIcon,
+  icon: UploadIcon,
   perform: async (elements, appState, value, app) => {
     // Call the PDF import directly through app instance
     // We'll add this method to the App component
@@ -41,9 +40,9 @@ export const actionPdfImport = register({
     return (
       <ToolButton
         type="button"
-        icon={<PdfIcon />}
-        aria-label="Import PDF"
-        title="Import PDF - Convert and insert PDF as image"
+        icon={<UploadIcon />}
+        aria-label={t("buttons.pdfImport")}
+        title={`${t("buttons.pdfImport")} — ${t("toolHints.pdfImport")}`}
         onClick={() => {
           updateData(null);
         }}

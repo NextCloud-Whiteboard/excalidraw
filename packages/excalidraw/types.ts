@@ -86,6 +86,12 @@ export type Collaborator = Readonly<{
   isInCall?: boolean;
   isSpeaking?: boolean;
   isMuted?: boolean;
+  // Magnifier state for collaboration
+  magnifier?: {
+    position: { x: number; y: number } | null;
+    zoom: number;
+    size: number;
+  };
 }>;
 
 export type CollaboratorPointer = {

@@ -89,6 +89,8 @@ const InteractiveCanvas = (props: InteractiveCanvasProps) => {
       new Map();
     const remotePointerUserStates: InteractiveCanvasRenderConfig["remotePointerUserStates"] =
       new Map();
+    const remoteMagnifiers: InteractiveCanvasRenderConfig["remoteMagnifiers"] =
+      new Map();
 
     props.appState.collaborators.forEach((user, socketId) => {
       if (user.selectedElementIds) {
@@ -107,6 +109,9 @@ const InteractiveCanvas = (props: InteractiveCanvasProps) => {
       }
       if (user.userState) {
         remotePointerUserStates.set(socketId, user.userState);
+      }
+      if (user.magnifier) {
+        remoteMagnifiers.set(socketId, user.magnifier);
       }
       remotePointerViewportCoords.set(
         socketId,
@@ -143,6 +148,7 @@ const InteractiveCanvas = (props: InteractiveCanvasProps) => {
           remoteSelectedElementIds,
           remotePointerUsernames,
           remotePointerUserStates,
+          remoteMagnifiers,
           selectionColor,
           renderScrollbars: props.renderScrollbars,
         },
