@@ -37,7 +37,7 @@ export const actionMagnifier = register({
         type="button"
         icon={MagnifierIcon}
         aria-label={t("buttons.magnifier")}
-        title={`${t("buttons.magnifier")} — ${t("toolHints.magnifier")}`}
+        title={`${t("buttons.magnifier")}`}
         selected={
           appState.activeTool.type === "custom" &&
           appState.activeTool.customType === "magnifier"

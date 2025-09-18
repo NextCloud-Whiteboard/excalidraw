@@ -382,6 +382,8 @@ export const ShapesSwitcher = ({
         return renderButton();
       })}
 
+<div className="App-toolbar__divider" />
+
       {/* Ruler tool as standalone button */}
       {actionManager && actionManager.renderAction("ruler")}
 
@@ -403,7 +405,7 @@ export const ShapesSwitcher = ({
         onChange={() => app.setActiveTool({ type: "custom", customType: "textbubble" })}
       />
 
-      <div className="App-toolbar__divider" />
+
 
       {/* Add laser and lasso directly to the toolbar */}
       <ToolButton

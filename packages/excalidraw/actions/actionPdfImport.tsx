@@ -42,7 +42,7 @@ export const actionPdfImport = register({
         type="button"
         icon={<UploadIcon />}
         aria-label={t("buttons.pdfImport")}
-        title={`${t("buttons.pdfImport")} — ${t("toolHints.pdfImport")}`}
+        title={`${t("buttons.pdfImport")}`}
         onClick={() => {
           updateData(null);
         }}
