@@ -38,6 +38,8 @@
     "calibrationCurrentDistance": "Selected ruler measures {{distance}} cm",
     "calibrationSetScale": "Apply",
     "calibrationSelectRuler": "Select a ruler line to calibrate scale",
+    "measurementUnit": "Measurement Unit",
+    "selectedRulerMeasures": "Selected ruler measures",
     "opacity": "Opacity",
     "textAlign": "Text align",
     "edges": "Edges",

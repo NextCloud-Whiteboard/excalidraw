@@ -146,6 +146,8 @@
     "calibrationCurrentDistance": "Geselecteerde liniaal meet {{distance}} cm",
     "calibrationSetScale": "Toepassen",
     "calibrationSelectRuler": "Selecteer een liniaal-lijn om de schaal te kalibreren",
+    "measurementUnit": "Meeteenheid",
+    "selectedRulerMeasures": "Geselecteerde liniaal meet",
     "ruler": "Liniaal"
   },
   "library": {

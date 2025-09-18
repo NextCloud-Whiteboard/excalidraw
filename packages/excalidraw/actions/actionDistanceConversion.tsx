@@ -180,7 +180,7 @@ export const actionDistanceConversion = register({
             fontWeight: "600",
             color: "var(--text-primary-color)"
           }}>
-            Measurement Unit
+{t("labels.measurementUnit")}
           </div>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             {(Object.keys(METRIC_CONVERSIONS) as MetricUnit[]).map((metric) => (
@@ -240,7 +240,7 @@ export const actionDistanceConversion = register({
                 marginBottom: "0.5rem",
                 color: "var(--text-secondary-color)"
               }}>
-                Selected ruler measures {parseFloat(currentShownDistance.toFixed(selectedMetric === 'mm' ? 1 : 2))} {selectedMetric}
+{t("labels.selectedRulerMeasures")} {parseFloat(currentShownDistance.toFixed(selectedMetric === 'mm' ? 1 : 2))} {selectedMetric}
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
