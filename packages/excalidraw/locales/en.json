@@ -661,7 +661,7 @@
     "importing": "Importing {{name}}...",
     "analyzing": "Analyzing document structure...",
     "processing": "Processing pages...",
-    "converting": "Converting to image format...",
+    "converting": "Converting...",
     "finalizing": "Finalizing conversion...",
     "almostReady": "Almost ready...",
     "failedToImport": "Failed to import PDF: {{message}}"

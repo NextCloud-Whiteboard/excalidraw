@@ -547,7 +547,7 @@
     "importing": "{{name}} importeren...",
     "analyzing": "Documentstructuur analyseren...",
     "processing": "Pagina's verwerken...",
-    "converting": "Converteren naar afbeeldingsformaat...",
+    "converting": "Converteren...",
     "finalizing": "Conversie afronden...",
     "almostReady": "Bijna klaar...",
     "failedToImport": "PDF importeren mislukt: {{message}}"
