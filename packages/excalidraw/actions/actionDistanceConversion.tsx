@@ -228,7 +228,9 @@ export const actionDistanceConversion = register({
             padding: "0.5rem",
             backgroundColor: "var(--input-bg-color)",
             border: "1px solid var(--input-border-color)",
-            borderRadius: "0.25rem"
+            borderRadius: "0.25rem",
+            width: "80%",
+            wordBreak: "break-word"
           }}>
             {t("labels.calibrationDescription")}
           </div>
@@ -252,7 +254,7 @@ export const actionDistanceConversion = register({
                     value={calibrationDistance}
                     onChange={(e) => setCalibrationDistance(e.target.value)}
                     style={{
-                      width: "4rem",
+                      width: "3rem",
                       height: "1.5rem",
                       padding: "0.25rem 0.5rem",
                       fontSize: "0.875rem",
