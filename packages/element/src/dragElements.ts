@@ -205,6 +205,19 @@ export const dragSelectedElements = (
     }
   }
 
+  // Special handling for text bubble connection lines: when dragging a connection line, also move its bubble
+  for (const element of selectedElements) {
+    if (element.customData?.isTextBubbleConnection) {
+      const bubbleId = element.customData.bubbleId;
+      if (bubbleId) {
+        const bubbleElement = scene.getNonDeletedElementsMap().get(bubbleId);
+        if (bubbleElement) {
+          elementsToUpdate.add(bubbleElement);
+        }
+      }
+    }
+  }
+
   const origElements: ExcalidrawElement[] = [];
 
   for (const element of elementsToUpdate) {
