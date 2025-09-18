@@ -4,7 +4,7 @@ import React from "react";
 import { isExcalidrawPlusSignedUser } from "../app_constants";
 
 import { DebugFooter, isVisualDebuggerEnabled } from "./DebugCanvas";
-// import { EncryptedIcon } from "./EncryptedIcon";
+import { EncryptedIcon } from "./EncryptedIcon";
 import { ExcalidrawPlusAppLink } from "./ExcalidrawPlusAppLink";
 
 export const AppFooter = React.memo(
@@ -18,6 +18,7 @@ export const AppFooter = React.memo(
             alignItems: "center",
           }}
         >
+          <EncryptedIcon />
           {isVisualDebuggerEnabled() && <DebugFooter onChange={onChange} />}
           {isExcalidrawPlusSignedUser && <ExcalidrawPlusAppLink />}
         </div>
