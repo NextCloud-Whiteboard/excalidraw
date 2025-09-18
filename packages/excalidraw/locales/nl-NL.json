@@ -155,6 +155,15 @@
     "hint_emptyLibrary": "Selecteer een item op het canvas om het hier toe te voegen of installeer een bibliotheek uit de openbare repository, hieronder.",
     "hint_emptyPrivateLibrary": "Selecteer een item op het canvas om het hier toe te voegen."
   },
+  "search": {
+    "title": "Zoeken op canvas",
+    "noMatch": "Geen overeenkomsten gevonden...",
+    "singleResult": "resultaat",
+    "multipleResults": "resultaten",
+    "placeholder": "Zoek tekst op canvas...",
+    "frames": "Frames",
+    "texts": "Teksten"
+  },
   "buttons": {
     "clearReset": "Canvas opnieuw instellen",
     "exportJSON": "Exporteren naar bestand",
