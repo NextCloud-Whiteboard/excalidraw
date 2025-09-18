@@ -43,7 +43,7 @@ import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
 import { useDevice } from "./App";
 import { OverwriteConfirmDialog } from "./OverwriteConfirm/OverwriteConfirm";
-import { LibraryIcon } from "./icons";
+import { LibraryIcon, searchIcon } from "./icons";
 import { DefaultSidebar } from "./DefaultSidebar";
 import { TTDDialog } from "./TTDDialog/TTDDialog";
 import { Stats } from "./Stats";
@@ -407,8 +407,8 @@ const LayerUI = ({
       <DefaultMainMenu UIOptions={UIOptions} />
       <DefaultSidebar.Trigger
         __fallback
-        icon={LibraryIcon}
-        title={capitalizeString(t("toolBar.library"))}
+        icon={searchIcon}
+        title={capitalizeString(t("search.title"))}
         onToggle={(open) => {
           if (open) {
             trackEvent(
@@ -420,7 +420,7 @@ const LayerUI = ({
         }}
         tab={DEFAULT_SIDEBAR.defaultTab}
       >
-        {t("toolBar.library")}
+        {t("search.title")}
       </DefaultSidebar.Trigger>
       <DefaultOverwriteConfirmDialog />
       {appState.openDialog?.name === "ttd" && <TTDDialog __fallback />}
