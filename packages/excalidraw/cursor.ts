@@ -100,6 +100,11 @@ export const setCursorForShape = (
         ? laserPointerCursorDataURL_lightMode
         : laserPointerCursorDataURL_darkMode;
     interactiveCanvas.style.cursor = `url(${url}), auto`;
+  } else if (
+    appState.activeTool.type === "custom" &&
+    appState.activeTool.customType === "textbubble"
+  ) {
+    interactiveCanvas.style.cursor = CURSOR_TYPE.CROSSHAIR;
   } else if (!["image", "custom"].includes(appState.activeTool.type)) {
     interactiveCanvas.style.cursor = CURSOR_TYPE.CROSSHAIR;
   } else if (appState.activeTool.type !== "image") {
