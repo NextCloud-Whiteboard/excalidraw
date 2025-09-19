@@ -20,7 +20,7 @@ export const AppFooter = React.memo(
         >
           <EncryptedIcon />
           {isVisualDebuggerEnabled() && <DebugFooter onChange={onChange} />}
-          {isExcalidrawPlusSignedUser && <ExcalidrawPlusAppLink />}
+          {/* {isExcalidrawPlusSignedUser && <ExcalidrawPlusAppLink />} */}
         </div>
       </Footer>
     );

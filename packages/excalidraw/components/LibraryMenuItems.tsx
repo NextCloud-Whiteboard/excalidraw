@@ -338,12 +338,8 @@ export default function LibraryMenuItems({
             id={id}
             libraryReturnUrl={libraryReturnUrl}
             theme={theme}
-          >
-            <LibraryDropdownMenu
-              selectedItems={selectedItems}
-              onSelectItems={onSelectItems}
-            />
-          </LibraryMenuControlButtons>
+            showOpenButton={true}
+          />
         )}
       </Stack.Col>
     </div>

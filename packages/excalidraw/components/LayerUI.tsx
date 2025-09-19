@@ -43,7 +43,7 @@ import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
 import { useDevice } from "./App";
 import { OverwriteConfirmDialog } from "./OverwriteConfirm/OverwriteConfirm";
-import { LibraryIcon, searchIcon } from "./icons";
+import { LibraryIcon } from "./icons";
 import { DefaultSidebar } from "./DefaultSidebar";
 import { TTDDialog } from "./TTDDialog/TTDDialog";
 import { Stats } from "./Stats";
@@ -114,10 +114,10 @@ const DefaultMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
-      <MainMenu.Group title="Excalidraw links">
+      {/* <MainMenu.Group title="Excalidraw links">
         <MainMenu.DefaultItems.Socials />
       </MainMenu.Group>
-      <MainMenu.Separator />
+      <MainMenu.Separator /> */}
       <MainMenu.DefaultItems.ToggleTheme />
       <MainMenu.DefaultItems.ChangeCanvasBackground />
       <MainMenu.DefaultItems.ChangeDistanceConversion />
@@ -407,8 +407,8 @@ const LayerUI = ({
       <DefaultMainMenu UIOptions={UIOptions} />
       <DefaultSidebar.Trigger
         __fallback
-        icon={searchIcon}
-        title={capitalizeString(t("search.title"))}
+        icon={LibraryIcon}
+        title={capitalizeString(t("toolBar.library"))}
         onToggle={(open) => {
           if (open) {
             trackEvent(
@@ -420,7 +420,7 @@ const LayerUI = ({
         }}
         tab={DEFAULT_SIDEBAR.defaultTab}
       >
-        {t("search.title")}
+        {t("toolBar.library")}
       </DefaultSidebar.Trigger>
       <DefaultOverwriteConfirmDialog />
       {appState.openDialog?.name === "ttd" && <TTDDialog __fallback />}

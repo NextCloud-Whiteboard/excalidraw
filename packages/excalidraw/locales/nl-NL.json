@@ -152,7 +152,7 @@
   },
   "library": {
     "noItems": "Nog geen items toegevoegd...",
-    "hint_emptyLibrary": "Selecteer een item op het canvas om het hier toe te voegen of installeer een bibliotheek uit de openbare repository, hieronder.",
+    "hint_emptyLibrary": "Selecteer een item op het canvas om het hier toe te voegen.",
     "hint_emptyPrivateLibrary": "Selecteer een item op het canvas om het hier toe te voegen."
   },
   "search": {
