@@ -477,26 +477,26 @@
   },
   "colors": {
     "transparent": "Transparant",
-    "black": "",
-    "white": "",
-    "red": "",
-    "pink": "",
-    "grape": "",
-    "violet": "",
-    "gray": "",
-    "blue": "",
-    "cyan": "",
-    "teal": "",
-    "green": "",
-    "yellow": "",
-    "orange": "",
-    "bronze": ""
+    "black": "Zwart",
+    "white": "Wit",
+    "red": "Rood",
+    "pink": "Roze",
+    "grape": "Druif",
+    "violet": "Violet",
+    "gray": "Grijs",
+    "blue": "Blauw",
+    "cyan": "Cyaan",
+    "teal": "Blauwgroen",
+    "green": "Groen",
+    "yellow": "Geel",
+    "orange": "Oranje",
+    "bronze": "Brons"
   },
   "welcomeScreen": {
     "app": {
-      "center_heading": "",
-      "center_heading_plus": "",
-      "menuHint": ""
+      "center_heading": "Alle gegevens worden lokaal in uw browser opgeslagen.",
+      "center_heading_plus": "Wilt u in plaats daarvan naar Excalidraw+ gaan?",
+      "menuHint": "Exporteren, voorkeuren, talen, ..."
     },
     "defaults": {
       "menuHint": "Exporteren, voorkeuren en meer...",
@@ -506,11 +506,11 @@
     }
   },
   "colorPicker": {
-    "mostUsedCustomColors": "",
-    "colors": "",
-    "shades": "",
-    "hexCode": "",
-    "noShades": ""
+    "mostUsedCustomColors": "Meest gebruikte aangepaste kleuren",
+    "colors": "Kleuren",
+    "shades": "Tinten",
+    "hexCode": "Hex-code",
+    "noShades": "Geen tinten beschikbaar voor deze kleur"
   },
   "overwriteConfirm": {
     "action": {
