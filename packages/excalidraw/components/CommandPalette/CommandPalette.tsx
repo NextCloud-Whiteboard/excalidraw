@@ -890,9 +890,10 @@ function CommandPaletteInner({
 
         {Object.keys(commandsByCategory).length > 0 ? (
           Object.keys(commandsByCategory).map((category, idx) => {
+            const categoryTitle = t(`commandPalette.categories.${category}` as TranslationKeys) || category;
             return (
               <div className="command-category" key={category}>
-                <div className="command-category-title">{category}</div>
+                <div className="command-category-title">{categoryTitle}</div>
                 {commandsByCategory[category].map((command) => (
                   <CommandItem
                     key={command.label}

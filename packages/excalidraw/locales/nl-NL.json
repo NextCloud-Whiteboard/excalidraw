@@ -148,7 +148,10 @@
     "calibrationSelectRuler": "Selecteer een liniaal-lijn om de schaal te kalibreren",
     "measurementUnit": "Meeteenheid",
     "selectedRulerMeasures": "Geselecteerde liniaal meet",
-    "ruler": "Liniaal"
+    "ruler": "Liniaal",
+    "copyElementLink": "Kopieer link naar object",
+    "linkToElement": "Link naar object",
+    "shapeSwitch": "Vorm wisselen"
   },
   "library": {
     "noItems": "Nog geen items toegevoegd...",
@@ -257,6 +260,7 @@
   },
   "toolBar": {
     "selection": "Verplaatsen",
+    "lasso": "Lasso selectie",
     "image": "Voeg afbeelding in",
     "rectangle": "Rechthoek",
     "diamond": "Diamant",
@@ -276,7 +280,8 @@
     "laser": "Kijker (laserpointer)",
     "hand": "Hand (pannen)",
     "extraTools": "Meer tools",
-    "mermaidToExcalidraw": "Mermaid naar Excalidraw",
+    "mermaidToExcalidraw": "Mermaid naar In Zicht",
+    "convertElementType": "Vormtype omschakelen",
     "magicSettings": ""
   },
   "headings": {
@@ -467,7 +472,8 @@
     "selection": "selectie",
     "pasteAsSingleElement": "Gebruik {{shortcut}} om te plakken als een enkel element,\nof plak in een bestaande teksteditor",
     "unableToEmbed": "Het insluiten van deze url is momenteel niet toegestaan. Zet een probleem op GitHub om de URL op de whitelist te zetten",
-    "unrecognizedLinkFormat": "De link die u hebt ingesloten komt niet overeen met het verwachte formaat. Probeer de 'embed' string van de bronsite te plakken"
+    "unrecognizedLinkFormat": "De link die u hebt ingesloten komt niet overeen met het verwachte formaat. Probeer de 'embed' string van de bronsite te plakken",
+    "elementLinkCopied": "Link gekopieerd naar klembord"
   },
   "colors": {
     "transparent": "Transparant",
@@ -543,6 +549,29 @@
     "description": "",
     "syntax": "",
     "preview": ""
+  },
+  "commandPalette": {
+    "title": "Opdrachtenpalet",
+    "shortcuts": {
+      "select": "Selecteren",
+      "confirm": "Bevestigen",
+      "close": "Sluiten"
+    },
+    "recents": "Recent gebruikt",
+    "search": {
+      "placeholder": "Zoek menu's, opdrachten en ontdek verborgen functies",
+      "noMatch": "Geen overeenkomende opdrachten..."
+    },
+    "itemNotAvailable": "Opdracht is niet beschikbaar...",
+    "shortcutHint": "Voor opdrachtenpalet, gebruik {{shortcut}}",
+    "categories": {
+      "App": "App",
+      "Export": "Exporteren",
+      "Tools": "Tools", 
+      "Editor": "Editor",
+      "Elements": "Elementen",
+      "Links": "Links"
+    }
   },
   "toolHints": {
     "ruler": "Teken lijnen om afstanden te meten",
