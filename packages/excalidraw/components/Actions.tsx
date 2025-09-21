@@ -399,8 +399,8 @@ export const ShapesSwitcher = ({
         icon={<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h12a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" /></svg>}
         checked={activeTool.customType === "textbubble"}
         name="editor-current-shape"
-        title="Text bubble — T"
-        aria-label="Text bubble"
+        title={`${t("toolBar.textBubble")} — T`}
+        aria-label={t("toolBar.textBubble")}
         aria-keyshortcuts="T"
         keyBindingLabel="T"
         data-testid="toolbar-text-bubble"

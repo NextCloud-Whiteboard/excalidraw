@@ -127,7 +127,7 @@
     "showStroke": "Show stroke color picker",
     "showBackground": "Show background color picker",
     "showFonts": "Show font picker",
-    "toggleTheme": "Toggle light/dark theme",
+    "toggleTheme": "Schakel licht/donker thema",
     "theme": "Theme",
     "personalLib": "Personal Library",
     "excalidrawLib": "In Zicht Library",
@@ -168,7 +168,7 @@
     "zoomToFitViewport": "Zoom to fit in viewport",
     "zoomToFitSelection": "Zoom to fit selection",
     "zoomToFit": "Zoom to fit all elements",
-    "installPWA": "Install Excalidraw locally (PWA)",
+    "installPWA": "Install In Zicht locally (PWA)",
     "autoResize": "Enable text auto-resizing",
     "imageCropping": "Image cropping",
     "unCroppedDimension": "Uncropped dimension",
@@ -249,7 +249,7 @@
     "cannotExportEmptyCanvas": "Cannot export empty canvas.",
     "couldNotCopyToClipboard": "Couldn't copy to clipboard.",
     "decryptFailed": "Couldn't decrypt data.",
-    "uploadedSecurly": "The upload has been secured with end-to-end encryption, which means that Excalidraw server and third parties can't read the content.",
+    "uploadedSecurly": "The upload has been secured with end-to-end encryption, which means that In Zicht server and third parties can't read the content.",
     "loadSceneOverridePrompt": "Loading external drawing will replace your existing content. Do you wish to continue?",
     "collabStopOverridePrompt": "Stopping the session will overwrite your previous, locally stored drawing. Are you sure?\n\n(If you want to keep your local drawing, simply close the browser tab instead.)",
     "errorAddingToLibrary": "Couldn't add item to the library",
@@ -257,7 +257,7 @@
     "confirmAddLibrary": "This will add {{numShapes}} shape(s) to your library. Are you sure?",
     "imageDoesNotContainScene": "This image does not seem to contain any scene data. Have you enabled scene embedding during export?",
     "cannotRestoreFromImage": "Scene couldn't be restored from this image file",
-    "invalidSceneUrl": "Couldn't import scene from the supplied URL. It's either malformed, or doesn't contain valid Excalidraw JSON data.",
+    "invalidSceneUrl": "Couldn't import scene from the supplied URL. It's either malformed, or doesn't contain valid In Zicht JSON data.",
     "resetLibrary": "This will clear your library. Are you sure?",
     "removeItemsFromsLibrary": "Delete {{count}} item(s) from library?",
     "invalidEncryptionKey": "Encryption key must be of 22 characters. Live collaboration is disabled.",
@@ -301,6 +301,7 @@
     "line": "Line",
     "freedraw": "Draw",
     "text": "Text",
+    "textBubble": "Text Bubble",
     "library": "Library",
     "lock": "Keep selected tool active after drawing",
     "penMode": "Pen mode - prevent touch",
@@ -401,9 +402,9 @@
     "link_title": "Shareable link",
     "link_details": "Export as a read-only link.",
     "link_button": "Export to Link",
-    "excalidrawplus_description": "Save the scene to your Excalidraw+ workspace.",
+    "excalidrawplus_description": "Save the scene to your In Zicht+ workspace.",
     "excalidrawplus_button": "Export",
-    "excalidrawplus_exportError": "Couldn't export to Excalidraw+ at this moment..."
+    "excalidrawplus_exportError": "Couldn't export to In Zicht+ at this moment..."
   },
   "helpDialog": {
     "blog": "Read our blog",
@@ -557,7 +558,7 @@
   "welcomeScreen": {
     "app": {
       "center_heading": "All your data is saved locally in your browser.",
-      "center_heading_plus": "Did you want to go to the Excalidraw+ instead?",
+      "center_heading_plus": "Did you want to go to the In Zicht+ instead?",
       "menuHint": "Export, preferences, languages, ..."
     },
     "defaults": {
@@ -588,9 +589,9 @@
         "description": "Export the scene data to a file from which you can import later."
       },
       "excalidrawPlus": {
-        "title": "Excalidraw+",
-        "button": "Export to Excalidraw+",
-        "description": "Save the scene to your Excalidraw+ workspace."
+        "title": "In Zicht+",
+        "button": "Export to In Zicht+",
+        "description": "Save the scene to your In Zicht+ workspace."
       }
     },
     "modal": {

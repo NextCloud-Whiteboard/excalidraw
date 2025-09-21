@@ -17,7 +17,7 @@ export const defaultLang = { code: "en", label: "English" };
 
 export const languages: Language[] = [
   defaultLang,
-  { code: "nl-NL", label: "Deutsch" },
+  { code: "nl-NL", label: "Nederlands" },
 ];
 
 const TEST_LANG_CODE = "__test__";
