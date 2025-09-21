@@ -390,9 +390,6 @@ export const ShapesSwitcher = ({
       {/* Magnifier tool as standalone button */}
       {actionManager && actionManager.renderAction("magnifier")}
 
-      {/* PDF Import tool as standalone button */}
-      {actionManager && actionManager.renderAction("pdfImport")}
-
       {/* Text Bubble tool as standalone button */}
       <ToolButton
         type="radio"

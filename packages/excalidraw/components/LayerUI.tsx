@@ -284,6 +284,9 @@ const LayerUI = ({
                           />
                           {heading}
                           <Stack.Row gap={1}>
+                            {/* PDF Import tool as first button */}
+                            {actionManager && actionManager.renderAction("pdfImport")}
+                            
                             <PenModeButton
                               zenModeEnabled={appState.zenModeEnabled}
                               checked={appState.penMode}
@@ -291,14 +294,14 @@ const LayerUI = ({
                               title={t("toolBar.penMode")}
                               penDetected={appState.penDetected}
                             />
+  
+
+                            <div className="App-toolbar__divider" />
                             <LockButton
                               checked={appState.activeTool.locked}
                               onChange={onLockToggle}
                               title={t("toolBar.lock")}
                             />
-
-                            <div className="App-toolbar__divider" />
-
                             <HandButton
                               checked={isHandToolActive(appState)}
                               onChange={() => onHandToolToggle()}
