@@ -174,7 +174,7 @@ export const SelectedShapeActions = ({
         targetElements.some((element) => hasStrokeStyle(element.type))) && (
         <>
           {renderAction("changeStrokeStyle")}
-          {renderAction("changeSloppiness")}
+          {/* {renderAction("changeSloppiness")} */}
         </>
       )}
 
@@ -274,7 +274,7 @@ export const SelectedShapeActions = ({
             {!device.editor.isMobile && renderAction("deleteSelectedElements")}
             {renderAction("group")}
             {renderAction("ungroup")}
-            {showLinkIcon && renderAction("hyperlink")}
+            {/* {showLinkIcon && renderAction("hyperlink")} */}
             {showCropEditorAction && renderAction("cropEditor")}
             {showLineEditorAction && renderAction("toggleLinearEditor")}
           </div>
