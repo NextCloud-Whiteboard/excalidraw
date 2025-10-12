@@ -5741,49 +5741,27 @@ class App extends React.Component<AppProps, AppState> {
 
     resetCursor(this.interactiveCanvas);
     if (!event[KEYS.CTRL_OR_CMD] && !this.state.viewModeEnabled) {
+      // Allow double-click to edit when clicking inside a text bubble container
       const hitElement = this.getElementAtPosition(sceneX, sceneY);
-
-      if (isIframeLikeElement(hitElement)) {
-        this.setState({
-          activeEmbeddable: { element: hitElement, state: "active" },
+      if (hitElement && (hitElement as any).customData?.isTextBubble) {
+        const container = hitElement as ExcalidrawTextContainer;
+        const midPoint = getContainerCenter(
+          container,
+          this.state,
+          this.scene.getNonDeletedElementsMap(),
+        );
+        sceneX = midPoint.x;
+        sceneY = midPoint.y;
+        this.startTextEditing({
+          sceneX,
+          sceneY,
+          insertAtParentCenter: !event.altKey,
+          container,
         });
         return;
       }
-
-      const container = this.getTextBindableContainerAtPosition(sceneX, sceneY);
-
-      if (container) {
-        if (
-          hasBoundTextElement(container) ||
-          !isTransparent(container.backgroundColor) ||
-          hitElementItself({
-            x: sceneX,
-            y: sceneY,
-            element: container,
-            shape: getElementShape(
-              container,
-              this.scene.getNonDeletedElementsMap(),
-            ),
-            threshold: this.getElementHitThreshold(),
-          })
-        ) {
-          const midPoint = getContainerCenter(
-            container,
-            this.state,
-            this.scene.getNonDeletedElementsMap(),
-          );
-
-          sceneX = midPoint.x;
-          sceneY = midPoint.y;
-        }
-      }
-
-      this.startTextEditing({
-        sceneX,
-        sceneY,
-        insertAtParentCenter: !event.altKey,
-        container,
-      });
+      // Disable default double-click to start text editing elsewhere
+      return;
     }
   };
 

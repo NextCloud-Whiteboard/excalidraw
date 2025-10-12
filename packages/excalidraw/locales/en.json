@@ -648,7 +648,15 @@
       "noMatch": "No matching commands..."
     },
     "itemNotAvailable": "Command is not available...",
-    "shortcutHint": "For Command palette, use {{shortcut}}"
+    "shortcutHint": "For Command palette, use {{shortcut}}",
+    "categories": {
+      "App": "App",
+      "Export": "Export",
+      "Tools": "Tools",
+      "Editor": "Editor",
+      "Elements": "Elements",
+      "Links": "Links"
+    }
   },
   "toolHints": {
     "ruler": "Draw lines to measure distances",
