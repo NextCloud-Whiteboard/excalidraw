@@ -4615,6 +4615,13 @@ class App extends React.Component<AppProps, AppState> {
         !this.state.selectionElement &&
         !this.state.selectedElementsAreBeingDragged
       ) {
+        // Text Bubble shortcut: activate custom text bubble tool on 'T'
+        if (event.key === KEYS.T) {
+          this.setActiveTool({ type: "custom", customType: "textbubble" } as any);
+          event.stopPropagation();
+          return;
+        }
+
         const shape = findShapeByKey(event.key);
         if (shape) {
           if (this.state.activeTool.type !== shape) {
@@ -5915,7 +5922,7 @@ class App extends React.Component<AppProps, AppState> {
   private createTextBubble = (
     anchorX: number,
     anchorY: number,
-    pdfImage: ExcalidrawImageElement,
+    pdfImage: ExcalidrawImageElement | null,
   ) => {
     // Constants for text bubble appearance
     const BUBBLE_WIDTH = 200;
@@ -5939,15 +5946,20 @@ class App extends React.Component<AppProps, AppState> {
       strokeWidth: 1,
       roughness: 0,
       roundness: { type: 1, value: 8 },
-      customData: {
-        isTextBubble: true,
-        pdfParentId: pdfImage.id,
-        anchorPoint: { x: anchorX, y: anchorY },
-        relativePosition: {
-          x: (bubbleX - pdfImage.x) / pdfImage.width,
-          y: (bubbleY - pdfImage.y) / pdfImage.height,
-        },
-      },
+      customData: pdfImage
+        ? {
+            isTextBubble: true,
+            pdfParentId: pdfImage.id,
+            anchorPoint: { x: anchorX, y: anchorY },
+            relativePosition: {
+              x: (bubbleX - pdfImage.x) / pdfImage.width,
+              y: (bubbleY - pdfImage.y) / pdfImage.height,
+            },
+          }
+        : {
+            isTextBubble: true,
+            anchorPoint: { x: anchorX, y: anchorY },
+          },
     }) as ExcalidrawTextContainer;
 
     // Create the dotted connection line
@@ -5967,16 +5979,22 @@ class App extends React.Component<AppProps, AppState> {
       strokeStyle: "dotted",
       strokeColor: "#000000",
       strokeWidth: 1,
-      customData: {
-        isTextBubbleConnection: true,
-        bubbleId: bubbleRect.id,
-        pdfParentId: pdfImage.id,
-        anchorPoint: { x: anchorX, y: anchorY }, // Absolute coordinates at creation time
-        relativeAnchor: {
-          x: (anchorX - pdfImage.x) / pdfImage.width,
-          y: (anchorY - pdfImage.y) / pdfImage.height,
-        }, // Relative position on the PDF (0-1 range)
-      },
+      customData: pdfImage
+        ? {
+            isTextBubbleConnection: true,
+            bubbleId: bubbleRect.id,
+            pdfParentId: pdfImage.id,
+            anchorPoint: { x: anchorX, y: anchorY }, // Absolute coordinates at creation time
+            relativeAnchor: {
+              x: (anchorX - pdfImage.x) / pdfImage.width,
+              y: (anchorY - pdfImage.y) / pdfImage.height,
+            }, // Relative position on the PDF (0-1 range)
+          }
+        : {
+            isTextBubbleConnection: true,
+            bubbleId: bubbleRect.id,
+            anchorPoint: { x: anchorX, y: anchorY },
+          },
     });
 
     // Insert elements into the scene
@@ -6825,7 +6843,7 @@ class App extends React.Component<AppProps, AppState> {
   private handleCanvasPointerDown = (
     event: React.PointerEvent<HTMLElement>,
   ) => {
-    // Handle text bubble tool: click inserts a text bubble when over a PDF
+    // Handle text bubble tool: click inserts a text bubble
     if (
       this.state.activeTool.type === "custom" &&
       (this.state.activeTool as any).customType === "textbubble"
@@ -6833,13 +6851,10 @@ class App extends React.Component<AppProps, AppState> {
       const { clientX, clientY } = event;
       const { x, y } = viewportCoordsToSceneCoords({ clientX, clientY } as any, this.state);
       const pdfImage = this.getPdfImageAtPosition(x, y);
-      if (pdfImage) {
-        this.createTextBubble(x, y, pdfImage);
-        // switch back to selection after creating bubble
-        this.setActiveTool({ type: "selection" });
-        return;
-      }
-      // if not over a PDF, ignore and keep tool active
+      this.createTextBubble(x, y, pdfImage);
+      // switch back to selection after creating bubble
+      this.setActiveTool({ type: "selection" });
+      return;
     }
     const target = event.target as HTMLElement;
     // capture subsequent pointer events to the canvas
