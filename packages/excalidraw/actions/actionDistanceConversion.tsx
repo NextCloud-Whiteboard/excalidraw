@@ -53,7 +53,7 @@ export const actionDistanceConversion = register({
   trackEvent: false,
   label: t("labels.setScale"),
   perform: (elements, appState, value) => {
-    // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit, pdfCalibration?: { pdfId: string, cmPerPx: number } }
+    // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit, pdfCalibration?: { pdfId?: string, pdfDocId?: string, cmPerPx: number } }
     const updates: any = {};
     let nextElements = elements;
     
@@ -62,11 +62,13 @@ export const actionDistanceConversion = register({
       value?.pdfCalibration &&
       typeof value.pdfCalibration.cmPerPx === "number" &&
       isFinite(value.pdfCalibration.cmPerPx) &&
-      typeof value.pdfCalibration.pdfId === "string"
+      (typeof value.pdfCalibration.pdfId === "string" || typeof value.pdfCalibration.pdfDocId === "string")
     ) {
-      const { pdfId, cmPerPx } = value.pdfCalibration;
+      const { pdfId, pdfDocId, cmPerPx } = value.pdfCalibration as any;
       nextElements = elements.map((el: any) => {
-        if (el.id === pdfId) {
+        const matchesById = pdfId && el.id === pdfId;
+        const matchesByDoc = pdfDocId && el.customData?.pdfDocId === pdfDocId;
+        if (matchesById || matchesByDoc) {
           return {
             ...el,
             customData: {
@@ -122,6 +124,7 @@ export const actionDistanceConversion = register({
     // Determine the effective cmPerPx: prefer PDF-specific scale if the ruler is tied to a PDF
     const pdfParentId: string | undefined = selectedRulerElement?.customData?.pdfParentId;
     const pdfElement = pdfParentId ? (elementsMap.get(pdfParentId) as any) : null;
+    const pdfDocId: string | undefined = pdfElement?.customData?.pdfDocId;
     const effectiveCmPerPx: number = (pdfElement?.customData?.pdfCmPerPx ?? appState.cmPerPx) ?? 1;
     
     // Calculate what the current scale shows for this ruler in the selected metric
@@ -146,7 +149,7 @@ export const actionDistanceConversion = register({
         
         // If ruler belongs to a PDF, update that PDF's calibration; otherwise update global
         if (pdfParentId) {
-          updateData({ pdfCalibration: { pdfId: pdfParentId, cmPerPx: newCmPerPx } });
+          updateData({ pdfCalibration: { pdfId: pdfParentId, pdfDocId, cmPerPx: newCmPerPx } });
         } else {
           updateData({ cmPerPx: newCmPerPx });
         }

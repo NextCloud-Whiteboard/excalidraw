@@ -10744,10 +10744,82 @@ class App extends React.Component<AppProps, AppState> {
       const clientX = this.state.width / 2 + this.state.offsetLeft;
       const clientY = this.state.height / 2 + this.state.offsetTop;
 
-      const { x, y } = viewportCoordsToSceneCoords(
+      let { x, y } = viewportCoordsToSceneCoords(
         { clientX, clientY },
         this.state,
       );
+
+      // Find empty space to avoid overlapping with existing elements
+      const findEmptySpace = (
+        startX: number,
+        startY: number,
+        width: number,
+        height: number,
+      ): { x: number; y: number } => {
+        const existingElements = this.scene.getNonDeletedElements();
+        const margin = 50 / this.state.zoom.value;
+        const step = 100 / this.state.zoom.value;
+        
+        // Helper to check if a rectangle overlaps with any existing element
+        const hasOverlap = (rectX: number, rectY: number, rectW: number, rectH: number): boolean => {
+          return existingElements.some((element) => {
+            const [elX1, elY1, elX2, elY2] = getElementAbsoluteCoords(
+              element,
+              this.scene.getNonDeletedElementsMap(),
+            );
+            
+            // Add margin around existing elements
+            const elLeft = elX1 - margin;
+            const elTop = elY1 - margin;
+            const elRight = elX2 + margin;
+            const elBottom = elY2 + margin;
+            
+            // Check if rectangles intersect
+            return !(
+              rectX + rectW < elLeft ||
+              rectX > elRight ||
+              rectY + rectH < elTop ||
+              rectY > elBottom
+            );
+          });
+        };
+
+        // Try the original position first
+        if (!hasOverlap(startX - width / 2, startY, width, height)) {
+          return { x: startX, y: startY };
+        }
+
+        // Search in a spiral pattern outward from the original position
+        const maxAttempts = 100;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          // Try positions in a grid pattern, expanding outward
+          const positions = [
+            { x: startX, y: startY + step * attempt }, // Down
+            { x: startX + step * attempt, y: startY }, // Right
+            { x: startX - step * attempt, y: startY }, // Left
+            { x: startX, y: startY - step * attempt }, // Up
+            { x: startX + step * attempt, y: startY + step * attempt }, // Bottom-right
+            { x: startX - step * attempt, y: startY + step * attempt }, // Bottom-left
+            { x: startX + step * attempt, y: startY - step * attempt }, // Top-right
+            { x: startX - step * attempt, y: startY - step * attempt }, // Top-left
+          ];
+
+          for (const pos of positions) {
+            if (!hasOverlap(pos.x - width / 2, pos.y, width, height)) {
+              return pos;
+            }
+          }
+        }
+
+        // If no empty space found, return original position (far below existing content)
+        const allBounds = existingElements.length > 0
+          ? existingElements.map((el) => getElementAbsoluteCoords(el, this.scene.getNonDeletedElementsMap()))
+          : [];
+        const maxY = allBounds.length > 0
+          ? Math.max(...allBounds.map(([, , , y2]) => y2))
+          : startY;
+        return { x: startX, y: maxY + margin * 2 };
+      };
 
       // Open file dialog to select PDF using native input
       const input = document.createElement("input");
@@ -10851,53 +10923,190 @@ class App extends React.Component<AppProps, AppState> {
       isRequestComplete = true;
       updateProgress();
 
-      // Get the converted image as blob
-      const imageBlob = await response.blob();
+      // Try to detect JSON response (new API) vs. binary blob (legacy)
+      const responseContentType = response.headers.get("content-type") || "";
 
-      // Clear the progress interval and toast
-      clearInterval(progressInterval);
-      this.setToast(null);
+      // Helper to convert base64 string to Blob using data URL fetch (efficient and safe)
+      const base64ToBlob = async (
+        base64Data: string,
+        contentType: string,
+      ): Promise<Blob> => {
+        const dataUrl = `data:${contentType};base64,${base64Data}`;
+        const res = await fetch(dataUrl);
+        return await res.blob();
+      };
 
-      // Create a File object from the blob
-      const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
-        type: "image/png",
-      });
+      let insertedElementsIds: { [id: string]: true } = {};
+      // Generate a document-level id so all pages share calibration
+      const pdfDocId = `${pdfFile.name}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
 
-      // Create image element using the same logic as the image tool
-      const imageElement = this.createImageElement({
-        sceneX: x,
-        sceneY: y,
-        addToFrameUnderCursor: false,
-      });
+      if (responseContentType.includes("application/json")) {
+        // New API: expects { files: [{ filename, content_type, data(base64) }, ...] }
+        const json = await response.json();
+        const files = Array.isArray(json?.files) ? json.files : [];
+        if (!files.length) {
+          throw new Error("No images returned from PDF conversion");
+        }
 
-      // Mark this image element as a PDF so it can't be resized
-      this.scene.mutateElement(imageElement, {
-        customData: { isPdf: true, originalPdfName: pdfFile.name },
-      });
+        // Estimate total dimensions for finding empty space
+        // Assuming typical PDF page aspect ratio and our scaling logic
+        const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
+        const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
+        const estimatedWidth = availableWidth;
+        const gap = 40 / this.state.zoom.value;
+        // Rough estimate: each page takes up to availableHeight, stacked vertically
+        const estimatedTotalHeight = files.length * availableHeight + (files.length - 1) * gap;
 
-      // Insert the image element
-      const initializedImageElement = await this.insertImageElement(
-        imageElement,
-        imageFile,
-      );
+        // Find empty space for the entire PDF document
+        const emptySpace = findEmptySpace(x, y, estimatedWidth, estimatedTotalHeight);
+        x = emptySpace.x;
+        y = emptySpace.y;
 
-      // For PDFs, resize to fill most of the screen
-      if (initializedImageElement) {
-        this.initializePdfImageDimensions(initializedImageElement);
+        // Insert each page sequentially, vertically stacked with a gap
+        let currentY = y;
+
+        for (let i = 0; i < files.length; i++) {
+          const fileItem = files[i];
+          const contentType = fileItem?.content_type || "image/png";
+          const filename = fileItem?.filename || `${pdfFile.name}-page-${i + 1}.png`;
+          const base64 = fileItem?.data as string;
+          if (!base64) {
+            // Skip invalid entry but continue with others
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+
+          const pageBlob = await base64ToBlob(base64, contentType);
+          const pageFile = new File([pageBlob], filename, { type: contentType });
+
+          const pageElement = this.createImageElement({
+            sceneX: x,
+            sceneY: currentY,
+            addToFrameUnderCursor: false,
+          });
+
+          // Tag as PDF page
+          this.scene.mutateElement(pageElement, {
+            customData: {
+              isPdf: true,
+              originalPdfName: pdfFile.name,
+              pdfDocId,
+              pageIndex: i + 1,
+            },
+          });
+
+          const initialized = await this.insertImageElement(pageElement, pageFile);
+          if (initialized) {
+            // Size and position the page
+            this.initializePdfImageDimensionsWithPosition(initialized, x, currentY);
+            insertedElementsIds[initialized.id] = true;
+
+            // Compute next Y based on final size after positioning
+            currentY = initialized.y + initialized.height + gap;
+          }
+        }
+
+        // Clear the progress interval and toast after processing all pages
+        clearInterval(progressInterval);
+        this.setToast(null);
+
+        // Get the inserted elements for scrolling
+        const insertedElements = this.scene
+          .getNonDeletedElements()
+          .filter((el) => insertedElementsIds[el.id]);
+
+        // Select all inserted pages (or the first if needed)
+        this.setState(
+          {
+            selectedElementIds: makeNextSelectedElementIds(
+              insertedElementsIds,
+              this.state,
+            ),
+          },
+          () => {
+            this.actionManager.executeAction(actionFinalize);
+            
+            // Focus viewport on the newly imported PDF pages
+            if (insertedElements.length > 0) {
+              this.scrollToContent(insertedElements, {
+                fitToViewport: true,
+                viewportZoomFactor: 0.9,
+                animate: true,
+                duration: 300,
+              });
+            }
+          },
+        );
+      } else {
+        // Legacy: single image blob
+        const imageBlob = await response.blob();
+
+        // Clear the progress interval and toast
+        clearInterval(progressInterval);
+        this.setToast(null);
+
+        // Estimate dimensions for finding empty space
+        const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
+        const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
+        
+        // Find empty space for the PDF
+        const emptySpace = findEmptySpace(x, y, availableWidth, availableHeight);
+        x = emptySpace.x;
+        y = emptySpace.y;
+
+        // Create a File object from the blob
+        const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
+          type: "image/png",
+        });
+
+        // Create image element using the same logic as the image tool
+        const imageElement = this.createImageElement({
+          sceneX: x,
+          sceneY: y,
+          addToFrameUnderCursor: false,
+        });
+
+        // Mark this image element as a PDF so it can't be resized
+        this.scene.mutateElement(imageElement, {
+          customData: { isPdf: true, originalPdfName: pdfFile.name, pdfDocId },
+        });
+
+        // Insert the image element
+        const initializedImageElement = await this.insertImageElement(
+          imageElement,
+          imageFile,
+        );
+
+        // For PDFs, resize to fill most of the screen
+        if (initializedImageElement) {
+          this.initializePdfImageDimensions(initializedImageElement);
+        }
+
+        // Select the imported PDF image
+        this.setState(
+          {
+            selectedElementIds: makeNextSelectedElementIds(
+              { [initializedImageElement!.id]: true },
+              this.state,
+            ),
+          },
+          () => {
+            this.actionManager.executeAction(actionFinalize);
+            
+            // Focus viewport on the newly imported PDF
+            if (initializedImageElement) {
+              this.scrollToContent([initializedImageElement], {
+                fitToViewport: true,
+                viewportZoomFactor: 0.9,
+                animate: true,
+                duration: 300,
+              });
+            }
+          },
+        );
       }
-
-      // Select the imported PDF image
-      this.setState(
-        {
-          selectedElementIds: makeNextSelectedElementIds(
-            { [initializedImageElement!.id]: true },
-            this.state,
-          ),
-        },
-        () => {
-          this.actionManager.executeAction(actionFinalize);
-        },
-      );
     } catch (error: any) {
       // Clear any loading toast and progress interval first
       if (progressInterval) {
@@ -11006,6 +11215,44 @@ class App extends React.Component<AppProps, AppState> {
     // Center the image on the current positions
     const x = imageElement.x + imageElement.width / 2 - width / 2;
     const y = imageElement.y + imageElement.height / 2 - height / 2;
+
+    this.scene.mutateElement(imageElement, {
+      x,
+      y,
+      width,
+      height,
+      crop: null,
+    });
+  };
+
+  initializePdfImageDimensionsWithPosition = (
+    imageElement: ExcalidrawImageElement,
+    targetX: number,
+    targetY: number,
+  ) => {
+    const image =
+      isInitializedImageElement(imageElement) &&
+      this.imageCache.get(imageElement.fileId)?.image;
+
+    if (!image || image instanceof Promise) {
+      return;
+    }
+
+    // For PDFs, we want to fill most of the screen (90% of available space)
+    const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
+    const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
+
+    // Calculate the scale factor to fit the image within the available space
+    const scaleX = availableWidth / image.naturalWidth;
+    const scaleY = availableHeight / image.naturalHeight;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to maintain aspect ratio
+
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+
+    // Center horizontally around targetX, but position at targetY (no vertical centering)
+    const x = targetX - width / 2;
+    const y = targetY;
 
     this.scene.mutateElement(imageElement, {
       x,
