@@ -253,6 +253,23 @@ class Portal {
       this.socket.emit(WS_EVENTS.USER_FOLLOW_CHANGE, payload);
     }
   };
+
+  broadcastMeasurementUnitChange = (selectedMetric: "mm" | "cm" | "m") => {
+    if (this.socket?.id) {
+      const data: SocketUpdateDataSource["MEASUREMENT_UNIT_CHANGE"] = {
+        type: WS_SUBTYPES.MEASUREMENT_UNIT_CHANGE,
+        payload: {
+          socketId: this.socket.id as SocketId,
+          selectedMetric,
+          username: this.collab.state.username,
+        },
+      };
+      return this._broadcastSocketData(
+        data as SocketUpdateData,
+        false, // not volatile - we want guaranteed delivery for setting changes
+      );
+    }
+  };
 }
 
 export default Portal;

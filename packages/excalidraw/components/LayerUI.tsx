@@ -57,7 +57,6 @@ import { HintViewer } from "./HintViewer";
 import { ImageExportDialog } from "./ImageExportDialog";
 import { Island } from "./Island";
 import { JSONExportDialog } from "./JSONExportDialog";
-import { LaserPointerButton } from "./LaserPointerButton";
 
 import "./LayerUI.scss";
 import "./Toolbar.scss";
@@ -318,26 +317,6 @@ const LayerUI = ({
                             />
                           </Stack.Row>
                         </Island>
-                        {isCollaborating && (
-                          <Island
-                            style={{
-                              marginLeft: 8,
-                              alignSelf: "center",
-                              height: "fit-content",
-                            }}
-                          >
-                            <LaserPointerButton
-                              title={t("toolBar.laser")}
-                              checked={
-                                appState.activeTool.type === TOOL_TYPE.laser
-                              }
-                              onChange={() =>
-                                app.setActiveTool({ type: TOOL_TYPE.laser })
-                              }
-                              isMobile
-                            />
-                          </Island>
-                        )}
                       </Stack.Row>
                     </Stack.Col>
                   </div>

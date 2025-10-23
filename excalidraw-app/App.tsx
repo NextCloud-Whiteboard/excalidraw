@@ -340,6 +340,7 @@ const ExcalidrawWrapper = () => {
   }
 
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
+  const prevSelectedMetricRef = useRef<AppState["selectedMetric"]>("cm");
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
@@ -616,6 +617,12 @@ const ExcalidrawWrapper = () => {
   ) => {
     if (collabAPI?.isCollaborating()) {
       collabAPI.syncElements(elements);
+
+      // Broadcast measurement unit changes to collaborators
+      if (appState.selectedMetric !== prevSelectedMetricRef.current) {
+        prevSelectedMetricRef.current = appState.selectedMetric;
+        collabAPI.broadcastMeasurementUnitChange(appState.selectedMetric);
+      }
     }
 
     // this check is redundant, but since this is a hot path, it's best

@@ -120,6 +120,7 @@ export interface CollabAPI {
   getUsername: CollabInstance["getUsername"];
   getActiveRoomLink: CollabInstance["getActiveRoomLink"];
   setCollabError: CollabInstance["setErrorDialog"];
+  broadcastMeasurementUnitChange: (selectedMetric: "mm" | "cm" | "m") => void;
 }
 
 interface CollabProps {
@@ -234,6 +235,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       getUsername: this.getUsername,
       getActiveRoomLink: this.getActiveRoomLink,
       setCollabError: this.setErrorDialog,
+      broadcastMeasurementUnitChange: (selectedMetric: "mm" | "cm" | "m") => {
+        this.portal.broadcastMeasurementUnitChange(selectedMetric);
+      },
     };
 
     appJotaiStore.set(collabAPIAtom, collabAPI);
@@ -653,6 +657,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               userState,
               username,
             });
+            break;
+          }
+
+          case WS_SUBTYPES.MEASUREMENT_UNIT_CHANGE: {
+            const { selectedMetric, socketId } = decryptedData.payload;
+
+            // Only update if it's from another user (not our own broadcast)
+            if (socketId !== this.portal.socket?.id) {
+              this.excalidrawAPI.updateScene({
+                appState: {
+                  selectedMetric,
+                },
+              });
+            }
             break;
           }
 

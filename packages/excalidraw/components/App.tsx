@@ -102,6 +102,7 @@ import {
   randomInteger,
   CLASSES,
   Emitter,
+  FONT_FAMILY,
 } from "@excalidraw/common";
 
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
@@ -5997,11 +5998,15 @@ class App extends React.Component<AppProps, AppState> {
         .getNonDeletedElements()
         .filter((el) => isTextElement(el) && el.containerId === bubbleRect.id);
       textElements.forEach((textElement) => {
+        const updates: any = {
+          fontFamily: FONT_FAMILY.Nunito, // Set font to normal instead of hand-drawn
+        };
+        
         if (textElement.customData?.pdfParentId) {
-          this.scene.mutateElement(textElement, {
-            customData: undefined, // Remove the PDF parent relationship
-          });
+          updates.customData = undefined; // Remove the PDF parent relationship
         }
+        
+        this.scene.mutateElement(textElement, updates);
       });
 
       // Text bubble now keeps its pdfParentId to move with PDF

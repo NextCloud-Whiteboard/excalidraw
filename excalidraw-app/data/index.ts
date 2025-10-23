@@ -124,6 +124,14 @@ export type SocketUpdateDataSource = {
       username: string;
     };
   };
+  MEASUREMENT_UNIT_CHANGE: {
+    type: WS_SUBTYPES.MEASUREMENT_UNIT_CHANGE;
+    payload: {
+      socketId: SocketId;
+      selectedMetric: "mm" | "cm" | "m";
+      username: string;
+    };
+  };
 };
 
 export type SocketUpdateDataIncoming =
