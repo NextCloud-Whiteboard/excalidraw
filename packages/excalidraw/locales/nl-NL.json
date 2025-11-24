@@ -273,6 +273,7 @@
     "text": "Jotter",
     "textBubble": "Tekst wolk",
     "library": "Bibliotheek",
+    "talk": "Talk",
     "lock": "Geselecteerde tool actief houden na tekenen",
     "penMode": "Pen modus - Blokkeer aanraken",
     "link": "Link toevoegen / bijwerken voor een geselecteerde vorm",
@@ -286,6 +287,15 @@
     "mermaidToExcalidraw": "Mermaid naar In Zicht",
     "convertElementType": "Vormtype omschakelen",
     "magicSettings": ""
+  },
+  "talkSidebar": {
+    "loading": "Talkruimte wordt voorbereid...",
+    "error": {
+      "generic": "De Talkruimte kan niet worden voorbereid. Probeer het later opnieuw.",
+      "notFound": "Er is geen Talkruimte voor deze sessie gevonden.",
+      "unavailable": "Talkdienst is tijdelijk niet beschikbaar.",
+      "unreachable": "Kan geen verbinding maken met de Talkdienst. Controleer je verbinding en probeer opnieuw."
+    }
   },
   "headings": {
     "canvasActions": "Canvasacties",

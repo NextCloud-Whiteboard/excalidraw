@@ -303,6 +303,7 @@
     "text": "Text",
     "textBubble": "Text Bubble",
     "library": "Library",
+    "talk": "Talk",
     "lock": "Keep selected tool active after drawing",
     "penMode": "Pen mode - prevent touch",
     "link": "Add / Update link for a selected shape",
@@ -315,6 +316,15 @@
     "extraTools": "More tools",
     "mermaidToExcalidraw": "Mermaid to In Zicht",
     "convertElementType": "Toggle shape type"
+  },
+  "talkSidebar": {
+    "loading": "Preparing Talk room...",
+    "error": {
+      "generic": "Couldn't prepare the Talk room. Please try again soon.",
+      "notFound": "Talk room not found for this session.",
+      "unavailable": "Talk service is temporarily unavailable.",
+      "unreachable": "Can't reach the Talk service. Check your connection and try again."
+    }
   },
   "element": {
     "rectangle": "Rectangle",

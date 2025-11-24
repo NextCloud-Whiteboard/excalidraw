@@ -731,6 +731,20 @@ export const restoreAppState = (
 
   return {
     ...nextAppState,
+    // Preserve Talk room state from local app state if incoming scene doesn't specify it
+    // Talk room state is ephemeral collaboration state that shouldn't be reset during scene updates
+    talkRoomUrl:
+      nextAppState.talkRoomUrl !== null
+        ? nextAppState.talkRoomUrl
+        : localAppState?.talkRoomUrl ?? null,
+    talkRoomStatus:
+      nextAppState.talkRoomStatus !== "idle"
+        ? nextAppState.talkRoomStatus
+        : localAppState?.talkRoomStatus ?? "idle",
+    talkRoomStatusMessage:
+      nextAppState.talkRoomStatusMessage !== null
+        ? nextAppState.talkRoomStatusMessage
+        : localAppState?.talkRoomStatusMessage ?? null,
     cursorButton: localAppState?.cursorButton || "up",
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:

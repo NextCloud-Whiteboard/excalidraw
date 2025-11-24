@@ -365,6 +365,9 @@ export interface AppState {
     | "fontFamily"
     | null;
   openSidebar: { name: SidebarName; tab?: SidebarTabName } | null;
+  talkRoomUrl: string | null;
+  talkRoomStatus: "idle" | "loading" | "ready" | "error";
+  talkRoomStatusMessage: string | null;
   openDialog:
     | null
     | { name: "imageExport" | "help" | "jsonExport" }
@@ -380,6 +383,10 @@ export interface AppState {
    * a DefaultSidebar prop, which is not reflected back to the appState.
    */
   defaultSidebarDockedPreference: boolean;
+  /**
+   * Reflects user preference for whether the Talk sidebar should be docked.
+   */
+  talkSidebarDockedPreference: boolean;
 
   lastPointerDownWith: PointerType;
   selectedElementIds: Readonly<{ [id: string]: true }>;

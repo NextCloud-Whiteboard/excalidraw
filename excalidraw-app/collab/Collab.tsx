@@ -46,6 +46,7 @@ import type {
   SocketId,
   Collaborator,
   Gesture,
+  AppState,
 } from "@excalidraw/excalidraw/types";
 import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
@@ -92,6 +93,21 @@ import type {
   SyncableExcalidrawElement,
 } from "../data";
 
+const DEFAULT_TALK_ROOM_URL =
+  "https://nextcloud.loket.site/index.php/call/7pekohoo";
+const TALK_SERVICE_BASE_URL = (
+  import.meta.env.VITE_TALK_SERVICE_URL || ""
+).replace(/\/$/, "");
+
+class TalkRoomError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export const collabAPIAtom = atom<CollabAPI | null>(null);
 export const isCollaboratingAtom = atom(false);
 export const isOfflineAtom = atom(false);
@@ -133,6 +149,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   excalidrawAPI: CollabProps["excalidrawAPI"];
   activeIntervalId: number | null;
   idleTimeoutId: number | null;
+  private talkRoomAbortController: AbortController | null = null;
 
   private socketInitializationTimer?: number;
   private lastBroadcastedOrReceivedSceneVersion: number = -1;
@@ -406,12 +423,16 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.portal.close();
     this.fileManager.reset();
     if (!opts?.isUnload) {
+      this.talkRoomAbortController?.abort();
+      this.talkRoomAbortController = null;
       this.setIsCollaborating(false);
       this.setActiveRoomLink(null);
       this.collaborators = new Map();
       this.excalidrawAPI.updateScene({
         collaborators: this.collaborators,
       });
+      this.setTalkRoomUrl(null);
+      this.setTalkRoomState("idle");
       LocalData.resumeSave("collaboration");
     }
   };
@@ -494,6 +515,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         getCollaborationLink({ roomId, roomKey }),
       );
     }
+
+    void this.prepareTalkRoom(roomId, !existingRoomLinkData);
 
     // TODO: `ImportedDataState` type here seems abused
     const scenePromise = resolvablePromise<
@@ -708,6 +731,154 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.setActiveRoomLink(window.location.href);
 
     return scenePromise;
+  };
+
+  private getTalkRoomName = () => {
+    const appState = this.excalidrawAPI.getAppState();
+    return (
+      appState.name?.trim() ||
+      t("labels.liveCollaboration") ||
+      "Excalidraw Session"
+    );
+  };
+
+  private setTalkRoomUrl = (url: string | null) => {
+    this.excalidrawAPI.updateScene({
+      appState: { talkRoomUrl: url },
+    });
+  };
+
+  private setTalkRoomState = (
+    status: AppState["talkRoomStatus"],
+    message?: string | null,
+  ) => {
+    this.excalidrawAPI.updateScene({
+      appState: {
+        talkRoomStatus: status,
+        talkRoomStatusMessage: message ?? null,
+      },
+    });
+  };
+
+  private prepareTalkRoom = async (
+    roomId: string,
+    shouldCreate: boolean,
+  ): Promise<void> => {
+    if (!roomId) {
+      return;
+    }
+
+    this.talkRoomAbortController?.abort();
+    const controller = new AbortController();
+    this.talkRoomAbortController = controller;
+
+    this.setTalkRoomState("loading");
+    this.setTalkRoomUrl(null);
+
+    if (!TALK_SERVICE_BASE_URL) {
+      this.setTalkRoomUrl(DEFAULT_TALK_ROOM_URL);
+      this.setTalkRoomState("ready");
+      return;
+    }
+
+    try {
+      let talkUrl: string | null = null;
+
+      if (!shouldCreate) {
+        try {
+          talkUrl = await this.requestTalkRoom({
+            roomId,
+            method: "GET",
+            signal: controller.signal,
+          });
+        } catch (error) {
+          if (
+            !(error instanceof TalkRoomError) ||
+            error.status !== 404 ||
+            controller.signal.aborted
+          ) {
+            throw error;
+          }
+        }
+      }
+
+      if (!talkUrl) {
+        talkUrl = await this.requestTalkRoom({
+          roomId,
+          method: "POST",
+          signal: controller.signal,
+        });
+      }
+
+      if (!controller.signal.aborted) {
+        this.setTalkRoomUrl(talkUrl);
+        this.setTalkRoomState("ready");
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        console.error("[Collab] Failed to synchronize Talk room", error);
+        const status =
+          error instanceof TalkRoomError ? error.status : undefined;
+        const isNetworkError = error instanceof TypeError && !status;
+        const errorMessage = this.getTalkErrorMessage(status, isNetworkError);
+        this.setTalkRoomState("error", errorMessage);
+      }
+    }
+  };
+
+  private requestTalkRoom = async ({
+    roomId,
+    method,
+    signal,
+  }: {
+    roomId: string;
+    method: "GET" | "POST";
+    signal: AbortSignal;
+  }) => {
+    const endpoint = `${TALK_SERVICE_BASE_URL}/sessions/${encodeURIComponent(
+      roomId,
+    )}/talk-room`;
+    const roomNameParam =
+      method === "POST"
+        ? `?room_name=${encodeURIComponent(this.getTalkRoomName())}`
+        : "";
+    const url = `${endpoint}${roomNameParam}`;
+
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new TalkRoomError(
+        `Talk service responded with ${response.status} ${response.statusText}: ${errorText}`,
+        response.status,
+      );
+    }
+
+    const payload = (await response.json()) as { join_url?: string };
+    if (!payload.join_url) {
+      throw new TalkRoomError(
+        "Talk service response missing join_url",
+        response.status,
+      );
+    }
+    return payload.join_url;
+  };
+
+  private getTalkErrorMessage = (status?: number, isNetworkError?: boolean) => {
+    if (isNetworkError) {
+      return t("talkSidebar.error.unreachable");
+    }
+    if (status === 404) {
+      return t("talkSidebar.error.notFound");
+    }
+    if (status === 503) {
+      return t("talkSidebar.error.unavailable");
+    }
+    return t("talkSidebar.error.generic");
   };
 
   private initializeRoom = async ({

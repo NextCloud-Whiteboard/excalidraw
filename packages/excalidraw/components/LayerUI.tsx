@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import React from "react";
+import React, { useEffect } from "react";
 
 import {
   CLASSES,
@@ -38,13 +38,14 @@ import Stack from "./Stack";
 import { UserList } from "./UserList";
 import { PenModeButton } from "./PenModeButton";
 import Footer from "./footer/Footer";
-import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
+import { isSidebarDockedAtom, Sidebar } from "./Sidebar/Sidebar";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
 import { useDevice } from "./App";
 import { OverwriteConfirmDialog } from "./OverwriteConfirm/OverwriteConfirm";
 import { LibraryIcon } from "./icons";
 import { DefaultSidebar } from "./DefaultSidebar";
+import { TalkSidebar, TALK_SIDEBAR } from "./TalkSidebar";
 import { TTDDialog } from "./TTDDialog/TTDDialog";
 import { Stats } from "./Stats";
 import ElementLinkDialog from "./ElementLinkDialog";
@@ -343,7 +344,28 @@ const LayerUI = ({
               // hide button when sidebar docked
               (!isSidebarDocked ||
                 appState.openSidebar?.name !== DEFAULT_SIDEBAR.name) && (
-                <tunnels.DefaultSidebarTriggerTunnel.Out />
+                <>
+                  <tunnels.DefaultSidebarTriggerTunnel.Out />
+                  {isCollaborating && (
+                    <Sidebar.Trigger
+                      name={TALK_SIDEBAR.name}
+                      tab={TALK_SIDEBAR.defaultTab}
+                      className="default-sidebar-trigger talk-sidebar-trigger"
+                      title={t("toolBar.talk")}
+                      onToggle={(open) => {
+                        if (open) {
+                          trackEvent(
+                            "sidebar",
+                            `${TALK_SIDEBAR.name} (open)`,
+                            `button (${device.editor.isMobile ? "mobile" : "desktop"})`,
+                          );
+                        }
+                      }}
+                    >
+                      {t("toolBar.talk")}
+                    </Sidebar.Trigger>
+                  )}
+                </>
               )}
             {shouldShowStats && (
               <Stats
@@ -360,18 +382,38 @@ const LayerUI = ({
     );
   };
 
+  useEffect(() => {
+    if (!isCollaborating && appState.openSidebar?.name === TALK_SIDEBAR.name) {
+      setAppState({ openSidebar: null });
+    }
+  }, [appState.openSidebar?.name, isCollaborating, setAppState]);
+
   const renderSidebars = () => {
     return (
-      <DefaultSidebar
-        __fallback
-        onDock={(docked) => {
-          trackEvent(
-            "sidebar",
-            `toggleDock (${docked ? "dock" : "undock"})`,
-            `(${device.editor.isMobile ? "mobile" : "desktop"})`,
-          );
-        }}
-      />
+      <>
+        <DefaultSidebar
+          __fallback
+          onDock={(docked) => {
+            trackEvent(
+              "sidebar",
+              `toggleDock (${docked ? "dock" : "undock"})`,
+              `(${device.editor.isMobile ? "mobile" : "desktop"})`,
+            );
+          }}
+        />
+        {isCollaborating && (
+          <TalkSidebar
+            __fallback
+            docked={appState.talkSidebarDockedPreference}
+            callUrl={appState.talkRoomUrl || undefined}
+            status={appState.talkRoomStatus}
+            statusMessage={appState.talkRoomStatusMessage || undefined}
+            onDock={(docked) =>
+              setAppState({ talkSidebarDockedPreference: docked })
+            }
+          />
+        )}
+      </>
     );
   };
 
