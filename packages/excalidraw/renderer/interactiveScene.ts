@@ -704,6 +704,11 @@ const renderRulerDistances = (
   
   const invZoom = 1 / appState.zoom.value;
   
+  // Check if magnifier is active and which element is being edited
+  const magnifierActive = !!(appState as any).magnifier?.position;
+  const editingElementId = appState.selectedLinearElement?.elementId || 
+                           appState.editingLinearElement?.elementId;
+  
   elements.forEach((element) => {
     // Show distance only for lines created by the ruler tool
     if (
@@ -712,6 +717,10 @@ const renderRulerDistances = (
       element.type === "line" && // Only show for line elements, not arrows
       element.customData?.tool === "ruler" // Only show for ruler-created lines
     ) {
+      // Skip rendering if magnifier is showing for this element (magnifier already shows distance)
+      if (magnifierActive && element.id === editingElementId) {
+        return;
+      }
       const points = LinearElementEditor.getPointsGlobalCoordinates(
         element,
         elementsMap,

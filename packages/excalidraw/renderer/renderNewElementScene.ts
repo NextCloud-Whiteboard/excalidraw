@@ -47,12 +47,14 @@ const _renderNewElementScene = ({
         appState,
       );
       
-      // Render real-time distance for ruler tool
+      // Render real-time distance for ruler tool (only when magnifier is not showing)
+      // When magnifier is visible, it already displays the distance
       if (
         isLinearElement(newElement) &&
         newElement.type === "line" &&
         newElement.customData?.tool === "ruler" &&
-        newElement.points.length >= 2
+        newElement.points.length >= 2 &&
+        !appState.magnifier?.position
       ) {
         renderRealTimeRulerDistance(context, newElement, appState, elementsMap);
       }
