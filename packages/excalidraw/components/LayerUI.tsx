@@ -285,8 +285,9 @@ const LayerUI = ({
                           {heading}
                           <Stack.Row gap={1}>
                             {/* PDF Import tool as first button */}
-                            {actionManager && actionManager.renderAction("pdfImport")}
-                            
+                            {actionManager &&
+                              actionManager.renderAction("pdfImport")}
+
                             <PenModeButton
                               zenModeEnabled={appState.zenModeEnabled}
                               checked={appState.penMode}
@@ -294,7 +295,6 @@ const LayerUI = ({
                               title={t("toolBar.penMode")}
                               penDetected={appState.penDetected}
                             />
-  
 
                             <div className="App-toolbar__divider" />
                             <LockButton
@@ -357,7 +357,9 @@ const LayerUI = ({
                           trackEvent(
                             "sidebar",
                             `${TALK_SIDEBAR.name} (open)`,
-                            `button (${device.editor.isMobile ? "mobile" : "desktop"})`,
+                            `button (${
+                              device.editor.isMobile ? "mobile" : "desktop"
+                            })`,
                           );
                         }
                       }}

@@ -1,15 +1,22 @@
 import clsx from "clsx";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
-import React, { useEffect, useRef, useLayoutEffect, useState } from "react";
-
-import { withInternalFallback } from "./hoc/withInternalFallback";
-import { Sidebar } from "./Sidebar/Sidebar";
-import type { SidebarProps } from "./Sidebar/common";
 import { t } from "../i18n";
 import { useUIAppState } from "../context/ui-appState";
 
-import "./TalkSidebar.scss";
+import { withInternalFallback } from "./hoc/withInternalFallback";
+import { Sidebar } from "./Sidebar/Sidebar";
 import Spinner from "./Spinner";
+
+import "./TalkSidebar.scss";
+
+import type { SidebarProps } from "./Sidebar/common";
 
 export const TALK_SIDEBAR = {
   name: "talk",
@@ -42,13 +49,49 @@ export const TalkSidebar = withInternalFallback(
     const isSidebarOpen = appState.openSidebar?.name === TALK_SIDEBAR.name;
     const [iframeStyle, setIframeStyle] = useState<React.CSSProperties>({});
 
+    const [width, setWidth] = useState(420);
+    const [isResizing, setIsResizing] = useState(false);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+      setIsResizing(true);
+      e.preventDefault();
+    }, []);
+
+    useEffect(() => {
+      if (!isResizing) {
+        return;
+      }
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const newWidth = window.innerWidth - e.clientX;
+        const clampedWidth = Math.max(
+          300,
+          Math.min(newWidth, window.innerWidth - 50),
+        );
+        setWidth(clampedWidth);
+      };
+
+      const handleMouseUp = () => {
+        setIsResizing(false);
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }, [isResizing]);
+
     useEffect(() => {
       if (callUrl) {
         lastKnownUrlRef.current = callUrl;
-      } else if (status === "loading" || status === "error") {
-        lastKnownUrlRef.current = null;
       }
-    }, [status, callUrl]);
+    }, [callUrl]);
+
+    const effectiveUrl =
+      status === "error" ? null : callUrl ?? lastKnownUrlRef.current;
 
     // Position the iframe to overlay the placeholder
     useLayoutEffect(() => {
@@ -84,13 +127,7 @@ export const TalkSidebar = withInternalFallback(
         window.removeEventListener("resize", updatePosition);
         window.removeEventListener("scroll", updatePosition, true);
       };
-    }, [isSidebarOpen]);
-
-    const effectiveUrl =
-      status === "error" ? null : callUrl ?? lastKnownUrlRef.current;
-
-    //log the effective url
-    console.log("effectiveUrl", effectiveUrl);
+    }, [isSidebarOpen, effectiveUrl]);
 
     const placeholderMessage =
       status === "error"
@@ -108,7 +145,10 @@ export const TalkSidebar = withInternalFallback(
             allow="camera; microphone; fullscreen; display-capture; autoplay"
             allowFullScreen
             loading="lazy"
-            style={iframeStyle}
+            style={{
+              ...iframeStyle,
+              pointerEvents: isResizing ? "none" : undefined,
+            }}
             className={clsx("talk-sidebar__persistent-iframe", {
               "talk-sidebar__persistent-iframe--visible": isSidebarOpen,
             })}
@@ -118,7 +158,12 @@ export const TalkSidebar = withInternalFallback(
           {...rest}
           name={TALK_SIDEBAR.name}
           className={clsx("talk-sidebar", className)}
+          style={{ width }}
         >
+          <div
+            className="talk-sidebar__resize-handle"
+            onMouseDown={handleMouseDown}
+          />
           <Sidebar.Header>
             <div className="talk-sidebar__title">{t("toolBar.talk")}</div>
           </Sidebar.Header>
@@ -139,6 +184,11 @@ export const TalkSidebar = withInternalFallback(
             )}
           </div>
         </Sidebar>
+        <div
+          className="talk-sidebar__resizer"
+          onMouseDown={handleMouseDown}
+          style={{ cursor: isResizing ? "ew-resize" : "default" }}
+        />
       </>
     );
   },
