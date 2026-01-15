@@ -280,8 +280,8 @@ export const Magnifier: React.FC<MagnifierProps> = ({
     <div
       style={{
         position: "absolute",
-        left: position.x - size / 2,
-        top: position.y - size / 2,
+        left: position.x - appState.offsetLeft - size / 2,
+        top: position.y - appState.offsetTop - size / 2,
         pointerEvents: "none",
         zIndex: 999,
       }}
