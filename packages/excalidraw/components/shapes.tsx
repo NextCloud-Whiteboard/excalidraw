@@ -13,6 +13,8 @@ import {
   EraserIcon,
 } from "./icons";
 
+console.log("CUSTOM_EXCALIDRAW_ERASER_BUILD_20260425");
+
 export const SHAPES = [
   {
     icon: SelectionIcon,
