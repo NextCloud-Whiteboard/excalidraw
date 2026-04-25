@@ -13,8 +13,6 @@ import {
   EraserIcon,
 } from "./icons";
 
-console.log("CUSTOM_EXCALIDRAW_ERASER_BUILD_20260425");
-
 export const SHAPES = [
   {
     icon: SelectionIcon,
@@ -79,7 +77,7 @@ export const SHAPES = [
     numericKey: KEYS["9"],
     fillable: false,
   },
-  // ===== ERASER TOOL =====
+  // =====AZ12413243243242=====
   {
     icon: EraserIcon,
     value: "eraser",
