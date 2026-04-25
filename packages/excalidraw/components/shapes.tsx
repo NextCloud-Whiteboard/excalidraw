@@ -77,6 +77,7 @@ export const SHAPES = [
     numericKey: KEYS["9"],
     fillable: false,
   },
+  // ===== ERASER TOOL =====
   {
     icon: EraserIcon,
     value: "eraser",
