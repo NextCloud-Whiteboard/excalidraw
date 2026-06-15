@@ -592,6 +592,16 @@ export interface ExcalidrawProps {
     /** excludes the duplicated elements */
     prevElements: readonly ExcalidrawElement[],
   ) => ExcalidrawElement[] | void;
+  /**
+   * Called whenever new elements are inserted into the scene (drawing,
+   * paste, library insert, remote sync, etc.). Receives only the elements
+   * whose ids did not exist in the scene before. Returned array replaces
+   * those elements; return void to leave them untouched.
+   */
+  onElementsCreated?: (
+    newElements: readonly ExcalidrawElement[],
+    prevElements: readonly ExcalidrawElement[],
+  ) => ExcalidrawElement[] | void;
   renderTopRightUI?: (
     isMobile: boolean,
     appState: UIAppState,

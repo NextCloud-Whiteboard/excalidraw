@@ -45,6 +45,11 @@ import type { AppState } from "../../excalidraw/types";
 type SceneStateCallback = () => void;
 type SceneStateCallbackRemover = () => void;
 
+export type OnElementsCreatedCallback = (
+  newElements: readonly ExcalidrawElement[],
+  prevElements: readonly ExcalidrawElement[],
+) => ExcalidrawElement[] | void;
+
 type SelectionHash = string & { __brand: "selectionHash" };
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
@@ -111,6 +116,8 @@ export class Scene {
   // ---------------------------------------------------------------------------
 
   private callbacks: Set<SceneStateCallback> = new Set();
+
+  private onElementsCreated: OnElementsCreatedCallback | null = null;
 
   private nonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
     [];
@@ -263,10 +270,33 @@ export class Scene {
     return didChange;
   }
 
+  setOnElementsCreated(cb: OnElementsCreatedCallback | null) {
+    this.onElementsCreated = cb;
+  }
+
   replaceAllElements(nextElements: ElementsMapOrArray) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
-    const _nextElements = toArray(nextElements);
+    let _nextElements = toArray(nextElements);
     const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+
+    if (this.onElementsCreated) {
+      const prevElements = this.elements;
+      const newlyAddedElements: ExcalidrawElement[] = [];
+      for (const element of _nextElements) {
+        if (!this.elementsMap.has(element.id)) {
+          newlyAddedElements.push(element);
+        }
+      }
+      if (newlyAddedElements.length > 0) {
+        const mapped = this.onElementsCreated(newlyAddedElements, prevElements);
+        if (mapped) {
+          const replacements = new Map(mapped.map((el) => [el.id, el]));
+          _nextElements = _nextElements.map(
+            (el) => replacements.get(el.id) ?? el,
+          );
+        }
+      }
+    }
 
     validateIndicesThrottled(_nextElements);
 

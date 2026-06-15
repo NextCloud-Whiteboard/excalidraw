@@ -751,6 +751,9 @@ class App extends React.Component<AppProps, AppState> {
       this,
     );
     this.scene = new Scene();
+    this.scene.setOnElementsCreated((newEls, prevEls) =>
+      this.props.onElementsCreated?.(newEls, prevEls),
+    );
 
     // Override scene's mutateElement to add text bubble connection updates
     const originalMutateElement = this.scene.mutateElement.bind(this.scene);

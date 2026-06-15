@@ -18,5 +18,9 @@ export const showSelectedShapeActions = (
             appState.activeTool.type !== "eraser" &&
             appState.activeTool.type !== "hand" &&
             appState.activeTool.type !== "laser"))) ||
+        // Ruler is a custom tool but should show the properties panel while
+        // active so the scale/unit can be set before drawing.
+        (appState.activeTool.type === "custom" &&
+          appState.activeTool.customType === "ruler") ||
         getSelectedElements(elements, appState).length),
   );

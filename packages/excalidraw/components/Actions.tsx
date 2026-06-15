@@ -208,11 +208,16 @@ export const SelectedShapeActions = ({
 
       {renderAction("changeOpacity")}
 
-      {/* Distance conversion for ruler tool - only show when ruler-created line is selected */}
-      {targetElements.some(
-        (element) =>
-          element.type === "line" && element.customData?.tool === "ruler",
-      ) && renderAction("distanceConversion")}
+      {/* Distance conversion for ruler tool - show while the ruler tool is
+          active (so the unit/scale can be set before drawing) or when a
+          ruler-created line is selected. */}
+      {((appState.activeTool.type === "custom" &&
+        appState.activeTool.customType === "ruler") ||
+        targetElements.some(
+          (element) =>
+            element.type === "line" && element.customData?.tool === "ruler",
+        )) &&
+        renderAction("distanceConversion")}
 
       <fieldset>
         <legend>{t("labels.layers")}</legend>
