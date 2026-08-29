@@ -19,10 +19,12 @@ interface NewElementCanvasProps {
   scale: number;
   rc: RoughCanvas;
   renderConfig: StaticCanvasRenderConfig;
+  handleCanvasRef?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 const NewElementCanvas = (props: NewElementCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { handleCanvasRef } = props;
   useEffect(() => {
     if (!canvasRef.current) {
       return;
@@ -51,7 +53,10 @@ const NewElementCanvas = (props: NewElementCanvasProps) => {
       }}
       width={props.appState.width * props.scale}
       height={props.appState.height * props.scale}
-      ref={canvasRef}
+      ref={(canvas) => {
+        canvasRef.current = canvas;
+        handleCanvasRef?.(canvas);
+      }}
     />
   );
 };

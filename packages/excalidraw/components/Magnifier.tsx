@@ -7,6 +7,9 @@ import { isLinearElement } from "@excalidraw/element";
 interface MagnifierProps {
   appState: AppState;
   canvas: HTMLCanvasElement | null;
+  // Read lazily inside the effect: the canvas mounts in the same commit that
+  // first sets appState.newElement, so its ref is only attached by then.
+  getNewElementCanvas?: () => HTMLCanvasElement | null;
   visibleElements: readonly any[];
   elementsMap: any;
 }
@@ -14,6 +17,7 @@ interface MagnifierProps {
 export const Magnifier: React.FC<MagnifierProps> = ({
   appState,
   canvas,
+  getNewElementCanvas,
   elementsMap,
 }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -128,6 +132,24 @@ export const Magnifier: React.FC<MagnifierProps> = ({
         size, // destination height
       );
 
+      // The element being drawn right now lives on NewElementCanvas, not on
+      // the static canvas, so it has to be composited separately or the
+      // in-progress ruler line is absent from the zoomed view.
+      const newElementCanvas = getNewElementCanvas?.() ?? null;
+      if (newElementCanvas) {
+        ctx.drawImage(
+          newElementCanvas,
+          Math.max(0, sourceX),
+          Math.max(0, sourceY),
+          sourceSize * pixelRatio,
+          sourceSize * pixelRatio,
+          0,
+          0,
+          size,
+          size,
+        );
+      }
+
       // Reset scale for masking
       ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
@@ -165,17 +187,23 @@ export const Magnifier: React.FC<MagnifierProps> = ({
         if (element && "points" in element && element.points.length >= 2) {
           const points = element.points;
           const lastPoint = points[points.length - 1];
-          const firstPoint = points[0];
+          // Use the final segment: on a multi-point ruler the overall
+          // first->last direction is not the direction under the cursor.
+          const previousPoint = points[points.length - 2];
 
-          // Calculate angle from first point to last point (direction of drawing)
-          const dx = lastPoint[0] - firstPoint[0];
-          const dy = lastPoint[1] - firstPoint[1];
+          const dx = lastPoint[0] - previousPoint[0];
+          const dy = lastPoint[1] - previousPoint[1];
           angle = Math.atan2(dy, dx) + Math.PI; // Add PI to reverse direction
         }
 
-        // Draw line from center to edge in ruler direction
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2;
+        // Match the ruler's own stroke. The zoomed view is scaled by both the
+        // canvas zoom and the magnifier zoom, so the width has to follow.
+        const strokeColor = element?.strokeColor ?? "#000";
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = Math.max(
+          1,
+          (element?.strokeWidth ?? 1) * appState.zoom.value * zoom,
+        );
         ctx.setLineDash([]);
 
         const centerX = size / 2;
@@ -192,7 +220,7 @@ export const Magnifier: React.FC<MagnifierProps> = ({
         ctx.stroke();
 
         // Center dot
-        ctx.fillStyle = "#000";
+        ctx.fillStyle = strokeColor;
         ctx.beginPath();
         ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
         ctx.fill();
@@ -216,7 +244,9 @@ export const Magnifier: React.FC<MagnifierProps> = ({
     appState.viewBackgroundColor,
     appState.newElement,
     appState.multiElement,
+    appState.zoom,
     canvas,
+    getNewElementCanvas,
     elementsMap,
   ]);
 

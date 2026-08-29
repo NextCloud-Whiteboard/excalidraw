@@ -627,6 +627,7 @@ const gesture: Gesture = {
 class App extends React.Component<AppProps, AppState> {
   canvas: AppClassProperties["canvas"];
   interactiveCanvas: AppClassProperties["interactiveCanvas"] = null;
+  newElementCanvas: HTMLCanvasElement | null = null;
   rc: RoughCanvas;
   unmounted: boolean = false;
   actionManager: ActionManager;
@@ -1880,6 +1881,7 @@ class App extends React.Component<AppProps, AppState> {
                                 this.elementsPendingErasure,
                               pendingFlowchartNodes: null,
                             }}
+                            handleCanvasRef={this.handleNewElementCanvasRef}
                           />
                         )}
                         <InteractiveCanvas
@@ -1926,6 +1928,7 @@ class App extends React.Component<AppProps, AppState> {
                         <Magnifier
                           appState={this.state}
                           canvas={this.canvas}
+                          getNewElementCanvas={this.getNewElementCanvas}
                           visibleElements={visibleElements}
                           elementsMap={allElementsMap}
                         />
@@ -11429,6 +11432,12 @@ class App extends React.Component<AppProps, AppState> {
       previousSelectedElementIds: this.state.selectedElementIds,
     });
   }
+
+  private handleNewElementCanvasRef = (canvas: HTMLCanvasElement | null) => {
+    this.newElementCanvas = canvas;
+  };
+
+  private getNewElementCanvas = () => this.newElementCanvas;
 
   private handleInteractiveCanvasRef = (canvas: HTMLCanvasElement | null) => {
     // canvas is null when unmounting
