@@ -403,6 +403,7 @@ const drawElementOnCanvas = (
 ) => {
   switch (element.type) {
     case "rectangle":
+    case "textbubble":
     case "iframe":
     case "embeddable":
     case "diamond":
@@ -815,6 +816,7 @@ export const renderElement = (
       break;
     }
     case "rectangle":
+    case "textbubble":
     case "diamond":
     case "ellipse":
     case "line":

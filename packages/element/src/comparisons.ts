@@ -2,6 +2,7 @@ import type { ElementOrToolType } from "@excalidraw/excalidraw/types";
 
 export const hasBackground = (type: ElementOrToolType) =>
   type === "rectangle" ||
+  type === "textbubble" ||
   type === "iframe" ||
   type === "embeddable" ||
   type === "ellipse" ||
@@ -14,6 +15,7 @@ export const hasStrokeColor = (type: ElementOrToolType) =>
 
 export const hasStrokeWidth = (type: ElementOrToolType) =>
   type === "rectangle" ||
+  type === "textbubble" ||
   type === "iframe" ||
   type === "embeddable" ||
   type === "ellipse" ||
@@ -24,6 +26,7 @@ export const hasStrokeWidth = (type: ElementOrToolType) =>
 
 export const hasStrokeStyle = (type: ElementOrToolType) =>
   type === "rectangle" ||
+  type === "textbubble" ||
   type === "iframe" ||
   type === "embeddable" ||
   type === "ellipse" ||
@@ -33,6 +36,7 @@ export const hasStrokeStyle = (type: ElementOrToolType) =>
 
 export const canChangeRoundness = (type: ElementOrToolType) =>
   type === "rectangle" ||
+  type === "textbubble" ||
   type === "iframe" ||
   type === "embeddable" ||
   type === "line" ||

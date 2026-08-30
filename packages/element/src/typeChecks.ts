@@ -29,6 +29,7 @@ import type {
   FixedPointBinding,
   ExcalidrawFlowchartNodeElement,
   ExcalidrawLinearElementSubType,
+  ExcalidrawTextBubbleElement,
 } from "./types";
 
 export const isInitializedImageElement = (
@@ -184,6 +185,7 @@ export const isRectanguloidElement = (
   return (
     element != null &&
     (element.type === "rectangle" ||
+      element.type === "textbubble" ||
       element.type === "diamond" ||
       element.type === "image" ||
       element.type === "iframe" ||
@@ -202,6 +204,7 @@ export const isRectangularElement = (
   return (
     element != null &&
     (element.type === "rectangle" ||
+      element.type === "textbubble" ||
       element.type === "image" ||
       element.type === "text" ||
       element.type === "iframe" ||
@@ -220,6 +223,7 @@ export const isTextBindableContainer = (
     element != null &&
     (!element.locked || includeLocked === true) &&
     (element.type === "rectangle" ||
+      element.type === "textbubble" ||
       element.type === "diamond" ||
       element.type === "ellipse" ||
       isArrowElement(element))
@@ -237,6 +241,7 @@ export const isExcalidrawElement = (
     case "text":
     case "diamond":
     case "rectangle":
+    case "textbubble":
     case "iframe":
     case "embeddable":
     case "ellipse":
@@ -254,6 +259,12 @@ export const isExcalidrawElement = (
       return false;
     }
   }
+};
+
+export const isTextBubbleElement = (
+  element?: ExcalidrawElement | null,
+): element is ExcalidrawTextBubbleElement => {
+  return element != null && element.type === "textbubble";
 };
 
 export const isFlowchartNodeElement = (
@@ -292,6 +303,7 @@ export const isArrowBoundToElement = (element: ExcalidrawArrowElement) => {
 
 export const isUsingAdaptiveRadius = (type: string) =>
   type === "rectangle" ||
+  type === "textbubble" ||
   type === "embeddable" ||
   type === "iframe" ||
   type === "image";

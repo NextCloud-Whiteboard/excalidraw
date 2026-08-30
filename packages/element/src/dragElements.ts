@@ -17,6 +17,7 @@ import { updateBoundElements } from "./binding";
 import { getCommonBounds } from "./bounds";
 import { getPerfectElementSize } from "./sizeHelpers";
 import { getBoundTextElement } from "./textElement";
+import { getPdfRelativeGeometry } from "./textBubble";
 import { getMinTextElementWidth } from "./textMeasurements";
 import {
   isArrowElement,
@@ -25,6 +26,7 @@ import {
   isImageElement,
   isTextElement,
   isLinearElement,
+  isTextBubbleElement,
 } from "./typeChecks";
 
 import { pointFrom } from "@excalidraw/math";
@@ -202,6 +204,13 @@ export const dragSelectedElements = (
           !element.customData?.isTextBubbleConnection) {
         elementsToUpdate.add(element);
       }
+      if (
+        isTextBubbleElement(element) &&
+        element.pdfParentId &&
+        pdfParentIds.has(element.pdfParentId)
+      ) {
+        elementsToUpdate.add(element);
+      }
     }
   }
 
@@ -279,6 +288,22 @@ export const dragSelectedElements = (
           element.customData?.pdfParentId && 
           pdfParentIds.has(element.customData.pdfParentId)) {
         updateTextBubbleConnectionAfterPdfMove(element, scene);
+      }
+    }
+    // Native textbubble elements: the bubble body moved with the PDF above;
+    // now pin the anchor back to its relative position on the page.
+    const elementsMap = scene.getNonDeletedElementsMap();
+    for (const element of scene.getNonDeletedElements()) {
+      if (
+        isTextBubbleElement(element) &&
+        element.pdfParentId &&
+        pdfParentIds.has(element.pdfParentId)
+      ) {
+        const pdf = elementsMap.get(element.pdfParentId);
+        if (pdf) {
+          const { anchor } = getPdfRelativeGeometry(element, pdf);
+          scene.mutateElement(element, { anchor });
+        }
       }
     }
   }

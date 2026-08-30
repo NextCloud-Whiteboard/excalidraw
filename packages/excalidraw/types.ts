@@ -833,6 +833,10 @@ export type PointerDownState = Readonly<{
   boxSelection: {
     hasOccurred: boolean;
   };
+  // id of the textbubble whose anchor handle is being dragged
+  textBubbleAnchor: {
+    elementId: string | null;
+  };
 }>;
 
 export type UnsubscribeCallback = () => void;

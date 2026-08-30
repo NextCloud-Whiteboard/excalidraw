@@ -14,6 +14,10 @@ import {
 } from "@excalidraw/element";
 
 import { renderElement } from "@excalidraw/element";
+import {
+  isTextBubbleElement,
+  getTextBubbleLeaderLine,
+} from "@excalidraw/element";
 
 import { getElementAbsoluteCoords } from "@excalidraw/element";
 
@@ -296,6 +300,24 @@ const _renderStaticScene = ({
         }
 
         context.save();
+
+        // Text bubble "tail": a dashed leader line from the anchor point to
+        // the bubble border, drawn underneath the bubble body.
+        if (isTextBubbleElement(element)) {
+          const { start, end } = getTextBubbleLeaderLine(element);
+          context.save();
+          context.beginPath();
+          context.setLineDash([
+            2 / appState.zoom.value,
+            4 / appState.zoom.value,
+          ]);
+          context.strokeStyle = element.strokeColor;
+          context.lineWidth = 1 / appState.zoom.value;
+          context.moveTo(start.x + appState.scrollX, start.y + appState.scrollY);
+          context.lineTo(end.x + appState.scrollX, end.y + appState.scrollY);
+          context.stroke();
+          context.restore();
+        }
 
         if (
           frameId &&

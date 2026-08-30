@@ -34,6 +34,7 @@ import {
 } from "@excalidraw/element";
 
 import { renderSelectionElement } from "@excalidraw/element";
+import { isTextBubbleElement } from "@excalidraw/element";
 
 import {
   getElementsInGroup,
@@ -1152,6 +1153,25 @@ const _renderInteractiveScene = ({
     context.translate(appState.scrollX, appState.scrollY);
 
     if (selectedElements.length === 1) {
+      // Anchor handle for a selected text bubble: a white dot on the point
+      // the bubble's dashed leader line points at.
+      if (isTextBubbleElement(selectedElements[0]) && showBoundingBox) {
+        const bubble = selectedElements[0];
+        context.save();
+        context.fillStyle = oc.white;
+        context.lineWidth = 1 / appState.zoom.value;
+        if (renderConfig.selectionColor) {
+          context.strokeStyle = renderConfig.selectionColor;
+        }
+        fillCircle(
+          context,
+          bubble.anchor.x,
+          bubble.anchor.y,
+          6 / appState.zoom.value,
+          true,
+        );
+        context.restore();
+      }
       context.fillStyle = oc.white;
       const transformHandles = getTransformHandles(
         selectedElements[0],

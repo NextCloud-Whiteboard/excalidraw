@@ -45,6 +45,7 @@ import type {
   ElementsMap,
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
+  ExcalidrawTextBubbleElement,
 } from "./types";
 
 export type ElementConstructorOpts = MarkOptional<
@@ -158,6 +159,23 @@ export const newElement = (
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawGenericElement> =>
   _newElementBase<ExcalidrawGenericElement>(opts.type, opts);
+
+export const newTextBubbleElement = (
+  opts: {
+    anchor: { x: number; y: number };
+    pdfParentId?: string | null;
+    relativePosition?: { x: number; y: number } | null;
+    relativeAnchor?: { x: number; y: number } | null;
+  } & ElementConstructorOpts,
+): NonDeleted<ExcalidrawTextBubbleElement> => {
+  return {
+    ..._newElementBase<ExcalidrawTextBubbleElement>("textbubble", opts),
+    anchor: opts.anchor,
+    pdfParentId: opts.pdfParentId ?? null,
+    relativePosition: opts.relativePosition ?? null,
+    relativeAnchor: opts.relativeAnchor ?? null,
+  };
+};
 
 export const newEmbeddableElement = (
   opts: {

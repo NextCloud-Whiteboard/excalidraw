@@ -28,6 +28,7 @@ export const distanceToBindableElement = (
 ): number => {
   switch (element.type) {
     case "rectangle":
+    case "textbubble":
     case "image":
     case "text":
     case "iframe":

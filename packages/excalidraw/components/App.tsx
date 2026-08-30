@@ -132,6 +132,9 @@ import {
   newIframeElement,
   newArrowElement,
   newElement,
+  newTextBubbleElement,
+  isTextBubbleElement,
+  hitTestTextBubbleAnchor,
   newImageElement,
   newLinearElement,
   newTextElement,
@@ -5527,9 +5530,11 @@ class App extends React.Component<AppProps, AppState> {
       newTextElement({
         x: parentCenterPosition ? parentCenterPosition.elementCenterX : sceneX,
         y: parentCenterPosition ? parentCenterPosition.elementCenterY : sceneY,
-        strokeColor: container?.customData?.isTextBubble
-          ? "#000000"
-          : this.state.currentItemStrokeColor,
+        strokeColor:
+          (container && isTextBubbleElement(container)) ||
+          container?.customData?.isTextBubble
+            ? "#000000"
+            : this.state.currentItemStrokeColor,
         backgroundColor: this.state.currentItemBackgroundColor,
         fillStyle: this.state.currentItemFillStyle,
         strokeWidth: this.state.currentItemStrokeWidth,
@@ -5750,7 +5755,11 @@ class App extends React.Component<AppProps, AppState> {
     if (!event[KEYS.CTRL_OR_CMD] && !this.state.viewModeEnabled) {
       // Allow double-click to edit when clicking inside a text bubble container
       const hitElement = this.getElementAtPosition(sceneX, sceneY);
-      if (hitElement && (hitElement as any).customData?.isTextBubble) {
+      if (
+        hitElement &&
+        (isTextBubbleElement(hitElement) ||
+          (hitElement as any).customData?.isTextBubble)
+      ) {
         const container = hitElement as ExcalidrawTextContainer;
         const midPoint = getContainerCenter(
           container,
@@ -5918,9 +5927,7 @@ class App extends React.Component<AppProps, AppState> {
     const bubbleX = anchorX + BUBBLE_OFFSET;
     const bubbleY = anchorY - BUBBLE_HEIGHT / 2;
 
-    // Create the rectangle (bubble background)
-    const bubbleRect = newElement({
-      type: "rectangle",
+    const bubble = newTextBubbleElement({
       x: bubbleX,
       y: bubbleY,
       width: BUBBLE_WIDTH,
@@ -5931,91 +5938,46 @@ class App extends React.Component<AppProps, AppState> {
       strokeWidth: 1,
       roughness: 0,
       roundness: { type: 1, value: 8 },
-      customData: pdfImage
+      anchor: { x: anchorX, y: anchorY },
+      pdfParentId: pdfImage ? pdfImage.id : null,
+      relativePosition: pdfImage
         ? {
-            isTextBubble: true,
-            pdfParentId: pdfImage.id,
-            anchorPoint: { x: anchorX, y: anchorY },
-            relativePosition: {
-              x: (bubbleX - pdfImage.x) / pdfImage.width,
-              y: (bubbleY - pdfImage.y) / pdfImage.height,
-            },
+            x: (bubbleX - pdfImage.x) / pdfImage.width,
+            y: (bubbleY - pdfImage.y) / pdfImage.height,
           }
-        : {
-            isTextBubble: true,
-            anchorPoint: { x: anchorX, y: anchorY },
-          },
-    }) as ExcalidrawTextContainer;
-
-    // Create the dotted connection line
-    const connectionLine = newLinearElement({
-      type: "line",
-      x: anchorX,
-      y: anchorY,
-      width: bubbleX - anchorX,
-      height: bubbleY + BUBBLE_HEIGHT / 2 - anchorY,
-      points: [
-        pointFrom<LocalPoint>(0, 0), // Start at anchor point
-        pointFrom<LocalPoint>(
-          bubbleX - anchorX,
-          bubbleY + BUBBLE_HEIGHT / 2 - anchorY,
-        ), // End at bubble center
-      ],
-      strokeStyle: "dotted",
-      strokeColor: "#000000",
-      strokeWidth: 1,
-      customData: pdfImage
+        : null,
+      relativeAnchor: pdfImage
         ? {
-            isTextBubbleConnection: true,
-            bubbleId: bubbleRect.id,
-            pdfParentId: pdfImage.id,
-            anchorPoint: { x: anchorX, y: anchorY }, // Absolute coordinates at creation time
-            relativeAnchor: {
-              x: (anchorX - pdfImage.x) / pdfImage.width,
-              y: (anchorY - pdfImage.y) / pdfImage.height,
-            }, // Relative position on the PDF (0-1 range)
+            x: (anchorX - pdfImage.x) / pdfImage.width,
+            y: (anchorY - pdfImage.y) / pdfImage.height,
           }
-        : {
-            isTextBubbleConnection: true,
-            bubbleId: bubbleRect.id,
-            anchorPoint: { x: anchorX, y: anchorY },
-          },
+        : null,
     });
 
-    // Insert elements into the scene
-    this.scene.insertElement(bubbleRect);
-    this.scene.insertElement(connectionLine);
-
-    // Text bubble now has pdfParentId to move with PDF
+    this.scene.insertElement(bubble);
 
     // Start text editing inside the bubble
     this.startTextEditing({
       sceneX: bubbleX + BUBBLE_WIDTH / 2,
       sceneY: bubbleY + BUBBLE_HEIGHT / 2,
-      container: bubbleRect,
+      container: bubble,
       autoEdit: true,
     });
 
-    // Remove PDF parent relationship from text element in bubble (it should be independent)
-    // We use a microtask to ensure the text element has been created by startTextEditing
+    // The bound text is created by startTextEditing; switch it to the
+    // normal (non hand-drawn) font on the next microtask.
     Promise.resolve().then(() => {
-      // Clean text elements
-      const textElements = this.scene
+      this.scene
         .getNonDeletedElements()
-        .filter((el) => isTextElement(el) && el.containerId === bubbleRect.id);
-      textElements.forEach((textElement) => {
-        const updates: any = {
-          fontFamily: FONT_FAMILY.Nunito, // Set font to normal instead of hand-drawn
-        };
-        
-        if (textElement.customData?.pdfParentId) {
-          updates.customData = undefined; // Remove the PDF parent relationship
-        }
-        
-        this.scene.mutateElement(textElement, updates);
-      });
-
-      // Text bubble now keeps its pdfParentId to move with PDF
+        .filter(
+          (el): el is Ordered<ExcalidrawTextElement> =>
+            isTextElement(el) && el.containerId === bubble.id,
+        )
+        .forEach((textElement) => {
+          this.scene.mutateElement(textElement, {
+            fontFamily: FONT_FAMILY.Nunito,
+          });
+        });
     });
 
     // Schedule a history capture
@@ -7054,7 +7016,10 @@ class App extends React.Component<AppProps, AppState> {
     this.clearSelectionIfNotUsingSelection();
     this.updateBindingEnabledOnPointerMove(event);
 
-    if (this.handleSelectionOnPointerDown(event, pointerDownState)) {
+    if (
+      !this.maybeStartTextBubbleAnchorDrag(event, pointerDownState) &&
+      this.handleSelectionOnPointerDown(event, pointerDownState)
+    ) {
       return;
     }
 
@@ -7497,6 +7462,9 @@ class App extends React.Component<AppProps, AppState> {
       boxSelection: {
         hasOccurred: false,
       },
+      textBubbleAnchor: {
+        elementId: null,
+      },
     };
   }
 
@@ -7558,6 +7526,32 @@ class App extends React.Component<AppProps, AppState> {
   /**
    * @returns whether the pointer event has been completely handled
    */
+  private maybeStartTextBubbleAnchorDrag = (
+    event: React.PointerEvent<HTMLElement>,
+    pointerDownState: PointerDownState,
+  ): boolean => {
+    if (this.state.activeTool.type !== "selection") {
+      return false;
+    }
+    const selectedElements = this.scene.getSelectedElements(this.state);
+    if (
+      selectedElements.length !== 1 ||
+      !isTextBubbleElement(selectedElements[0])
+    ) {
+      return false;
+    }
+    const scenePointer = viewportCoordsToSceneCoords(event, this.state);
+    const threshold = 6 / this.state.zoom.value;
+    if (
+      hitTestTextBubbleAnchor(selectedElements[0], scenePointer, threshold)
+    ) {
+      pointerDownState.textBubbleAnchor.elementId = selectedElements[0].id;
+      setCursor(this.interactiveCanvas, CURSOR_TYPE.GRABBING);
+      return true;
+    }
+    return false;
+  };
+
   private handleSelectionOnPointerDown = (
     event: React.PointerEvent<HTMLElement>,
     pointerDownState: PointerDownState,
@@ -8558,6 +8552,34 @@ class App extends React.Component<AppProps, AppState> {
       }
       const pointerCoords = viewportCoordsToSceneCoords(event, this.state);
 
+      // Dragging a textbubble's anchor handle: move only the anchor point
+      // (raw pointer coords — no grid/object snapping) and suppress all other
+      // pointer-move behaviour for the duration of the drag.
+      if (pointerDownState.textBubbleAnchor.elementId) {
+        const bubble = this.scene
+          .getNonDeletedElementsMap()
+          .get(pointerDownState.textBubbleAnchor.elementId);
+        if (bubble && isTextBubbleElement(bubble)) {
+          const updates: {
+            anchor: { x: number; y: number };
+            relativeAnchor?: { x: number; y: number };
+          } = { anchor: { x: pointerCoords.x, y: pointerCoords.y } };
+          if (bubble.pdfParentId) {
+            const pdf = this.scene
+              .getNonDeletedElementsMap()
+              .get(bubble.pdfParentId);
+            if (pdf) {
+              updates.relativeAnchor = {
+                x: (pointerCoords.x - pdf.x) / pdf.width,
+                y: (pointerCoords.y - pdf.y) / pdf.height,
+              };
+            }
+          }
+          this.scene.mutateElement(bubble, updates);
+        }
+        return;
+      }
+
       if (
         this.state.selectedLinearElement &&
         this.state.selectedLinearElement.elbowed &&
@@ -9485,6 +9507,12 @@ class App extends React.Component<AppProps, AppState> {
       this.removePointer(childEvent);
       if (pointerDownState.eventListeners.onMove) {
         pointerDownState.eventListeners.onMove.flush();
+      }
+      // Finish a textbubble anchor drag: one undo entry for the whole drag.
+      if (pointerDownState.textBubbleAnchor.elementId) {
+        pointerDownState.textBubbleAnchor.elementId = null;
+        setCursor(this.interactiveCanvas, CURSOR_TYPE.AUTO);
+        this.store.scheduleCapture();
       }
       const {
         newElement,

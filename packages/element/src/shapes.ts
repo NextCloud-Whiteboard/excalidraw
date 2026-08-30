@@ -52,6 +52,7 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
 ): GeometricShape<Point> => {
   switch (element.type) {
     case "rectangle":
+    case "textbubble":
     case "diamond":
     case "frame":
     case "magicframe":

@@ -93,6 +93,19 @@ export type ExcalidrawDiamondElement = _ExcalidrawElementBase & {
   type: "diamond";
 };
 
+/**
+ * A speech/text bubble: rendered like a rounded rectangle, plus an `anchor`
+ * point the bubble "points at". When placed on a PDF page image, the bubble
+ * tracks the page via pdfParentId + relative coordinates.
+ */
+export type ExcalidrawTextBubbleElement = _ExcalidrawElementBase & {
+  type: "textbubble";
+  anchor: { x: number; y: number };
+  pdfParentId?: string | null;
+  relativePosition?: { x: number; y: number } | null;
+  relativeAnchor?: { x: number; y: number } | null;
+};
+
 export type ExcalidrawEllipseElement = _ExcalidrawElementBase & {
   type: "ellipse";
 };
@@ -190,6 +203,7 @@ export type ExcalidrawFlowchartNodeElement =
 
 export type ExcalidrawRectanguloidElement =
   | ExcalidrawRectangleElement
+  | ExcalidrawTextBubbleElement
   | ExcalidrawImageElement
   | ExcalidrawTextElement
   | ExcalidrawFreeDrawElement
@@ -204,6 +218,7 @@ export type ExcalidrawRectanguloidElement =
  */
 export type ExcalidrawElement =
   | ExcalidrawGenericElement
+  | ExcalidrawTextBubbleElement
   | ExcalidrawTextElement
   | ExcalidrawLinearElement
   | ExcalidrawArrowElement
@@ -257,6 +272,7 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
 
 export type ExcalidrawBindableElement =
   | ExcalidrawRectangleElement
+  | ExcalidrawTextBubbleElement
   | ExcalidrawDiamondElement
   | ExcalidrawEllipseElement
   | ExcalidrawTextElement
@@ -268,6 +284,7 @@ export type ExcalidrawBindableElement =
 
 export type ExcalidrawTextContainer =
   | ExcalidrawRectangleElement
+  | ExcalidrawTextBubbleElement
   | ExcalidrawDiamondElement
   | ExcalidrawEllipseElement
   | ExcalidrawArrowElement;

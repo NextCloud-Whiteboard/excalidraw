@@ -1,6 +1,7 @@
 import { KEYS, updateActiveTool } from "@excalidraw/common";
 
 import { getNonDeletedElements } from "@excalidraw/element";
+import { isTextBubbleElement } from "@excalidraw/element";
 import { fixBindingsAfterDeletion } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { newElementWith } from "@excalidraw/element";
@@ -182,6 +183,13 @@ const deleteSelectedElements = (
 
     // Delete PDF children when their parent PDF is deleted
     if (el.customData?.pdfParentId && pdfParentsToBeDeleted.has(el.customData.pdfParentId)) {
+      return newElementWith(el, { isDeleted: true });
+    }
+    if (
+      isTextBubbleElement(el) &&
+      el.pdfParentId &&
+      pdfParentsToBeDeleted.has(el.pdfParentId)
+    ) {
       return newElementWith(el, { isDeleted: true });
     }
 

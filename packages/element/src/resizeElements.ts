@@ -37,6 +37,7 @@ import {
   handleBindTextResize,
   getBoundTextMaxWidth,
 } from "./textElement";
+import { getPdfRelativeGeometry } from "./textBubble";
 import {
   getMinTextElementWidth,
   measureText,
@@ -53,6 +54,7 @@ import {
   isImageElement,
   isLinearElement,
   isTextElement,
+  isTextBubbleElement,
 } from "./typeChecks";
 
 import { isInGroup } from "./groups";
@@ -364,7 +366,9 @@ const rotateSingleElement = (
   // Handle PDF children rotation when PDF image is rotated
   if (isImageElement(element) && element.customData?.isPdf === true) {
     const pdfChildren = scene.getNonDeletedElements().filter(
-      (child) => child.customData?.pdfParentId === element.id
+      (child) =>
+        child.customData?.pdfParentId === element.id ||
+        (isTextBubbleElement(child) && child.pdfParentId === element.id)
     );
 
     pdfChildren.forEach((child) => {
@@ -397,6 +401,16 @@ const rotateSingleElement = (
           y: newChildY,
           angle: newChildAngle,
         });
+
+        if (isTextBubbleElement(child)) {
+          // rotate the anchor point around the PDF centre too
+          const [anchorX, anchorY] = pointRotateRads(
+            pointFrom(child.anchor.x, child.anchor.y),
+            pointFrom(cx, cy),
+            angleChange as Radians,
+          );
+          scene.mutateElement(child, { anchor: { x: anchorX, y: anchorY } });
+        }
       }
     });
 
@@ -1250,8 +1264,11 @@ export const resizeSingleElement = (
       
       // Get all children of the PDF, excluding text bubble connection lines
       const pdfChildren = scene.getNonDeletedElements().filter(
-        (element) => element.customData?.pdfParentId === latestElement.id &&
-                    !element.customData?.isTextBubbleConnection
+        (element) =>
+          (element.customData?.pdfParentId === latestElement.id &&
+            !element.customData?.isTextBubbleConnection) ||
+          (isTextBubbleElement(element) &&
+            element.pdfParentId === latestElement.id)
       );
       
       pdfChildren.forEach((child) => {
@@ -1300,6 +1317,9 @@ export const resizeSingleElement = (
             width: newChildWidth,
             height: newChildHeight,
           });
+          if (isTextBubbleElement(child)) {
+            handleBindTextResize(child, scene, handleDirection, false);
+          }
         }
       });
     }
@@ -1329,6 +1349,13 @@ export const resizeSingleElement = (
     // Update text bubble connection lines when their parent PDF is resized
     if (isImageElement(latestElement) && latestElement.customData?.isPdf === true) {
       updateTextBubbleConnectionsAfterPdfResize(latestElement, scene);
+      // Native textbubbles: re-derive the anchor from its relative position
+      for (const el of scene.getNonDeletedElements()) {
+        if (isTextBubbleElement(el) && el.pdfParentId === latestElement.id) {
+          const { anchor } = getPdfRelativeGeometry(el, latestElement);
+          scene.mutateElement(el, { anchor });
+        }
+      }
     }
   }
 };
@@ -1898,6 +1925,13 @@ export const resizeMultipleElements = (
       // Update text bubble connection lines when their parent PDF is resized
       if (isImageElement(element) && element.customData?.isPdf === true) {
         updateTextBubbleConnectionsAfterPdfResize(element, scene);
+        // Native textbubbles: re-derive anchors from the resized PDF rect
+        for (const el of scene.getNonDeletedElements()) {
+          if (isTextBubbleElement(el) && el.pdfParentId === element.id) {
+            const { anchor } = getPdfRelativeGeometry(el, element);
+            scene.mutateElement(el, { anchor });
+          }
+        }
       }
     }
 

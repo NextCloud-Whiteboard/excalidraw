@@ -17,6 +17,10 @@ import {
 } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
+import {
+  isTextBubbleElement,
+  getTextBubbleLeaderLine,
+} from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
 import {
   isArrowElement,
@@ -145,6 +149,7 @@ const renderElementToSvg = (
       throw new Error("Selection rendering is not supported for SVG");
     }
     case "rectangle":
+    case "textbubble":
     case "diamond":
     case "ellipse": {
       const shape = ShapeCache.generateElementShape(element, null);
@@ -174,6 +179,23 @@ const renderElementToSvg = (
       );
 
       addToRoot(g || node, element);
+
+      if (isTextBubbleElement(element)) {
+        // dashed leader line from the anchor to the bubble border
+        const { start, end } = getTextBubbleLeaderLine(element);
+        const line = root.ownerDocument!.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", `${start.x - element.x + (offsetX || 0)}`);
+        line.setAttribute("y1", `${start.y - element.y + (offsetY || 0)}`);
+        line.setAttribute("x2", `${end.x - element.x + (offsetX || 0)}`);
+        line.setAttribute("y2", `${end.y - element.y + (offsetY || 0)}`);
+        line.setAttribute("stroke", element.strokeColor);
+        line.setAttribute("stroke-width", "1");
+        line.setAttribute("stroke-dasharray", "2 4");
+        if (opacity !== 1) {
+          line.setAttribute("stroke-opacity", `${opacity}`);
+        }
+        addToRoot(line, element);
+      }
       break;
     }
     case "iframe":

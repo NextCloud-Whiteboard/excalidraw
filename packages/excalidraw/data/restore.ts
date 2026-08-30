@@ -389,6 +389,13 @@ const restoreElement = (
     case "iframe":
     case "embeddable":
       return restoreElementWithProperties(element, {});
+    case "textbubble":
+      return restoreElementWithProperties(element, {
+        anchor: element.anchor ?? { x: element.x, y: element.y },
+        pdfParentId: element.pdfParentId ?? null,
+        relativePosition: element.relativePosition ?? null,
+        relativeAnchor: element.relativeAnchor ?? null,
+      });
     case "magicframe":
     case "frame":
       return restoreElementWithProperties(element, {
