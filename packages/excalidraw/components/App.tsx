@@ -11020,7 +11020,8 @@ class App extends React.Component<AppProps, AppState> {
       const formData = new FormData();
       formData.append("file", pdfFile);
 
-      const pdfApiUrl = import.meta.env.VITE_APP_PDF_API;
+      const pdfApiUrl =
+        this.props.pdfApiUrl || import.meta.env.VITE_APP_PDF_API;
       const response = await fetch(`${pdfApiUrl}/convert`, {
         method: "POST",
         body: formData,

@@ -656,6 +656,8 @@ export interface ExcalidrawProps {
   aiEnabled?: boolean;
   showDeprecatedFonts?: boolean;
   renderScrollbars?: boolean;
+  /** PDF-to-image service base URL; falls back to VITE_APP_PDF_API */
+  pdfApiUrl?: string;
 }
 
 export type SceneData = {
