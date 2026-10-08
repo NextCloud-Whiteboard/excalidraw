@@ -268,7 +268,9 @@ export const LibraryMenu = memo(() => {
 
   const onInsertLibraryItems = useCallback(
     (libraryItems: LibraryItems) => {
-      onInsertElements(distributeLibraryItemsOnSquareGrid(libraryItems));
+      onInsertElements(distributeLibraryItemsOnSquareGrid(libraryItems), {
+        fromLibrary: true,
+      });
     },
     [onInsertElements],
   );

@@ -396,25 +396,22 @@ class Library {
 
 export default Library;
 
-const isPositiveFiniteNumber = (value: unknown): value is number =>
+export const isValidCmPerPx = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 
 /**
- * Library items are assumed to be drawn at the board's own scale. Returns the
- * factor that keeps their real-world size when dropped onto a PDF page with
- * its own calibration, or null when there is nothing (sensible) to scale.
+ * Factor that keeps an element's real-world size when it moves from where it
+ * is drawn at `fromCmPerPx` to a PDF page calibrated at `toCmPerPx`, or null
+ * when there is nothing (sensible) to scale.
  */
-export const getLibraryDropScale = (
-  boardCmPerPx: unknown,
-  pdfCmPerPx: unknown,
+export const getCalibrationScale = (
+  fromCmPerPx: unknown,
+  toCmPerPx: unknown,
 ): number | null => {
-  if (
-    !isPositiveFiniteNumber(boardCmPerPx) ||
-    !isPositiveFiniteNumber(pdfCmPerPx)
-  ) {
+  if (!isValidCmPerPx(fromCmPerPx) || !isValidCmPerPx(toCmPerPx)) {
     return null;
   }
-  const scale = boardCmPerPx / pdfCmPerPx;
+  const scale = fromCmPerPx / toCmPerPx;
   return scale === 1 ? null : scale;
 };
 

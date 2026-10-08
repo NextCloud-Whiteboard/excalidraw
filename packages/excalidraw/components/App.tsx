@@ -399,7 +399,8 @@ import { copyTextToSystemClipboard, parseClipboard } from "../clipboard";
 import { exportCanvas, loadFromBlob } from "../data";
 import Library, {
   distributeLibraryItemsOnSquareGrid,
-  getLibraryDropScale,
+  getCalibrationScale,
+  isValidCmPerPx,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
 import { getCenter, getDistance } from "../gesture";
@@ -1972,11 +1973,15 @@ class App extends React.Component<AppProps, AppState> {
     return this.scene.getNonDeletedElements();
   };
 
-  public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
+  public onInsertElements = (
+    elements: readonly ExcalidrawElement[],
+    opts?: { fromLibrary?: boolean },
+  ) => {
     this.addElementsFromPasteOrLibrary({
       elements,
       position: "center",
       files: null,
+      fromLibrary: opts?.fromLibrary,
     });
   };
 
@@ -3341,8 +3346,11 @@ class App extends React.Component<AppProps, AppState> {
     position: { clientX: number; clientY: number } | "cursor" | "center";
     retainSeed?: boolean;
     fitToContent?: boolean;
-    /** resize to the calibration of a PDF page under the drop point */
-    scaleToPdfCalibration?: boolean;
+    /**
+     * library insert: remember the scale the item is drawn at, and adapt it to
+     * a PDF page under the insertion point
+     */
+    fromLibrary?: boolean;
   }) => {
     const elements = restoreElements(opts.elements, null, undefined);
     const [minX, minY, maxX, maxY] = getCommonBounds(elements);
@@ -3413,8 +3421,20 @@ class App extends React.Component<AppProps, AppState> {
 
     this.scene.replaceAllElements(nextElements);
 
-    if (opts.scaleToPdfCalibration) {
-      this.fitElementsToPdfCalibration(duplicatedElements, x, y);
+    if (opts.fromLibrary) {
+      const elementsMap = this.scene.getNonDeletedElementsMap();
+      for (const { id } of duplicatedElements) {
+        const element = elementsMap.get(id);
+        if (element) {
+          this.scene.mutateElement(element, {
+            customData: {
+              ...element.customData,
+              libraryCmPerPx: this.state.cmPerPx,
+            },
+          });
+        }
+      }
+      this.attachElementsToPdfAt(duplicatedElements, x, y);
     }
 
     duplicatedElements.forEach((newElement) => {
@@ -5907,42 +5927,94 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   /**
-   * Library items are drawn at the board's own scale (appState.cmPerPx). When
-   * they land on a calibrated PDF page, resize them around the drop point so
-   * they keep their real-world size, and attach them to the page so they move
-   * and resize with it like anything drawn on it.
+   * Attach elements to the PDF page under (sceneX, sceneY) so they move and
+   * resize with it, like anything drawn on it. Library items remember the
+   * scale they are drawn at (customData.libraryCmPerPx); on a calibrated page
+   * they are also resized around their centre to keep their real-world size.
    */
-  private fitElementsToPdfCalibration = (
-    insertedElements: readonly ExcalidrawElement[],
+  private attachElementsToPdfAt = (
+    elements: readonly ExcalidrawElement[],
     sceneX: number,
     sceneY: number,
   ) => {
     const pdf = this.getPdfImageAtPosition(sceneX, sceneY);
-    const scale = getLibraryDropScale(
-      this.state.cmPerPx,
-      pdf?.customData?.pdfCmPerPx,
-    );
-    if (!pdf || scale === null) {
+    if (!pdf) {
       return;
     }
 
-    // onDuplicate may have swapped the inserted objects; work on the scene's
+    // the caller's objects may be stale (e.g. swapped by onDuplicate)
     const elementsMap = this.scene.getNonDeletedElementsMap();
-    const elements: NonDeletedExcalidrawElement[] = [];
-    for (const { id } of insertedElements) {
+    const toAttach = new Set<NonDeletedExcalidrawElement>();
+    const addIfDetached = (element: NonDeletedExcalidrawElement) => {
+      if (
+        element.customData?.pdfParentId !== pdf.id &&
+        !(isImageElement(element) && element.customData?.isPdf === true) &&
+        // text bubbles track a page through relative coordinates instead
+        !isTextBubbleElement(element)
+      ) {
+        toAttach.add(element);
+      }
+    };
+    for (const { id } of elements) {
       const element = elementsMap.get(id);
       if (element) {
-        elements.push(element);
+        addIfDetached(element);
+        const boundText = getBoundTextElement(element, elementsMap);
+        if (boundText) {
+          addIfDetached(boundText);
+        }
       }
     }
-    if (!elements.length) {
+    if (!toAttach.size) {
       return;
     }
 
+    const pdfCmPerPx = pdf.customData?.pdfCmPerPx;
+    if (isValidCmPerPx(pdfCmPerPx)) {
+      // library items drawn at the same scale resize together
+      const libraryItemsByScale = new Map<
+        number,
+        NonDeletedExcalidrawElement[]
+      >();
+      for (const element of toAttach) {
+        const fromCmPerPx = element.customData?.libraryCmPerPx;
+        if (isValidCmPerPx(fromCmPerPx)) {
+          libraryItemsByScale.set(fromCmPerPx, [
+            ...(libraryItemsByScale.get(fromCmPerPx) ?? []),
+            element,
+          ]);
+        }
+      }
+      for (const [fromCmPerPx, items] of libraryItemsByScale) {
+        const scale = getCalibrationScale(fromCmPerPx, pdfCmPerPx);
+        if (scale !== null) {
+          this.resizeElementsAroundCentre(items, scale);
+        }
+      }
+    }
+
+    for (const element of toAttach) {
+      const isRescaledLibraryItem =
+        isValidCmPerPx(element.customData?.libraryCmPerPx) &&
+        isValidCmPerPx(pdfCmPerPx);
+      this.scene.mutateElement(element, {
+        customData: {
+          ...element.customData,
+          pdfParentId: pdf.id,
+          ...(isRescaledLibraryItem ? { libraryCmPerPx: pdfCmPerPx } : {}),
+        },
+      });
+    }
+  };
+
+  private resizeElementsAroundCentre = (
+    elements: readonly NonDeletedExcalidrawElement[],
+    scale: number,
+  ) => {
     const { width, height } = getCommonBoundingBox(elements);
     resizeMultipleElements(
       elements,
-      elementsMap,
+      this.scene.getNonDeletedElementsMap(),
       "se",
       this.scene,
       arrayToMap(elements.map((element) => deepCopyElement(element))),
@@ -5953,15 +6025,6 @@ class App extends React.Component<AppProps, AppState> {
         nextHeight: height * scale,
       },
     );
-
-    for (const element of elements) {
-      // text bubbles track a page through relative coordinates instead
-      if (!isTextBubbleElement(element)) {
-        this.scene.mutateElement(element, {
-          customData: { ...element.customData, pdfParentId: pdf.id },
-        });
-      }
-    }
   };
 
   private getPdfImageAtPosition = (
@@ -10119,6 +10182,29 @@ class App extends React.Component<AppProps, AppState> {
           );
 
           this.scene.replaceAllElements(nextElements);
+
+          // moved onto a PDF page: stick to it (library items also adapt)
+          if (!pointerDownState.resize.isResizing) {
+            const movedElements = this.scene
+              .getSelectedElements(this.state)
+              .filter((element) => {
+                const original = pointerDownState.originalElements.get(
+                  element.id,
+                );
+                return (
+                  original &&
+                  (original.x !== element.x || original.y !== element.y)
+                );
+              });
+            if (movedElements.length) {
+              const [minX, minY, maxX, maxY] = getCommonBounds(movedElements);
+              this.attachElementsToPdfAt(
+                movedElements,
+                (minX + maxX) / 2,
+                (minY + maxY) / 2,
+              );
+            }
+          }
         }
       }
 
@@ -11641,7 +11727,7 @@ class App extends React.Component<AppProps, AppState> {
           elements: distributeLibraryItemsOnSquareGrid(libraryItems),
           position: event,
           files: null,
-          scaleToPdfCalibration: true,
+          fromLibrary: true,
         });
       } catch (error: any) {
         this.setState({ errorMessage: error.message });

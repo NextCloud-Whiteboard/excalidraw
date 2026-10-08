@@ -140,6 +140,7 @@ describe("library", () => {
       expect(dropped.x + dropped.width / 2).toBeCloseTo(0, 0);
       expect(dropped.y + dropped.height / 2).toBeCloseTo(0, 0);
       expect(dropped.customData?.pdfParentId).toBe("pdf1");
+      expect(dropped.customData?.libraryCmPerPx).toBe(2);
     });
 
     it("uses the board's own calibration as the item's scale", async () => {
@@ -152,22 +153,62 @@ describe("library", () => {
       expect(dropped.height).toBeCloseTo(200);
     });
 
-    it("leaves the item untouched on an uncalibrated PDF", async () => {
+    it("attaches without resizing on an uncalibrated PDF", async () => {
       API.setElements([createPdfPage({})]);
+      API.setAppState({ cmPerPx: 1 });
 
       const dropped = await dropRectangle();
 
       expect(dropped.width).toBe(200);
       expect(dropped.height).toBe(100);
-      expect(dropped.customData?.pdfParentId).toBeUndefined();
+      expect(dropped.customData?.pdfParentId).toBe("pdf1");
+      expect(dropped.customData?.libraryCmPerPx).toBe(1);
     });
 
     it("leaves the item untouched off any PDF", async () => {
+      API.setAppState({ cmPerPx: 1 });
+
       const dropped = await dropRectangle();
 
       expect(dropped.width).toBe(200);
       expect(dropped.height).toBe(100);
       expect(dropped.customData?.pdfParentId).toBeUndefined();
+      // remembers the scale it is drawn at, for a later move onto a PDF
+      expect(dropped.customData?.libraryCmPerPx).toBe(1);
+    });
+
+    it("scales an item inserted by click onto a calibrated PDF", async () => {
+      // big enough to sit under the viewport centre
+      API.setElements([
+        {
+          ...createPdfPage({ pdfCmPerPx: 2 }),
+          x: -5000,
+          y: -5000,
+          width: 10000,
+          height: 10000,
+        },
+      ]);
+      API.setAppState({ cmPerPx: 1 });
+
+      act(() => {
+        h.app.onInsertElements(
+          [
+            API.createElement({
+              id: "rect1",
+              type: "rectangle",
+              width: 200,
+              height: 100,
+            }),
+          ],
+          { fromLibrary: true },
+        );
+      });
+
+      const inserted = getCloneByOrigId("rect1");
+      expect(inserted.width).toBeCloseTo(100);
+      expect(inserted.height).toBeCloseTo(50);
+      expect(inserted.customData?.pdfParentId).toBe("pdf1");
+      expect(inserted.customData?.libraryCmPerPx).toBe(2);
     });
   });
 
