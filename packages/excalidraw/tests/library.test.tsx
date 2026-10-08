@@ -85,6 +85,92 @@ describe("library", () => {
     });
   });
 
+  describe("drop onto a calibrated PDF", () => {
+    // client (0, 0) is scene (0, 0) at default scroll/zoom
+    const createPdfPage = (customData: Record<string, unknown>) => ({
+      ...API.createElement({
+        type: "image",
+        id: "pdf1",
+        x: -500,
+        y: -500,
+        width: 1000,
+        height: 1000,
+      }),
+      customData: { isPdf: true, ...customData },
+    });
+
+    const dropRectangle = async () => {
+      const rectangle = API.createElement({
+        id: "rect1",
+        type: "rectangle",
+        width: 200,
+        height: 100,
+      });
+      await API.drop(
+        new Blob(
+          [
+            serializeLibraryAsJSON([
+              {
+                id: "item1",
+                status: "published",
+                elements: [rectangle],
+                created: 1,
+              },
+            ]),
+          ],
+          { type: MIME_TYPES.excalidrawlib },
+        ),
+        { clientX: 0, clientY: 0 },
+      );
+      await waitFor(() => {
+        expect(getCloneByOrigId("rect1")).toBeTruthy();
+      });
+      return getCloneByOrigId("rect1");
+    };
+
+    it("scales the item from board scale to the PDF's calibration", async () => {
+      API.setElements([createPdfPage({ pdfCmPerPx: 2 })]);
+      API.setAppState({ cmPerPx: 1 });
+
+      const dropped = await dropRectangle();
+
+      expect(dropped.width).toBeCloseTo(100);
+      expect(dropped.height).toBeCloseTo(50);
+      // stays centred on the drop point
+      expect(dropped.x + dropped.width / 2).toBeCloseTo(0, 0);
+      expect(dropped.y + dropped.height / 2).toBeCloseTo(0, 0);
+      expect(dropped.customData?.pdfParentId).toBe("pdf1");
+    });
+
+    it("uses the board's own calibration as the item's scale", async () => {
+      API.setElements([createPdfPage({ pdfCmPerPx: 2 })]);
+      API.setAppState({ cmPerPx: 4 });
+
+      const dropped = await dropRectangle();
+
+      expect(dropped.width).toBeCloseTo(400);
+      expect(dropped.height).toBeCloseTo(200);
+    });
+
+    it("leaves the item untouched on an uncalibrated PDF", async () => {
+      API.setElements([createPdfPage({})]);
+
+      const dropped = await dropRectangle();
+
+      expect(dropped.width).toBe(200);
+      expect(dropped.height).toBe(100);
+      expect(dropped.customData?.pdfParentId).toBeUndefined();
+    });
+
+    it("leaves the item untouched off any PDF", async () => {
+      const dropped = await dropRectangle();
+
+      expect(dropped.width).toBe(200);
+      expect(dropped.height).toBe(100);
+      expect(dropped.customData?.pdfParentId).toBeUndefined();
+    });
+  });
+
   it("should regenerate ids but retain bindings on library insert", async () => {
     const rectangle = API.createElement({
       id: "rectangle1",

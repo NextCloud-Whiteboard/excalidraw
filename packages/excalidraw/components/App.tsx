@@ -105,7 +105,11 @@ import {
   FONT_FAMILY,
 } from "@excalidraw/common";
 
-import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
+import {
+  getCommonBoundingBox,
+  getCommonBounds,
+  getElementAbsoluteCoords,
+} from "@excalidraw/element";
 
 import {
   bindOrUnbindLinearElement,
@@ -277,6 +281,7 @@ import {
 import {
   getResizeOffsetXY,
   getResizeArrowDirection,
+  resizeMultipleElements,
   transformElements,
 } from "@excalidraw/element";
 
@@ -392,7 +397,10 @@ import {
 } from "../appState";
 import { copyTextToSystemClipboard, parseClipboard } from "../clipboard";
 import { exportCanvas, loadFromBlob } from "../data";
-import Library, { distributeLibraryItemsOnSquareGrid } from "../data/library";
+import Library, {
+  distributeLibraryItemsOnSquareGrid,
+  getLibraryDropScale,
+} from "../data/library";
 import { restore, restoreElements } from "../data/restore";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
@@ -3333,6 +3341,8 @@ class App extends React.Component<AppProps, AppState> {
     position: { clientX: number; clientY: number } | "cursor" | "center";
     retainSeed?: boolean;
     fitToContent?: boolean;
+    /** resize to the calibration of a PDF page under the drop point */
+    scaleToPdfCalibration?: boolean;
   }) => {
     const elements = restoreElements(opts.elements, null, undefined);
     const [minX, minY, maxX, maxY] = getCommonBounds(elements);
@@ -3402,6 +3412,10 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.scene.replaceAllElements(nextElements);
+
+    if (opts.scaleToPdfCalibration) {
+      this.fitElementsToPdfCalibration(duplicatedElements, x, y);
+    }
 
     duplicatedElements.forEach((newElement) => {
       if (isTextElement(newElement) && isBoundToContainer(newElement)) {
@@ -5890,6 +5904,64 @@ class App extends React.Component<AppProps, AppState> {
       );
 
     return frames.length ? frames[frames.length - 1] : null;
+  };
+
+  /**
+   * Library items are drawn at the board's own scale (appState.cmPerPx). When
+   * they land on a calibrated PDF page, resize them around the drop point so
+   * they keep their real-world size, and attach them to the page so they move
+   * and resize with it like anything drawn on it.
+   */
+  private fitElementsToPdfCalibration = (
+    insertedElements: readonly ExcalidrawElement[],
+    sceneX: number,
+    sceneY: number,
+  ) => {
+    const pdf = this.getPdfImageAtPosition(sceneX, sceneY);
+    const scale = getLibraryDropScale(
+      this.state.cmPerPx,
+      pdf?.customData?.pdfCmPerPx,
+    );
+    if (!pdf || scale === null) {
+      return;
+    }
+
+    // onDuplicate may have swapped the inserted objects; work on the scene's
+    const elementsMap = this.scene.getNonDeletedElementsMap();
+    const elements: NonDeletedExcalidrawElement[] = [];
+    for (const { id } of insertedElements) {
+      const element = elementsMap.get(id);
+      if (element) {
+        elements.push(element);
+      }
+    }
+    if (!elements.length) {
+      return;
+    }
+
+    const { width, height } = getCommonBoundingBox(elements);
+    resizeMultipleElements(
+      elements,
+      elementsMap,
+      "se",
+      this.scene,
+      arrayToMap(elements.map((element) => deepCopyElement(element))),
+      {
+        shouldMaintainAspectRatio: true,
+        shouldResizeFromCenter: true,
+        nextWidth: width * scale,
+        nextHeight: height * scale,
+      },
+    );
+
+    for (const element of elements) {
+      // text bubbles track a page through relative coordinates instead
+      if (!isTextBubbleElement(element)) {
+        this.scene.mutateElement(element, {
+          customData: { ...element.customData, pdfParentId: pdf.id },
+        });
+      }
+    }
   };
 
   private getPdfImageAtPosition = (
@@ -11568,6 +11640,7 @@ class App extends React.Component<AppProps, AppState> {
           elements: distributeLibraryItemsOnSquareGrid(libraryItems),
           position: event,
           files: null,
+          scaleToPdfCalibration: true,
         });
       } catch (error: any) {
         this.setState({ errorMessage: error.message });

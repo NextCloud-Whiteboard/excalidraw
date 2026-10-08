@@ -478,8 +478,18 @@ export class API {
     });
   };
 
-  static drop = async (blob: Blob) => {
+  static drop = async (
+    blob: Blob,
+    clientPosition?: { clientX: number; clientY: number },
+  ) => {
     const fileDropEvent = createEvent.drop(GlobalTestState.interactiveCanvas);
+    if (clientPosition) {
+      // jsdom's drop event carries no coordinates of its own
+      Object.defineProperties(fileDropEvent, {
+        clientX: { value: clientPosition.clientX },
+        clientY: { value: clientPosition.clientY },
+      });
+    }
     const text = await new Promise<string>((resolve, reject) => {
       try {
         const reader = new FileReader();

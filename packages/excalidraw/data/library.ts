@@ -396,6 +396,28 @@ class Library {
 
 export default Library;
 
+const isPositiveFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value > 0;
+
+/**
+ * Library items are assumed to be drawn at the board's own scale. Returns the
+ * factor that keeps their real-world size when dropped onto a PDF page with
+ * its own calibration, or null when there is nothing (sensible) to scale.
+ */
+export const getLibraryDropScale = (
+  boardCmPerPx: unknown,
+  pdfCmPerPx: unknown,
+): number | null => {
+  if (
+    !isPositiveFiniteNumber(boardCmPerPx) ||
+    !isPositiveFiniteNumber(pdfCmPerPx)
+  ) {
+    return null;
+  }
+  const scale = boardCmPerPx / pdfCmPerPx;
+  return scale === 1 ? null : scale;
+};
+
 export const distributeLibraryItemsOnSquareGrid = (
   libraryItems: LibraryItems,
 ) => {
