@@ -12,9 +12,10 @@ export type RangeProps = {
   testId?: string;
 };
 
+const THUMB_WIDTH = 15;
+
 export const Range = ({ updateData, app, testId }: RangeProps) => {
   const rangeRef = React.useRef<HTMLInputElement>(null);
-  const valueRef = React.useRef<HTMLDivElement>(null);
   const selectedElements = app.scene.getSelectedElements(app.state);
   let hasCommonOpacity = true;
   const firstElement = selectedElements.at(0);
@@ -31,14 +32,8 @@ export const Range = ({ updateData, app, testId }: RangeProps) => {
   const value = leastCommonOpacity ?? app.state.currentItemOpacity;
 
   useEffect(() => {
-    if (rangeRef.current && valueRef.current) {
+    if (rangeRef.current) {
       const rangeElement = rangeRef.current;
-      const valueElement = valueRef.current;
-      const inputWidth = rangeElement.offsetWidth;
-      const thumbWidth = 15; // 15 is the width of the thumb
-      const position =
-        (value / 100) * (inputWidth - thumbWidth) + thumbWidth / 2;
-      valueElement.style.left = `${position}px`;
       rangeElement.style.background = `linear-gradient(to right, var(--color-slider-track) 0%, var(--color-slider-track) ${value}%, var(--button-bg) ${value}%, var(--button-bg) 100%)`;
     }
   }, [value]);
@@ -65,7 +60,16 @@ export const Range = ({ updateData, app, testId }: RangeProps) => {
           className="range-input"
           data-testid={testId}
         />
-        <div className="value-bubble" ref={valueRef}>
+        <div
+          className="value-bubble"
+          // relative to the slider's width, so it follows panel resizes
+          // (a one-off px position overflowed once a scrollbar appeared)
+          style={{
+            left: `calc(${value / 100} * (100% - ${THUMB_WIDTH}px) + ${
+              THUMB_WIDTH / 2
+            }px)`,
+          }}
+        >
           {value !== 0 ? value : null}
         </div>
         <div className="zero-label">0</div>
