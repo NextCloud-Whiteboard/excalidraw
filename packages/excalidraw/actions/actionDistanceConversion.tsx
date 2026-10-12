@@ -273,9 +273,14 @@ export const actionDistanceConversion = register({
                     value={calibrationDistance}
                     onChange={(e) => setCalibrationDistance(e.target.value)}
                     style={{
-                      width: "3rem",
-                      height: "1.5rem",
-                      padding: "0.25rem 0.5rem",
+                      // take the row's free width so the value is readable
+                      flex: 1,
+                      minWidth: "4rem",
+                      width: "100%",
+                      height: "2.25rem",
+                      boxSizing: "border-box",
+                      margin: 0,
+                      padding: "0 0.5rem",
                       fontSize: "0.875rem",
                       fontFamily: "inherit",
                       color: "var(--text-primary-color)",
@@ -307,7 +312,9 @@ export const actionDistanceConversion = register({
                     borderRadius: "0.25rem",
                     cursor: calibrationDistance && parseFloat(calibrationDistance) > 0 ? "pointer" : "not-allowed",
                     outline: "none",
-                    height: "1.5rem",
+                    height: "2.25rem",
+                    boxSizing: "border-box",
+                    margin: 0,
                     whiteSpace: "nowrap",
                   }}
                   onMouseEnter={(e) => {
