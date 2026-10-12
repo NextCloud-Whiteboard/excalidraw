@@ -105,11 +105,7 @@ import {
   FONT_FAMILY,
 } from "@excalidraw/common";
 
-import {
-  getCommonBoundingBox,
-  getCommonBounds,
-  getElementAbsoluteCoords,
-} from "@excalidraw/element";
+import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 
 import {
   bindOrUnbindLinearElement,
@@ -281,7 +277,6 @@ import {
 import {
   getResizeOffsetXY,
   getResizeArrowDirection,
-  resizeMultipleElements,
   transformElements,
 } from "@excalidraw/element";
 
@@ -403,6 +398,7 @@ import Library, {
   isValidCmPerPx,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
+import { resizeElementsAroundCentre } from "../pdfCalibration";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
 import { defaultLang, getLanguage, languages, setLanguage, t } from "../i18n";
@@ -5988,7 +5984,7 @@ class App extends React.Component<AppProps, AppState> {
       for (const [fromCmPerPx, items] of libraryItemsByScale) {
         const scale = getCalibrationScale(fromCmPerPx, pdfCmPerPx);
         if (scale !== null) {
-          this.resizeElementsAroundCentre(items, scale);
+          resizeElementsAroundCentre(items, scale, this.scene);
         }
       }
     }
@@ -6007,24 +6003,48 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  private resizeElementsAroundCentre = (
-    elements: readonly NonDeletedExcalidrawElement[],
-    scale: number,
+  /**
+   * A resized PDF page shows the same drawing over more or fewer pixels, so
+   * its calibration — and the scale remembered by the library items on it,
+   * which are resized along with the page — change by the inverse factor.
+   */
+  private recalibrateResizedPdfPages = (
+    originalElements: PointerDownState["originalElements"],
   ) => {
-    const { width, height } = getCommonBoundingBox(elements);
-    resizeMultipleElements(
-      elements,
-      this.scene.getNonDeletedElementsMap(),
-      "se",
-      this.scene,
-      arrayToMap(elements.map((element) => deepCopyElement(element))),
-      {
-        shouldMaintainAspectRatio: true,
-        shouldResizeFromCenter: true,
-        nextWidth: width * scale,
-        nextHeight: height * scale,
-      },
-    );
+    for (const page of this.scene.getSelectedElements(this.state)) {
+      const original = originalElements.get(page.id);
+      if (
+        !original?.width ||
+        !isImageElement(page) ||
+        page.customData?.isPdf !== true ||
+        page.width === original.width
+      ) {
+        continue;
+      }
+      const factor = Math.abs(page.width / original.width);
+
+      const pdfCmPerPx = original.customData?.pdfCmPerPx;
+      if (isValidCmPerPx(pdfCmPerPx)) {
+        this.scene.mutateElement(page, {
+          customData: { ...page.customData, pdfCmPerPx: pdfCmPerPx / factor },
+        });
+      }
+      for (const child of this.scene.getNonDeletedElements()) {
+        const originalChild = originalElements.get(child.id);
+        const libraryCmPerPx = originalChild?.customData?.libraryCmPerPx;
+        if (
+          child.customData?.pdfParentId === page.id &&
+          isValidCmPerPx(libraryCmPerPx)
+        ) {
+          this.scene.mutateElement(child, {
+            customData: {
+              ...child.customData,
+              libraryCmPerPx: libraryCmPerPx / factor,
+            },
+          });
+        }
+      }
+    }
   };
 
   private getPdfImageAtPosition = (
@@ -10224,6 +10244,8 @@ class App extends React.Component<AppProps, AppState> {
 
       // handle frame membership for resizing frames and/or selected elements
       if (pointerDownState.resize.isResizing) {
+        this.recalibrateResizedPdfPages(pointerDownState.originalElements);
+
         let nextElements = updateFrameMembershipOfSelectedElements(
           this.scene.getElementsIncludingDeleted(),
           this.state,

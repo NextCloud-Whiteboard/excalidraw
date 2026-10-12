@@ -6,6 +6,8 @@ import { LinearElementEditor } from "@excalidraw/element";
 import { pointDistance } from "@excalidraw/math";
 import { isLinearElement } from "@excalidraw/element";
 
+import { rescaleLibraryItems } from "../pdfCalibration";
+
 // Metric conversion constants (to centimeters)
 const METRIC_CONVERSIONS = {
   mm: 0.1,    // 1 mm = 0.1 cm
@@ -52,10 +54,10 @@ export const actionDistanceConversion = register({
   name: "distanceConversion",
   trackEvent: false,
   label: t("labels.setScale"),
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     // value expected to be { cmPerPx?: number, selectedMetric?: MetricUnit, pdfCalibration?: { pdfId?: string, pdfDocId?: string, cmPerPx: number } }
     const updates: any = {};
-    let nextElements = elements;
+    let isPdfRecalibrated = false;
     
     // Handle per-PDF calibration if provided
     if (
@@ -65,20 +67,31 @@ export const actionDistanceConversion = register({
       (typeof value.pdfCalibration.pdfId === "string" || typeof value.pdfCalibration.pdfDocId === "string")
     ) {
       const { pdfId, pdfDocId, cmPerPx } = value.pdfCalibration as any;
-      nextElements = elements.map((el: any) => {
-        const matchesById = pdfId && el.id === pdfId;
-        const matchesByDoc = pdfDocId && el.customData?.pdfDocId === pdfDocId;
-        if (matchesById || matchesByDoc) {
-          return {
-            ...el,
-            customData: {
-              ...(el.customData || {}),
-              pdfCmPerPx: cmPerPx,
-            },
-          };
-        }
-        return el;
-      });
+      const pages = app.scene
+        .getNonDeletedElements()
+        .filter(
+          (el) =>
+            (pdfId && el.id === pdfId) ||
+            (pdfDocId && el.customData?.pdfDocId === pdfDocId),
+        );
+
+      // library items on the recalibrated pages keep their real-world size
+      const pageIds = new Set(pages.map((page) => page.id));
+      rescaleLibraryItems(
+        app.scene
+          .getNonDeletedElements()
+          .filter((el) => pageIds.has(el.customData?.pdfParentId)),
+        cmPerPx,
+        app.scene,
+      );
+
+      // mutate (not copy) so the version bump reaches history and collab
+      for (const page of pages) {
+        app.scene.mutateElement(page, {
+          customData: { ...page.customData, pdfCmPerPx: cmPerPx },
+        });
+      }
+      isPdfRecalibrated = pages.length > 0;
     }
 
     // Fallback/global scale update
@@ -90,14 +103,17 @@ export const actionDistanceConversion = register({
       updates.selectedMetric = value.selectedMetric;
     }
     
-    if (Object.keys(updates).length === 0 && nextElements === elements) {
+    if (Object.keys(updates).length === 0 && !isPdfRecalibrated) {
       return { elements, appState: { ...appState }, captureUpdate: CaptureUpdateAction.NEVER };
     }
     
     return {
-      elements: nextElements,
+      elements: app.scene.getElementsIncludingDeleted(),
       appState: { ...appState, ...updates },
-      captureUpdate: CaptureUpdateAction.NEVER,
+      // a page recalibration (and the item resizes it causes) is undoable
+      captureUpdate: isPdfRecalibrated
+        ? CaptureUpdateAction.IMMEDIATELY
+        : CaptureUpdateAction.NEVER,
     };
   },
   PanelComponent: ({ appState, updateData, elements }) => {
