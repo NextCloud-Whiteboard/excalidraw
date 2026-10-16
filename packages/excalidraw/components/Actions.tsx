@@ -46,12 +46,15 @@ import {
   hasStrokeWidth,
 } from "../scene";
 
+import { STR as VRIJTRACE_STR } from "../vrijtrace/strings";
+
 import { SHAPES } from "./shapes";
 
 import "./Actions.scss";
 
 import { useDevice } from "./App";
 import Stack from "./Stack";
+
 import { ToolButton } from "./ToolButton";
 import { Tooltip } from "./Tooltip";
 import {
@@ -408,6 +411,37 @@ export const ShapesSwitcher = ({
         data-testid="toolbar-text-bubble"
         onChange={() => app.setActiveTool({ type: "custom", customType: "textbubble" })}
       />
+
+      {/* Vrij Tracé: trench planning on imported PDF pages */}
+      {app.props.vrijTraceEnabled && (
+        <ToolButton
+          type="radio"
+          icon={
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+            >
+              <path d="M2 7h16M2 13h16M2 10h2.5m3 0h2.5m3 0h2.5" />
+            </svg>
+          }
+          checked={
+            activeTool.type === "custom" &&
+            activeTool.customType === "vrijtrace"
+          }
+          name="editor-current-shape"
+          title={`${VRIJTRACE_STR.tool} — U`}
+          aria-label={VRIJTRACE_STR.tool}
+          aria-keyshortcuts="U"
+          keyBindingLabel="U"
+          data-testid="toolbar-vrijtrace"
+          onChange={() =>
+            app.setActiveTool({ type: "custom", customType: "vrijtrace" })
+          }
+        />
+      )}
 
 
 

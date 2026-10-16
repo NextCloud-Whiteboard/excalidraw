@@ -28,6 +28,10 @@ import { useAtom, useAtomValue } from "../editor-jotai";
 import { t } from "../i18n";
 import { calculateScrollCenter } from "../scene";
 
+import { VrijTraceActions } from "../vrijtrace/VrijTraceActions";
+
+import { VrijTracePanel } from "../vrijtrace/VrijTracePanel";
+
 import { SelectedShapeActions, ShapesSwitcher } from "./Actions";
 import { LoadingMessage } from "./LoadingMessage";
 import { LockButton } from "./LockButton";
@@ -56,6 +60,7 @@ import { HandButton } from "./HandButton";
 import { HelpDialog } from "./HelpDialog";
 import { HintViewer } from "./HintViewer";
 import { ImageExportDialog } from "./ImageExportDialog";
+
 import { Island } from "./Island";
 import { JSONExportDialog } from "./JSONExportDialog";
 
@@ -241,6 +246,9 @@ const LayerUI = ({
       appState,
       elements,
     );
+    const vrijTraceActive =
+      appState.activeTool.type === "custom" &&
+      appState.activeTool.customType === "vrijtrace";
 
     const shouldShowStats =
       appState.stats.open &&
@@ -253,7 +261,17 @@ const LayerUI = ({
         <div className="App-menu App-menu_top">
           <Stack.Col gap={6} className={clsx("App-menu_top__left")}>
             {renderCanvasActions()}
-            {shouldRenderSelectedShapeActions && renderSelectedShapeActions()}
+            {vrijTraceActive ? (
+              <Island
+                className={CLASSES.SHAPE_ACTIONS_MENU}
+                padding={2}
+                style={{ maxHeight: `${appState.height - 166}px` }}
+              >
+                <VrijTracePanel appState={appState} />
+              </Island>
+            ) : (
+              shouldRenderSelectedShapeActions && renderSelectedShapeActions()
+            )}
           </Stack.Col>
           {!appState.viewModeEnabled &&
             appState.openDialog?.name !== "elementLinkSelector" && (
@@ -571,6 +589,10 @@ const LayerUI = ({
           >
             {renderWelcomeScreen && <tunnels.WelcomeScreenCenterTunnel.Out />}
             {renderFixedSideContainer()}
+            {appState.activeTool.type === "custom" &&
+              appState.activeTool.customType === "vrijtrace" && (
+                <VrijTraceActions appState={appState} />
+              )}
             <Footer
               appState={appState}
               actionManager={actionManager}

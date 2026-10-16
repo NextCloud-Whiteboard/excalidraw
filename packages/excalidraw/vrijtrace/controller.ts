@@ -1,4 +1,9 @@
-import { randomId, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import {
+  DEFAULT_SIDEBAR,
+  VRIJTRACE_SIDEBAR_TAB,
+  randomId,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
 import { newTrenchElement } from "@excalidraw/element";
 
 import type { Scene } from "@excalidraw/element";
@@ -97,10 +102,23 @@ export class VrijTraceController {
   }
 
   setUI(patch: Partial<VrijTraceUIState>) {
-    const next = { ...this.ui, ...patch };
+    const prev = this.ui;
+    const next = { ...prev, ...patch };
     this.pendingFrom = this.app.state.vrijTrace;
     this.local = next;
-    this.app.setState({ vrijTrace: next });
+    // the first page picked opens the tree-check tab
+    const opening = !prev.pageId && !!next.pageId;
+    this.app.setState({
+      vrijTrace: next,
+      ...(opening
+        ? {
+            openSidebar: {
+              name: DEFAULT_SIDEBAR.name,
+              tab: VRIJTRACE_SIDEBAR_TAB,
+            },
+          }
+        : {}),
+    });
   }
 
   private hold(ids: string[]) {

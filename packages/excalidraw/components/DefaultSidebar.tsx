@@ -4,6 +4,7 @@ import {
   CANVAS_SEARCH_TAB,
   DEFAULT_SIDEBAR,
   LIBRARY_SIDEBAR_TAB,
+  VRIJTRACE_SIDEBAR_TAB,
   composeEventHandlers,
 } from "@excalidraw/common";
 
@@ -14,7 +15,10 @@ import { useUIAppState } from "../context/ui-appState";
 
 import "../components/dropdownMenu/DropdownMenu.scss";
 
-import { useExcalidrawSetAppState } from "./App";
+import { VrijTraceSidebar } from "../vrijtrace/VrijTraceSidebar";
+import { STR as VRIJTRACE_STR } from "../vrijtrace/strings";
+
+import { useAppProps, useExcalidrawSetAppState } from "./App";
 import { LibraryMenu } from "./LibraryMenu";
 import { SearchMenu } from "./SearchMenu";
 import { Sidebar } from "./Sidebar/Sidebar";
@@ -71,10 +75,14 @@ export const DefaultSidebar = Object.assign(
     >) => {
       const appState = useUIAppState();
       const setAppState = useExcalidrawSetAppState();
+      const props = useAppProps();
 
       const { DefaultSidebarTabTriggersTunnel } = useTunnels();
 
-      const isForceDocked = appState.openSidebar?.tab === CANVAS_SEARCH_TAB;
+      // search and Vrij Tracé stay open while the user works on the canvas
+      const isForceDocked =
+        appState.openSidebar?.tab === CANVAS_SEARCH_TAB ||
+        appState.openSidebar?.tab === VRIJTRACE_SIDEBAR_TAB;
 
       return (
         <Sidebar
@@ -105,6 +113,14 @@ export const DefaultSidebar = Object.assign(
                 <Sidebar.TabTrigger tab={LIBRARY_SIDEBAR_TAB}>
                   {LibraryIcon}
                 </Sidebar.TabTrigger>
+                {props.vrijTraceEnabled && (
+                  <Sidebar.TabTrigger
+                    tab={VRIJTRACE_SIDEBAR_TAB}
+                    title={VRIJTRACE_STR.tool}
+                  >
+                    VT
+                  </Sidebar.TabTrigger>
+                )}
                 <DefaultSidebarTabTriggersTunnel.Out />
               </Sidebar.TabTriggers>
             </Sidebar.Header>
@@ -114,6 +130,11 @@ export const DefaultSidebar = Object.assign(
             <Sidebar.Tab tab={CANVAS_SEARCH_TAB}>
               <SearchMenu />
             </Sidebar.Tab>
+            {props.vrijTraceEnabled && (
+              <Sidebar.Tab tab={VRIJTRACE_SIDEBAR_TAB}>
+                <VrijTraceSidebar />
+              </Sidebar.Tab>
+            )}
             {children}
           </Sidebar.Tabs>
         </Sidebar>
