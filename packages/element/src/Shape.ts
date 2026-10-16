@@ -10,6 +10,7 @@ import type { ElementShapes } from "@excalidraw/excalidraw/scene/types";
 
 import {
   isElbowArrow,
+  isExcalidrawElement,
   isEmbeddableElement,
   isIframeElement,
   isIframeLikeElement,
@@ -324,6 +325,10 @@ export const _generateElementShape = (
     embedsValidationStatus: EmbedsValidationStatus | null;
   },
 ): Drawable | Drawable[] | null => {
+  // element types this build does not know have no shape
+  if (!isExcalidrawElement(element)) {
+    return null;
+  }
   switch (element.type) {
     case "rectangle":
     case "textbubble":

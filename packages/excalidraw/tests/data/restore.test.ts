@@ -42,15 +42,15 @@ describe("restoreElements", () => {
     expect(sizeHelpers.isInvisiblySmallElement).toBeCalledTimes(0);
   });
 
-  it("should return empty array when input type is not supported", () => {
+  it("keeps an element of a type this build does not know, locked", () => {
     const dummyNotSupportedElement: any = API.createElement({
       type: "text",
     });
 
     dummyNotSupportedElement.type = "not supported";
-    expect(
-      restore.restoreElements([dummyNotSupportedElement], null).length,
-    ).toBe(0);
+    const restored = restore.restoreElements([dummyNotSupportedElement], null);
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toMatchObject({ type: "not supported", locked: true });
   });
 
   it("should return empty array when isInvisiblySmallElement is true", () => {

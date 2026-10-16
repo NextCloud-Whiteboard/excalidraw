@@ -465,6 +465,15 @@ const restoreElement = (
     // We also don't want to throw, but instead return void so we filter
     // out these unsupported elements from the restored array.
   }
+  // An element type this build does not know (saved by a newer client):
+  // keep it untouched and locked so saving can never drop it.
+  const unknownElement = element as any;
+  if (
+    typeof unknownElement.type === "string" &&
+    typeof unknownElement.id === "string"
+  ) {
+    return { ...unknownElement, locked: true };
+  }
   return null;
 };
 

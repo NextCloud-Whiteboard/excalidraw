@@ -1,5 +1,6 @@
 import { FRAME_STYLE, throttleRAF } from "@excalidraw/common";
 import { isElementLink } from "@excalidraw/element";
+import { isExcalidrawElement } from "@excalidraw/element";
 import { createPlaceholderEmbeddableLabel } from "@excalidraw/element";
 import { getBoundTextElement } from "@excalidraw/element";
 import {
@@ -287,6 +288,10 @@ const _renderStaticScene = ({
   visibleElements
     .filter((el) => !isIframeLikeElement(el))
     .forEach((element) => {
+      // element types this build does not know are kept but not drawn
+      if (!isExcalidrawElement(element)) {
+        return;
+      }
       try {
         const frameId = element.frameId || appState.frameToHighlight?.id;
 

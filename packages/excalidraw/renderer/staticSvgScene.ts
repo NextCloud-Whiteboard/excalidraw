@@ -10,6 +10,7 @@ import {
 } from "@excalidraw/common";
 import { normalizeLink, toValidURL } from "@excalidraw/common";
 import { hashString } from "@excalidraw/element";
+import { isExcalidrawElement } from "@excalidraw/element";
 import { getUncroppedWidthAndHeight } from "@excalidraw/element";
 import {
   createPlaceholderEmbeddableLabel,
@@ -711,7 +712,8 @@ export const renderSceneToSvg = (
   elements
     .filter((el) => !isIframeLikeElement(el))
     .forEach((element) => {
-      if (!element.isDeleted) {
+      // element types this build does not know are kept but not drawn
+      if (!element.isDeleted && isExcalidrawElement(element)) {
         if (
           isTextElement(element) &&
           element.containerId &&
