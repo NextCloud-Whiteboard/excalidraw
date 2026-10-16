@@ -154,6 +154,27 @@ const repairBinding = <T extends ExcalidrawLinearElement>(
     : PointBinding | FixedPointBinding | null;
 };
 
+const MAX_COORD = 1e7;
+
+/**
+ * Elements that are locked and never drawn/selected here (trench parts,
+ * unknown types) cannot be fixed or removed by a user, so they must have
+ * finite, bounded geometry or they could break bounds/zoom for everyone.
+ */
+const hasSafeGeometry = (element: any) => {
+  const ok = (v: unknown, min: number) =>
+    typeof v === "number" &&
+    Number.isFinite(v) &&
+    v >= min &&
+    Math.abs(v) <= MAX_COORD;
+  return (
+    ok(element.x, -MAX_COORD) &&
+    ok(element.y, -MAX_COORD) &&
+    ok(element.width, 0) &&
+    ok(element.height, 0)
+  );
+};
+
 const restoreElementWithProperties = <
   T extends Required<Omit<ExcalidrawElement, "customData">> & {
     customData?: ExcalidrawElement["customData"];
@@ -399,7 +420,11 @@ const restoreElement = (
     case "trench": {
       const data = (element as any).trench;
       const pdfParentId = element.customData?.pdfParentId;
-      if (!data || typeof pdfParentId !== "string") {
+      if (
+        !data ||
+        typeof pdfParentId !== "string" ||
+        !hasSafeGeometry(element)
+      ) {
         return null;
       }
       const num = (v: unknown, lo: number, hi: number, d: number) =>
@@ -418,8 +443,7 @@ const restoreElement = (
             workSide: side(data.workSide),
             treeMinM: num(data.treeMinM, 0, 15, 5),
             activation:
-              data.activation &&
-              typeof data.activation.fingerprint === "string"
+              data.activation && typeof data.activation.fingerprint === "string"
                 ? data.activation
                 : null,
           };
@@ -450,10 +474,14 @@ const restoreElement = (
       }
       // per-element validation only: restore also runs on partial
       // collaboration updates, where a segment can arrive before its nodes
-      return restoreElementWithProperties(element as any, {
-        trench,
-        locked: true,
-      } as any);
+      return restoreElementWithProperties(
+        element as any,
+        {
+          trench,
+          locked: true,
+          link: null,
+        } as any,
+      );
     }
     case "magicframe":
     case "frame":
@@ -466,13 +494,20 @@ const restoreElement = (
     // out these unsupported elements from the restored array.
   }
   // An element type this build does not know (saved by a newer client):
-  // keep it untouched and locked so saving can never drop it.
+  // keep it locked so saving can never drop it. It is invisible and cannot
+  // be selected here, so it must not carry a link, and its geometry must be
+  // finite and bounded or it could break bounds/zoom for everyone.
   const unknownElement = element as any;
   if (
     typeof unknownElement.type === "string" &&
-    typeof unknownElement.id === "string"
+    typeof unknownElement.id === "string" &&
+    hasSafeGeometry(unknownElement)
   ) {
-    return { ...unknownElement, locked: true };
+    return {
+      ...restoreElementWithProperties(unknownElement, {}),
+      link: null,
+      locked: true,
+    };
   }
   return null;
 };

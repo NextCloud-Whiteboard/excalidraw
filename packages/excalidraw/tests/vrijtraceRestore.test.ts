@@ -84,6 +84,25 @@ describe("restoring trench elements", () => {
     expect(out).toEqual([]);
   });
 
+  it("drops parts with non-finite or unbounded geometry and strips links", () => {
+    expect(
+      restoreElements(
+        [
+          { ...trench("b1", { kind: "node" }), x: NaN },
+          { ...trench("b2", { kind: "node" }), y: 1e12 },
+        ],
+        null,
+      ),
+    ).toEqual([]);
+    const [n] = restoreElements(
+      // a hostile link on an element nobody can see — must be stripped
+      // eslint-disable-next-line no-script-url
+      [{ ...trench("n2", { kind: "node" }), link: "javascript:alert(1)" }],
+      null,
+    );
+    expect(n.link).toBeNull();
+  });
+
   it("keeps a segment whose nodes are not in the same batch (partial collab update)", () => {
     const out = restoreElements(
       [

@@ -46,6 +46,27 @@ describe("unknown element types", () => {
     expect(el.version).toBeGreaterThanOrEqual(3);
   });
 
+  // kept elements are invisible and cannot be selected, so they must not be
+  // able to carry a link or geometry that breaks bounds (security review)
+  it("lose any link and must have finite, bounded geometry", () => {
+    const [withLink] = restoreElements(
+      // a hostile link on an element nobody can see — must be stripped
+      // eslint-disable-next-line no-script-url
+      [{ ...future, link: "javascript:alert(1)" }],
+      null,
+    );
+    expect(withLink.link).toBeNull();
+    for (const bad of [
+      { x: NaN },
+      { y: Infinity },
+      { width: "100" },
+      { x: 1e12 },
+      { height: -5 },
+    ]) {
+      expect(restoreElements([{ ...future, ...bad }], null)).toEqual([]);
+    }
+  });
+
   it("do not break rendering, export or hit testing", async () => {
     const errors = vi.spyOn(console, "error");
     await render(<Excalidraw />);
