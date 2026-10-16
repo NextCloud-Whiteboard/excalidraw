@@ -214,6 +214,8 @@ export type StaticCanvasAppState = Readonly<
     hoveredElementIds: AppState["hoveredElementIds"];
     // Cropping
     croppingElementId: AppState["croppingElementId"];
+    /** optional: export paths build this state without it */
+    vrijTrace?: AppState["vrijTrace"];
   }
 >;
 
@@ -245,6 +247,9 @@ export type InteractiveCanvasAppState = Readonly<
     cmPerPx: number;
     /** selected metric unit for ruler display */
     selectedMetric: "mm" | "cm" | "m";
+    activeTool: AppState["activeTool"];
+    vrijTrace: AppState["vrijTrace"];
+    vrijTraceRemoteHolds: AppState["vrijTraceRemoteHolds"];
   }
 >;
 

@@ -1,6 +1,6 @@
 import { FRAME_STYLE, throttleRAF } from "@excalidraw/common";
 import { isElementLink } from "@excalidraw/element";
-import { isExcalidrawElement } from "@excalidraw/element";
+import { isExcalidrawElement, isTrenchElement } from "@excalidraw/element";
 import { createPlaceholderEmbeddableLabel } from "@excalidraw/element";
 import { getBoundTextElement } from "@excalidraw/element";
 import {
@@ -33,6 +33,9 @@ import {
   ELEMENT_LINK_IMG,
   getLinkHandleFromCoords,
 } from "../components/hyperlink/helpers";
+
+import { isPdfPage } from "../vrijtrace/model";
+import { renderHiddenPdf, renderVrijTraceStatic } from "../vrijtrace/render";
 
 import { bootstrapCanvas, getNormalizedCanvasDimensions } from "./helpers";
 
@@ -290,6 +293,21 @@ const _renderStaticScene = ({
     .forEach((element) => {
       // element types this build does not know are kept but not drawn
       if (!isExcalidrawElement(element)) {
+        return;
+      }
+      // trench parts are drawn once per page, by the page's network element
+      if (isTrenchElement(element)) {
+        if (element.trench.kind === "network") {
+          renderVrijTraceStatic(context, appState, element, elementsMap);
+        }
+        return;
+      }
+      if (
+        appState.vrijTrace?.hidePdf &&
+        element.id === appState.vrijTrace.pageId &&
+        isPdfPage(element)
+      ) {
+        renderHiddenPdf(context, appState, element);
         return;
       }
       try {

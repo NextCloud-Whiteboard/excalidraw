@@ -46,6 +46,8 @@ import type {
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
 
+import { renderVrijTraceSvg } from "../vrijtrace/render";
+
 import type { RenderableElementsMap, SVGRenderConfig } from "../scene/types";
 import type { AppState, BinaryFiles } from "../types";
 import type { Drawable } from "roughjs/bin/core";
@@ -625,7 +627,10 @@ const renderElementToSvg = (
       break;
     }
     case "trench":
-      // the network element adds its own SVG (vrijtrace/render.ts)
+      // drawn once per page, by the page's network element
+      if (element.trench.kind === "network") {
+        renderVrijTraceSvg(svgRoot, element, elementsMap, offsetX, offsetY);
+      }
       break;
     default: {
       if (isTextElement(element)) {

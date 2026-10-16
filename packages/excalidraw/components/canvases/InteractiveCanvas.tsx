@@ -223,6 +223,9 @@ const getRelevantAppStateProps = (
   croppingElementId: appState.croppingElementId,
   searchMatches: appState.searchMatches,
   selectedMetric: appState.selectedMetric,
+  activeTool: appState.activeTool,
+  vrijTrace: appState.vrijTrace,
+  vrijTraceRemoteHolds: appState.vrijTraceRemoteHolds,
 });
 
 const areEqual = (

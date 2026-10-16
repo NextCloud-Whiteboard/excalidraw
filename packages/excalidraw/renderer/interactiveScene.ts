@@ -78,6 +78,8 @@ import { type InteractiveCanvasAppState } from "../types";
 
 import { getClientColor, renderRemoteCursors } from "../clients";
 
+import { renderVrijTraceInteractive } from "../vrijtrace/render";
+
 import {
   bootstrapCanvas,
   drawHighlightForDiamondWithRotation,
@@ -751,8 +753,8 @@ const renderRulerDistances = (
         
         // Center the distance box aligned with the ruler line direction
         const lastPoint = points[points.length - 1];
-        let textX: number, textY: number;
-        let linkStartX: number, linkStartY: number;
+        let textX: number; let textY: number;
+        let linkStartX: number; let linkStartY: number;
         
         if (points.length === 2) {
           // For 2-point lines, position the box along the line direction from the end point
@@ -1298,6 +1300,11 @@ const _renderInteractiveScene = ({
   });
 
   renderSnaps(context, appState);
+
+  context.save();
+  context.translate(appState.scrollX, appState.scrollY);
+  renderVrijTraceInteractive(context, appState, elementsMap);
+  context.restore();
 
   context.restore();
 
