@@ -2,7 +2,7 @@ import { KEYS, arrayToMap } from "@excalidraw/common";
 
 import { newElementWith } from "@excalidraw/element";
 
-import { isFrameLikeElement } from "@excalidraw/element";
+import { isFrameLikeElement, isTrenchElement } from "@excalidraw/element";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -16,6 +16,10 @@ import { register } from "./register";
 
 const shouldLock = (elements: readonly ExcalidrawElement[]) =>
   elements.every((el) => !el.locked);
+
+/** Vrij Tracé parts are always locked: they move with their page */
+const isUnlockable = (element: ExcalidrawElement) =>
+  element.locked && !isTrenchElement(element);
 
 export const actionToggleElementLock = register({
   name: "toggleElementLock",
@@ -61,7 +65,8 @@ export const actionToggleElementLock = register({
     const selectedElementsMap = arrayToMap(selectedElements);
     return {
       elements: elements.map((element) => {
-        if (!selectedElementsMap.has(element.id)) {
+        // Vrij Tracé parts are always locked: they move with their page
+        if (!selectedElementsMap.has(element.id) || isTrenchElement(element)) {
           return element;
         }
 
@@ -98,15 +103,15 @@ export const actionUnlockAllElements = register({
     const selectedElements = getSelectedElements(elements, appState);
     return (
       selectedElements.length === 0 &&
-      elements.some((element) => element.locked)
+      elements.some((element) => isUnlockable(element))
     );
   },
   perform: (elements, appState) => {
-    const lockedElements = elements.filter((el) => el.locked);
+    const lockedElements = elements.filter(isUnlockable);
 
     return {
       elements: elements.map((element) => {
-        if (element.locked) {
+        if (isUnlockable(element)) {
           return newElementWith(element, { locked: false });
         }
         return element;

@@ -252,3 +252,45 @@ export const pageState = (
     active: activation?.fingerprint === fp,
   };
 };
+
+/** live trench parts of the given pages (they travel with their page) */
+export const trenchPartsOf = (
+  elements: readonly ExcalidrawElement[],
+  pageIds: ReadonlySet<string>,
+) =>
+  elements.filter(
+    (el): el is ExcalidrawTrenchElement =>
+      isTrenchElement(el) &&
+      !el.isDeleted &&
+      pageIds.has(el.customData?.pdfParentId),
+  );
+
+/**
+ * After pages were duplicated together with their trench parts: give each
+ * copied network its page's fixed id and point copied segments at the copied
+ * nodes. `pdfParentId` itself is remapped by duplication.
+ */
+export const remapTrenchIds = (
+  duplicated: readonly ExcalidrawElement[],
+  origIdToDuplicateId: ReadonlyMap<string, string>,
+) => {
+  for (const dup of duplicated) {
+    if (!isTrenchElement(dup)) {
+      continue;
+    }
+    const trench = dup.trench;
+    if (trench.kind === "network") {
+      Object.assign(dup, {
+        id: networkIdForPage(dup.customData?.pdfParentId),
+      });
+    } else if (trench.kind === "segment") {
+      Object.assign(dup, {
+        trench: {
+          ...trench,
+          a: origIdToDuplicateId.get(trench.a) ?? trench.a,
+          b: origIdToDuplicateId.get(trench.b) ?? trench.b,
+        },
+      });
+    }
+  }
+};
