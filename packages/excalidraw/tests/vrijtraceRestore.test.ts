@@ -103,6 +103,66 @@ describe("restoring trench elements", () => {
     expect(n.link).toBeNull();
   });
 
+  // network/tree data is read by every viewer's sidebar and renderer, so a
+  // malformed value must never reach them (security review)
+  it("rebuilds a malformed activation instead of trusting it", () => {
+    const network = (activation: any) =>
+      trench("net", {
+        kind: "network",
+        redSide: "beide",
+        workWidthM: 1.5,
+        workSide: "beide",
+        treeMinM: 5,
+        activation,
+      });
+    const [missingBy] = restoreElements(
+      [network({ fingerprint: "abc" })],
+      null,
+    );
+    expect((missingBy as any).trench.activation).toEqual({
+      by: { uid: "", name: "" },
+      at: 0,
+      fingerprint: "abc",
+    });
+    const [hostile] = restoreElements(
+      [
+        network({
+          by: { uid: 7, name: { toString: 1 } },
+          at: "now",
+          fingerprint: "x".repeat(500),
+        }),
+      ],
+      null,
+    );
+    expect((hostile as any).trench.activation).toEqual({
+      by: { uid: "", name: "" },
+      at: 0,
+      fingerprint: "x".repeat(64),
+    });
+  });
+
+  it("bounds labels and ids, and drops non-finite angles", () => {
+    const [tree] = restoreElements(
+      [trench("t1", { kind: "tree", label: "B".repeat(200) })],
+      null,
+    );
+    expect((tree as any).trench.label).toHaveLength(16);
+    expect(
+      restoreElements(
+        [
+          trench("s1", {
+            kind: "segment",
+            a: "n".repeat(500),
+            b: "n2",
+            widthM: 1,
+          }),
+          { ...trench("n3", { kind: "node" }), angle: NaN },
+        ],
+        null,
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps a segment whose nodes are not in the same batch (partial collab update)", () => {
     const out = restoreElements(
       [

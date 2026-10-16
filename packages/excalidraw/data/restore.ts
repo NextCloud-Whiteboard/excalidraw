@@ -171,9 +171,16 @@ const hasSafeGeometry = (element: any) => {
     ok(element.x, -MAX_COORD) &&
     ok(element.y, -MAX_COORD) &&
     ok(element.width, 0) &&
-    ok(element.height, 0)
+    ok(element.height, 0) &&
+    (element.angle == null || ok(element.angle, -MAX_COORD))
   );
 };
+
+/** a string of at most `max` characters, or "" for anything else */
+const boundedString = (v: unknown, max: number) =>
+  typeof v === "string" ? v.slice(0, max) : "";
+
+const MAX_ID = 64;
 
 const restoreElementWithProperties = <
   T extends Required<Omit<ExcalidrawElement, "customData">> & {
@@ -442,9 +449,17 @@ const restoreElement = (
             workWidthM: num(data.workWidthM, 0.5, 4, 1.5),
             workSide: side(data.workSide),
             treeMinM: num(data.treeMinM, 0, 15, 5),
+            // rebuilt field by field: every viewer's sidebar reads it
             activation:
               data.activation && typeof data.activation.fingerprint === "string"
-                ? data.activation
+                ? {
+                    by: {
+                      uid: boundedString(data.activation.by?.uid, MAX_ID),
+                      name: boundedString(data.activation.by?.name, 80),
+                    },
+                    at: num(data.activation.at, 0, 8.64e15, 0),
+                    fingerprint: data.activation.fingerprint.slice(0, 64),
+                  }
                 : null,
           };
           break;
@@ -452,7 +467,12 @@ const restoreElement = (
           trench = { kind: "node" };
           break;
         case "segment":
-          if (typeof data.a !== "string" || typeof data.b !== "string") {
+          if (
+            typeof data.a !== "string" ||
+            typeof data.b !== "string" ||
+            data.a.length > MAX_ID ||
+            data.b.length > MAX_ID
+          ) {
             return null;
           }
           trench = {
@@ -465,8 +485,7 @@ const restoreElement = (
         case "tree":
           trench = {
             kind: "tree",
-            label:
-              typeof data.label === "string" && data.label ? data.label : "B?",
+            label: boundedString(data.label, 16) || "B?",
           };
           break;
         default:
