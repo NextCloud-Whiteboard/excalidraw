@@ -483,6 +483,9 @@ const drawElementOnCanvas = (
       }
       break;
     }
+    case "trench":
+      // drawn by the page's network element (vrijtrace/render.ts)
+      break;
     default: {
       if (isTextElement(element)) {
         const rtl = isRTL(element.text);
@@ -1013,6 +1016,8 @@ export const renderElement = (
       }
       break;
     }
+    case "trench":
+      break;
     default: {
       // @ts-ignore
       throw new Error(`Unimplemented type ${element.type}`);

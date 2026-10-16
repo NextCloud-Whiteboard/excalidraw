@@ -396,6 +396,65 @@ const restoreElement = (
         relativePosition: element.relativePosition ?? null,
         relativeAnchor: element.relativeAnchor ?? null,
       });
+    case "trench": {
+      const data = (element as any).trench;
+      const pdfParentId = element.customData?.pdfParentId;
+      if (!data || typeof pdfParentId !== "string") {
+        return null;
+      }
+      const num = (v: unknown, lo: number, hi: number, d: number) =>
+        typeof v === "number" && Number.isFinite(v)
+          ? Math.min(hi, Math.max(lo, v))
+          : d;
+      const side = (v: unknown) =>
+        v === "links" || v === "rechts" ? v : "beide";
+      let trench;
+      switch (data.kind) {
+        case "network":
+          trench = {
+            kind: "network",
+            redSide: side(data.redSide),
+            workWidthM: num(data.workWidthM, 0.5, 4, 1.5),
+            workSide: side(data.workSide),
+            treeMinM: num(data.treeMinM, 0, 15, 5),
+            activation:
+              data.activation &&
+              typeof data.activation.fingerprint === "string"
+                ? data.activation
+                : null,
+          };
+          break;
+        case "node":
+          trench = { kind: "node" };
+          break;
+        case "segment":
+          if (typeof data.a !== "string" || typeof data.b !== "string") {
+            return null;
+          }
+          trench = {
+            kind: "segment",
+            a: data.a,
+            b: data.b,
+            widthM: num(data.widthM, 0.3, 2.3, 1),
+          };
+          break;
+        case "tree":
+          trench = {
+            kind: "tree",
+            label:
+              typeof data.label === "string" && data.label ? data.label : "B?",
+          };
+          break;
+        default:
+          return null;
+      }
+      // per-element validation only: restore also runs on partial
+      // collaboration updates, where a segment can arrive before its nodes
+      return restoreElementWithProperties(element as any, {
+        trench,
+        locked: true,
+      } as any);
+    }
     case "magicframe":
     case "frame":
       return restoreElementWithProperties(element, {

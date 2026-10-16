@@ -341,7 +341,8 @@
     "embeddable": "Web Embed",
     "selection": "Selection",
     "iframe": "IFrame",
-    "textbubble": "Text bubble"
+    "textbubble": "Text bubble",
+    "trench": "Vrij Tracé"
   },
   "headings": {
     "canvasActions": "Canvas actions",

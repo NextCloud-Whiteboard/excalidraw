@@ -88,6 +88,15 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
     case "ellipse":
       return getEllipseShape(element);
 
+    case "trench":
+      // never hit-tested as a shape: an empty polygon at the element
+      return getPolygonShape({
+        ...element,
+        type: "rectangle",
+        width: 0,
+        height: 0,
+      } as unknown as Parameters<typeof getPolygonShape>[0]);
+
     case "freedraw": {
       const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
       return getFreedrawShape(

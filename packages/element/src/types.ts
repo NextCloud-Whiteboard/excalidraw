@@ -106,6 +106,49 @@ export type ExcalidrawTextBubbleElement = _ExcalidrawElementBase & {
   relativeAnchor?: { x: number; y: number } | null;
 };
 
+export type VrijTraceSide = "beide" | "links" | "rechts";
+
+export type VrijTraceActivation = {
+  by: { uid: string; name: string };
+  at: number;
+  /** fingerprint of the geometry + zone settings the zones were activated for */
+  fingerprint: string;
+};
+
+export type VrijTraceNetworkData = {
+  kind: "network";
+  redSide: VrijTraceSide;
+  workWidthM: number;
+  workSide: VrijTraceSide;
+  treeMinM: number;
+  activation: VrijTraceActivation | null;
+};
+
+export type VrijTraceSegmentData = {
+  kind: "segment";
+  /** element ids of the two node elements */
+  a: string;
+  b: string;
+  widthM: number;
+};
+
+export type VrijTraceData =
+  | VrijTraceNetworkData
+  | { kind: "node" }
+  | VrijTraceSegmentData
+  | { kind: "tree"; label: string };
+
+/**
+ * One part of a Vrij Tracé trench network on a PDF page
+ * (customData.pdfParentId). Always locked. Drawn by the page's `network`
+ * element (vrijtrace/render.ts), never by the generic element renderer.
+ * node/tree/segment use a 1×1 box whose centre is the point.
+ */
+export type ExcalidrawTrenchElement = _ExcalidrawElementBase & {
+  type: "trench";
+  trench: VrijTraceData;
+};
+
 export type ExcalidrawEllipseElement = _ExcalidrawElementBase & {
   type: "ellipse";
 };
@@ -219,6 +262,7 @@ export type ExcalidrawRectanguloidElement =
 export type ExcalidrawElement =
   | ExcalidrawGenericElement
   | ExcalidrawTextBubbleElement
+  | ExcalidrawTrenchElement
   | ExcalidrawTextElement
   | ExcalidrawLinearElement
   | ExcalidrawArrowElement

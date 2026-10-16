@@ -623,6 +623,9 @@ const renderElementToSvg = (
       }
       break;
     }
+    case "trench":
+      // the network element adds its own SVG (vrijtrace/render.ts)
+      break;
     default: {
       if (isTextElement(element)) {
         const node = svgRoot.ownerDocument!.createElementNS(SVG_NS, "g");

@@ -30,6 +30,7 @@ import type {
   ExcalidrawFlowchartNodeElement,
   ExcalidrawLinearElementSubType,
   ExcalidrawTextBubbleElement,
+  ExcalidrawTrenchElement,
 } from "./types";
 
 export const isInitializedImageElement = (
@@ -242,6 +243,7 @@ export const isExcalidrawElement = (
     case "diamond":
     case "rectangle":
     case "textbubble":
+    case "trench":
     case "iframe":
     case "embeddable":
     case "ellipse":
@@ -265,6 +267,12 @@ export const isTextBubbleElement = (
   element?: ExcalidrawElement | null,
 ): element is ExcalidrawTextBubbleElement => {
   return element != null && element.type === "textbubble";
+};
+
+export const isTrenchElement = (
+  element?: ExcalidrawElement | null,
+): element is ExcalidrawTrenchElement => {
+  return element != null && element.type === "trench";
 };
 
 export const isFlowchartNodeElement = (

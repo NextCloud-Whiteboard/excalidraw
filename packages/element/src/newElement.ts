@@ -46,6 +46,8 @@ import type {
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
   ExcalidrawTextBubbleElement,
+  ExcalidrawTrenchElement,
+  VrijTraceData,
 } from "./types";
 
 export type ElementConstructorOpts = MarkOptional<
@@ -175,6 +177,27 @@ export const newTextBubbleElement = (
     relativePosition: opts.relativePosition ?? null,
     relativeAnchor: opts.relativeAnchor ?? null,
   };
+};
+
+export const newTrenchElement = (
+  opts: {
+    trench: VrijTraceData;
+    pdfParentId: string;
+    id?: string;
+  } & ElementConstructorOpts,
+): NonDeleted<ExcalidrawTrenchElement> => {
+  const { trench, pdfParentId, id, ...rest } = opts;
+  const element = {
+    ..._newElementBase<ExcalidrawTrenchElement>("trench", {
+      width: 1,
+      height: 1,
+      ...rest,
+      locked: true,
+      customData: { ...(rest.customData ?? {}), pdfParentId },
+    }),
+    trench,
+  };
+  return id ? { ...element, id } : element;
 };
 
 export const newEmbeddableElement = (
