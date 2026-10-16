@@ -298,7 +298,11 @@ const _renderStaticScene = ({
       // trench parts are drawn once per page, by the page's network element
       if (isTrenchElement(element)) {
         if (element.trench.kind === "network") {
-          renderVrijTraceStatic(context, appState, element, elementsMap);
+          try {
+            renderVrijTraceStatic(context, appState, element, elementsMap);
+          } catch (error: any) {
+            console.error(error, element.id);
+          }
         }
         return;
       }

@@ -36,6 +36,21 @@ const both: ZoneSettings = {
 };
 
 describe("computeZones", () => {
+  it("returns no zones, without clipper-lib's alert, for out-of-range coordinates", () => {
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const far: NetworkGeometry = {
+      ...line,
+      nodes: [
+        { id: "a", x: 0, y: 0 },
+        { id: "b", x: 1e300, y: 0 },
+      ],
+    };
+    const z = computeZones(far, both);
+    expect(alert).not.toHaveBeenCalled();
+    expect(z).toEqual({ trench: [], red: [], work: [], overlap: [] });
+    alert.mockRestore();
+  });
+
   it("buffers the trench with round ends", () => {
     expect(area(computeZones(line, both).trench)).toBeCloseTo(
       10 + Math.PI * 0.25,

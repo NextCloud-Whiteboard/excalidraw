@@ -18,7 +18,7 @@ import {
 } from "./model";
 import { STR } from "./strings";
 
-import type { Polygons } from "./geometry";
+import type { Polygons, Pt } from "./geometry";
 import type { PageState } from "./model";
 import type {
   InteractiveCanvasAppState,
@@ -114,6 +114,75 @@ const drawTree = (
 
 const MAX_HATCH_LINES = 1000;
 
+type Box = { x0: number; y0: number; x1: number; y1: number };
+type ViewState = Pick<
+  StaticCanvasAppState,
+  "scrollX" | "scrollY" | "width" | "height" | "zoom"
+>;
+
+/** the visible scene area, grown by `margin` screen px */
+const screenBox = (appState: ViewState, margin = 0): Box => {
+  const z = appState.zoom.value;
+  return {
+    x0: -appState.scrollX - margin / z,
+    y0: -appState.scrollY - margin / z,
+    x1: -appState.scrollX + (appState.width + margin) / z,
+    y1: -appState.scrollY + (appState.height + margin) / z,
+  };
+};
+
+/** parameters t0..t1 of the part of a→b inside box (Liang–Barsky), or null */
+const clipLine = (a: Pt, b: Pt, box: Box): [number, number] | null => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [p, q] of [
+    [-dx, a.x - box.x0],
+    [dx, box.x1 - a.x],
+    [-dy, a.y - box.y0],
+    [dy, box.y1 - a.y],
+  ]) {
+    if (p === 0) {
+      if (q < 0) {
+        return null;
+      }
+    } else {
+      const t = q / p;
+      if (p < 0) {
+        t0 = Math.max(t0, t);
+      } else {
+        t1 = Math.min(t1, t);
+      }
+    }
+  }
+  return t0 <= t1 ? [t0, t1] : null;
+};
+
+/**
+ * Stroke a dashed a→b only where it is on screen, so the dash count follows
+ * the screen size and not the (shared, untrusted) line length. The dash
+ * offset keeps the pattern anchored at a while panning.
+ */
+const dashedLine = (
+  ctx: CanvasRenderingContext2D,
+  a: Pt,
+  b: Pt,
+  box: Box,
+  period: number,
+) => {
+  const t = clipLine(a, b, box);
+  if (!t) {
+    return;
+  }
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  ctx.lineDashOffset = (t[0] * len) % period;
+  ctx.beginPath();
+  ctx.moveTo(a.x + t[0] * (b.x - a.x), a.y + t[0] * (b.y - a.y));
+  ctx.lineTo(a.x + t[1] * (b.x - a.x), a.y + t[1] * (b.y - a.y));
+  ctx.stroke();
+};
+
 /** scene-space bounding box of the polygons, clipped to the viewport */
 const visibleBox = (
   polys: Polygons,
@@ -133,11 +202,11 @@ const visibleBox = (
       y1 = Math.max(y1, p.y);
     }
   }
-  const z = appState.zoom.value;
-  x0 = Math.max(x0, -appState.scrollX);
-  y0 = Math.max(y0, -appState.scrollY);
-  x1 = Math.min(x1, -appState.scrollX + appState.width / z);
-  y1 = Math.min(y1, -appState.scrollY + appState.height / z);
+  const view = screenBox(appState);
+  x0 = Math.max(x0, view.x0);
+  y0 = Math.max(y0, view.y0);
+  x1 = Math.min(x1, view.x1);
+  y1 = Math.min(y1, view.y1);
   return x0 < x1 && y0 < y1 ? { x0, y0, x1, y1 } : null;
 };
 
@@ -154,6 +223,19 @@ export const renderVrijTraceStatic = (
   }
   const z = appState.zoom.value;
   ctx.save();
+  try {
+    drawPage(ctx, appState, s, z);
+  } finally {
+    ctx.restore();
+  }
+};
+
+const drawPage = (
+  ctx: CanvasRenderingContext2D,
+  appState: StaticCanvasAppState,
+  s: PageState,
+  z: number,
+) => {
   ctx.translate(appState.scrollX, appState.scrollY);
   if (s.active) {
     tracePath(ctx, s.zones.work, s);
@@ -194,13 +276,12 @@ export const renderVrijTraceStatic = (
   ctx.setLineDash([7 / z, 5 / z]);
   ctx.strokeStyle = s.active ? COLORS.centreOn : COLORS.centre;
   ctx.lineWidth = 1.5 / z;
+  const view = screenBox(appState, 20);
   for (const [a, b] of centreLines(s)) {
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
+    dashedLine(ctx, a, b, view, 12 / z);
   }
   ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
   const labels = displayLabels(s.parts.trees);
   for (const t of s.parts.trees) {
     const c = centreOf(t);
@@ -212,7 +293,6 @@ export const renderVrijTraceStatic = (
     );
     drawTree(ctx, c, labels.get(t.id)!, z, check.pass === false);
   }
-  ctx.restore();
 };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -367,10 +447,9 @@ export const renderVrijTraceInteractive = (
     ctx.globalAlpha = 0.75;
     ctx.lineCap = "round";
     ctx.lineWidth = sel.widthM * pxPerMetre(s.frame) + 6 / z;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
+    // grow the box by the stroke width so the clipped ends stay off screen
+    const margin = ctx.lineWidth * z + 20;
+    dashedLine(ctx, a, b, screenBox(appState, margin), 10 / z);
     ctx.restore();
   }
   const tree = ui.activeTreeId ? elementsMap.get(ui.activeTreeId) : null;
@@ -415,15 +494,27 @@ export const renderHiddenPdf = (
   page: ExcalidrawImageElement,
 ) => {
   const z = appState.zoom.value;
+  const c = { x: page.x + page.width / 2, y: page.y + page.height / 2 };
+  const cos = Math.cos(page.angle);
+  const sin = Math.sin(page.angle);
+  const corners = [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([sx, sy]) => {
+    const dx = (sx * page.width) / 2;
+    const dy = (sy * page.height) / 2;
+    return { x: c.x + dx * cos - dy * sin, y: c.y + dx * sin + dy * cos };
+  });
   ctx.save();
-  ctx.translate(
-    appState.scrollX + page.x + page.width / 2,
-    appState.scrollY + page.y + page.height / 2,
-  );
-  ctx.rotate(page.angle);
+  ctx.translate(appState.scrollX, appState.scrollY);
   ctx.setLineDash([6 / z, 6 / z]);
   ctx.strokeStyle = "#868e96";
   ctx.lineWidth = 1.2 / z;
-  ctx.strokeRect(-page.width / 2, -page.height / 2, page.width, page.height);
+  const view = screenBox(appState, 20);
+  corners.forEach((a, i) =>
+    dashedLine(ctx, a, corners[(i + 1) % 4], view, 12 / z),
+  );
   ctx.restore();
 };

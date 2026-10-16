@@ -34,6 +34,18 @@ export const RED_ZONE_M = 2;
 // Clipper works on integers: 1 unit = 1 mm. Arc tolerance 1 cm.
 const SCALE = 1000;
 const ARC_TOLERANCE = 10;
+/** metres; far beyond any real plan, far inside clipper-lib's integer range */
+const MAX_COORD_M = 1e9;
+
+// clipper-lib reports errors with window.alert, which on a shared board
+// would block every viewer's tab on every frame — throw instead
+(ClipperLib as unknown as { Error: (message: string) => void }).Error = (
+  message,
+) => {
+  throw new Error(message);
+};
+
+const EMPTY_ZONES: Zones = { trench: [], red: [], work: [], overlap: [] };
 
 type CPath = { X: number; Y: number }[];
 const toC = (p: Pt) => ({
@@ -129,7 +141,22 @@ const buffered = (
   return parts.length ? union(parts) : [];
 };
 
+/** zones of a network; none when its coordinates are unusable (shared data) */
 export const computeZones = (g: NetworkGeometry, s: ZoneSettings): Zones => {
+  const usable = g.nodes.every(
+    (n) => Math.abs(n.x) <= MAX_COORD_M && Math.abs(n.y) <= MAX_COORD_M,
+  );
+  if (!usable) {
+    return EMPTY_ZONES;
+  }
+  try {
+    return zonesOf(g, s);
+  } catch {
+    return EMPTY_ZONES;
+  }
+};
+
+const zonesOf = (g: NetworkGeometry, s: ZoneSettings): Zones => {
   const trench = buffered(g, 0, "beide");
   const red = clip(
     buffered(g, RED_ZONE_M, s.redSide),

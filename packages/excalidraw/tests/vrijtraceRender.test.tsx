@@ -60,54 +60,105 @@ describe("Vrij Tracé rendering", () => {
   });
 });
 
-/** a 2D context that records how often each method is called */
+/** a 2D context that records calls, and the points of dashed paths */
 const countingContext = () => {
   const calls: Record<string, number> = {};
+  const dashedPoints: number[][] = [];
+  let dashed = false;
   const ctx = new Proxy(
     {},
     {
       get:
         (_, key: string) =>
-        (...args: unknown[]) => {
+        (...args: any[]) => {
           calls[key] = (calls[key] ?? 0) + 1;
+          if (key === "setLineDash") {
+            dashed = args[0].length > 0;
+          }
+          if (dashed && (key === "moveTo" || key === "lineTo")) {
+            dashedPoints.push(args);
+          }
           return key === "measureText" ? { width: 10 } : undefined;
         },
       set: () => true,
     },
   ) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls };
+  return { ctx, calls, dashedPoints };
+};
+
+/** a calibrated page with one activated segment from (100,100) to (400,100) */
+const drawOnPage = async (width: number, height: number) => {
+  await render(<Excalidraw vrijTraceEnabled={true} />);
+  // jsdom lays the canvas out at 0×0; give it a real screen
+  act(() => h.setState({ width: 1200, height: 800 }));
+  API.setElements([
+    {
+      ...API.createElement({
+        type: "image",
+        id: "pdf1",
+        x: 0,
+        y: 0,
+        width,
+        height,
+      }),
+      customData: { isPdf: true, pdfCmPerPx: 5 },
+    },
+  ]);
+  act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
+  mouse.reset();
+  mouse.clickAt(100, 100);
+  mouse.clickAt(400, 100);
+  act(() => h.app.vrijTrace.activate());
+  return h.app.scene.getElement(networkIdForPage("pdf1")) as any;
+};
+
+const renderStatic = (network: any) => {
+  const recorded = countingContext();
+  renderVrijTraceStatic(
+    recorded.ctx,
+    h.state as any,
+    network,
+    h.app.scene.getNonDeletedElementsMap(),
+  );
+  return recorded;
 };
 
 describe("Vrij Tracé rendering cost", () => {
   it("hatching a huge shared page stays bounded by the screen", async () => {
-    await render(<Excalidraw vrijTraceEnabled={true} />);
-    API.setElements([
-      {
-        ...API.createElement({
-          type: "image",
-          id: "pdf1",
-          x: 0,
-          y: 0,
-          width: 1_000_000,
-          height: 700_000,
-        }),
-        customData: { isPdf: true, pdfCmPerPx: 5 },
-      },
-    ]);
-    act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
-    mouse.reset();
-    mouse.clickAt(100, 100);
-    mouse.clickAt(400, 100);
-    act(() => h.app.vrijTrace.activate());
-    const network = h.app.scene.getElement(networkIdForPage("pdf1")) as any;
-    const { ctx, calls } = countingContext();
-    renderVrijTraceStatic(
-      ctx,
-      h.state as any,
-      network,
-      h.app.scene.getNonDeletedElementsMap(),
-    );
+    const network = await drawOnPage(1_000_000, 700_000);
+    const { calls } = renderStatic(network);
     expect(calls.fill).toBeGreaterThan(3); // zones were drawn
     expect(calls.stroke).toBeLessThan(2000);
+  });
+
+  it("a shared page with an absurd calibration does not break the scene", async () => {
+    const network = await drawOnPage(1000, 700);
+    const page = h.app.scene.getElement("pdf1")!;
+    // clipper-lib reports out-of-range coordinates with window.alert, and
+    // the scene repaints (and caches zones) as soon as the page changes
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    act(() =>
+      h.app.scene.mutateElement(page, {
+        customData: { isPdf: true, pdfCmPerPx: 1e300 },
+      }),
+    );
+    expect(() => renderStatic(network)).not.toThrow();
+    expect(alert).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it("dashed centrelines are clipped to the screen", async () => {
+    const network = await drawOnPage(1_000_000, 700);
+    const seg = h.elements.find(
+      (e: any) => e.type === "trench" && e.trench.kind === "segment",
+    ) as any;
+    const b = h.app.scene.getElement(seg.trench.b)!;
+    act(() => h.app.scene.mutateElement(b, { x: 900_000 }));
+    const { dashedPoints } = renderStatic(network);
+    expect(dashedPoints.length).toBeGreaterThan(0);
+    const maxX = Math.max(...dashedPoints.map(([x]) => x));
+    expect(maxX).toBeLessThanOrEqual(
+      -h.state.scrollX + h.state.width / h.state.zoom.value + 100,
+    );
   });
 });
