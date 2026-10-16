@@ -133,6 +133,18 @@ export const getDefaultAppState = (): Omit<
       size: 150,
     },
     selectedMetric: "cm" as const,
+    vrijTrace: {
+      mode: "teken",
+      pageId: null,
+      activeTreeId: null,
+      selectedSegmentId: null,
+      snap: "90",
+      reference: "midden",
+      widthM: 1,
+      hidePdf: false,
+      draft: null,
+    },
+    vrijTraceRemoteHolds: {},
   };
 };
 
@@ -280,6 +292,8 @@ const APP_STATE_STORAGE_CONF = (<
   cmPerPx: { browser: true, export: false, server: false },
   magnifier: { browser: false, export: false, server: false },
   selectedMetric: { browser: true, export: false, server: false },
+  vrijTrace: { browser: false, export: false, server: false },
+  vrijTraceRemoteHolds: { browser: false, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <

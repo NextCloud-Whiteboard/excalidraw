@@ -57,6 +57,9 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     showDeprecatedFonts,
     renderScrollbars,
     pdfApiUrl,
+    vrijTraceEnabled,
+    vrijTraceUser,
+    onVrijTraceEditing,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -151,6 +154,9 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           showDeprecatedFonts={showDeprecatedFonts}
           renderScrollbars={renderScrollbars}
           pdfApiUrl={pdfApiUrl}
+          vrijTraceEnabled={vrijTraceEnabled}
+          vrijTraceUser={vrijTraceUser}
+          onVrijTraceEditing={onVrijTraceEditing}
         >
           {children}
         </App>

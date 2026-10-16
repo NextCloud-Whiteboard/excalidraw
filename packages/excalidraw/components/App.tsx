@@ -399,6 +399,7 @@ import Library, {
   isValidCmPerPx,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
+import { VrijTraceController } from "../vrijtrace/controller";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
@@ -645,6 +646,8 @@ class App extends React.Component<AppProps, AppState> {
   private excalidrawContainerRef = React.createRef<HTMLDivElement>();
 
   public scene: Scene;
+  /** Vrij Tracé tool (trench planning on imported PDF pages) */
+  public vrijTrace: VrijTraceController;
   public fonts: Fonts;
   public renderer: Renderer;
   public visibleElements: readonly NonDeletedExcalidrawElement[];
@@ -800,6 +803,26 @@ class App extends React.Component<AppProps, AppState> {
 
     this.store = new Store(this);
     this.history = new History(this.store);
+
+    // the host reads app.scene lazily: the scene is replaced on reset
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const app = this;
+    this.vrijTrace = new VrijTraceController({
+      get scene() {
+        return app.scene;
+      },
+      get state() {
+        return app.state;
+      },
+      get props() {
+        return app.props;
+      },
+      setState: (patch) => app.setState(patch as AppState),
+      setToast: (toast) => app.setToast(toast),
+      getPdfPageAt: (x, y) => app.getPdfPageAt(x, y),
+      scheduleCapture: () => app.store.scheduleCapture(),
+      setCursor: (cursor) => setCursor(app.interactiveCanvas, cursor),
+    });
 
     if (excalidrawAPI) {
       const api: ExcalidrawImperativeAPI = {
@@ -2854,6 +2877,13 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
+    if (
+      prevState.activeTool.type === "custom" &&
+      prevState.activeTool.customType === "vrijtrace" &&
+      !this.isVrijTraceActive()
+    ) {
+      this.vrijTrace.reset();
+    }
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
     const elementsMap = this.scene.getElementsMapIncludingDeleted();
@@ -4240,6 +4270,15 @@ class App extends React.Component<AppProps, AppState> {
         });
       }
 
+      if (
+        !isInputLike(event.target) &&
+        this.isVrijTraceActive() &&
+        this.vrijTrace.onKeyDown(event)
+      ) {
+        event.preventDefault();
+        return;
+      }
+
       if (!isInputLike(event.target)) {
         if (
           (event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
@@ -4752,6 +4791,19 @@ class App extends React.Component<AppProps, AppState> {
           event.preventDefault();
           this.setState({ openPopup: "fontFamily" });
         }
+      }
+
+      if (
+        event.key === KEYS.U &&
+        this.props.vrijTraceEnabled &&
+        !this.state.viewModeEnabled &&
+        !event.altKey &&
+        !event[KEYS.CTRL_OR_CMD] &&
+        !isInputLike(event.target)
+      ) {
+        this.setActiveTool({ type: "custom", customType: "vrijtrace" });
+        event.preventDefault();
+        return;
       }
 
       if (event.key === KEYS.K && !event.altKey && !event[KEYS.CTRL_OR_CMD]) {
@@ -6048,6 +6100,9 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  public getPdfPageAt = (x: number, y: number) =>
+    this.getPdfImageAtPosition(x, y);
+
   private getPdfImageAtPosition = (
     x: number,
     y: number,
@@ -6308,6 +6363,10 @@ class App extends React.Component<AppProps, AppState> {
   private handleCanvasPointerMove = (
     event: React.PointerEvent<HTMLCanvasElement>,
   ) => {
+    if (this.isVrijTraceActive()) {
+      this.vrijTrace.hover(viewportCoordsToSceneCoords(event, this.state));
+      return;
+    }
     this.savePointer(event.clientX, event.clientY, this.state.cursorButton);
     this.lastPointerMoveEvent = event.nativeEvent;
 
@@ -6947,9 +7006,21 @@ class App extends React.Component<AppProps, AppState> {
     }
   }
 
+  private isVrijTraceActive = () =>
+    this.state.activeTool.type === "custom" &&
+    this.state.activeTool.customType === "vrijtrace";
+
   private handleCanvasPointerDown = (
     event: React.PointerEvent<HTMLElement>,
   ) => {
+    if (this.isVrijTraceActive()) {
+      if (event.button === 0) {
+        this.vrijTrace.pointerDown(
+          viewportCoordsToSceneCoords(event, this.state),
+        );
+      }
+      return;
+    }
     // Handle text bubble tool: click inserts a text bubble
     if (
       this.state.activeTool.type === "custom" &&

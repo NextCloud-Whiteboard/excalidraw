@@ -470,7 +470,46 @@ export interface AppState {
   };
   /** selected metric unit for ruler display */
   selectedMetric: "mm" | "cm" | "m";
+  /** Vrij Tracé tool state of this user (never synced or saved) */
+  vrijTrace: VrijTraceUIState;
+  /** trench parts other people are editing, keyed by element id (set by the host) */
+  vrijTraceRemoteHolds: VrijTraceRemoteHolds;
 }
+
+export type VrijTraceMode =
+  | "teken"
+  | "verplaats"
+  | "selecteer"
+  | "verwijder"
+  | "boom"
+  | "boomToevoegen";
+
+export type VrijTraceDraft = {
+  start: { x: number; y: number };
+  cur: { x: number; y: number };
+  preview: {
+    a: { x: number; y: number };
+    b: { x: number; y: number };
+    lengthM: number;
+  } | null;
+};
+
+export type VrijTraceUIState = {
+  mode: VrijTraceMode;
+  pageId: string | null;
+  activeTreeId: string | null;
+  selectedSegmentId: string | null;
+  snap: "90" | "45" | "vrij";
+  reference: "midden" | "links" | "rechts";
+  widthM: number;
+  hidePdf: boolean;
+  draft: VrijTraceDraft | null;
+};
+
+export type VrijTraceRemoteHolds = Record<
+  string,
+  { userId: string; name: string; expiresAt: number }
+>;
 
 export type SearchMatch = {
   id: string;
@@ -658,6 +697,12 @@ export interface ExcalidrawProps {
   renderScrollbars?: boolean;
   /** PDF-to-image service base URL; falls back to VITE_APP_PDF_API */
   pdfApiUrl?: string;
+  /** show the Vrij Tracé tool (trench planning on imported PDF pages) */
+  vrijTraceEnabled?: boolean;
+  /** the current user, recorded when someone activates zones */
+  vrijTraceUser?: { uid: string; name: string };
+  /** the trench parts this user holds (grabbed or selected) changed */
+  onVrijTraceEditing?: (elementIds: string[]) => void;
 }
 
 export type SceneData = {
@@ -748,6 +793,8 @@ export type AppClassProperties = {
   pasteFromClipboard: App["pasteFromClipboard"];
   id: App["id"];
   onInsertElements: App["onInsertElements"];
+  vrijTrace: App["vrijTrace"];
+  getPdfPageAt: App["getPdfPageAt"];
   onExportImage: App["onExportImage"];
   lastViewportPosition: App["lastViewportPosition"];
   scrollToContent: App["scrollToContent"];
