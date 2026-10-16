@@ -112,6 +112,35 @@ const drawTree = (
   ctx.restore();
 };
 
+const MAX_HATCH_LINES = 1000;
+
+/** scene-space bounding box of the polygons, clipped to the viewport */
+const visibleBox = (
+  polys: Polygons,
+  s: PageState,
+  appState: StaticCanvasAppState,
+) => {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const ring of polys) {
+    for (const m of ring) {
+      const p = pageToScene(s.frame, m);
+      x0 = Math.min(x0, p.x);
+      y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x);
+      y1 = Math.max(y1, p.y);
+    }
+  }
+  const z = appState.zoom.value;
+  x0 = Math.max(x0, -appState.scrollX);
+  y0 = Math.max(y0, -appState.scrollY);
+  x1 = Math.min(x1, -appState.scrollX + appState.width / z);
+  y1 = Math.min(y1, -appState.scrollY + appState.height / z);
+  return x0 < x1 && y0 < y1 ? { x0, y0, x1, y1 } : null;
+};
+
 /** the page's trench, zones (only while activated) and trees, on the static canvas */
 export const renderVrijTraceStatic = (
   ctx: CanvasRenderingContext2D,
@@ -140,13 +169,18 @@ export const renderVrijTraceStatic = (
     ctx.clip("evenodd");
     ctx.strokeStyle = COLORS.overlapLine;
     ctx.lineWidth = 3 / z;
-    const step = 16 / z;
-    const { x, y, width, height } = s.frame;
-    const reach = width + height;
-    for (let k = -reach; k < 2 * reach; k += step) {
+    // hatch only where the overlap is on screen: the line count then
+    // follows the screen size, not the (shared, untrusted) page size
+    const box = visibleBox(s.zones.overlap, s, appState);
+    if (box) {
+      const step = 16 / z;
+      const from = box.x0 + box.y0;
+      const to = Math.min(box.x1 + box.y1, from + step * MAX_HATCH_LINES);
       ctx.beginPath();
-      ctx.moveTo(x + k, y - reach);
-      ctx.lineTo(x + k - 2 * reach, y + reach);
+      for (let c = from; c <= to; c += step) {
+        ctx.moveTo(c - box.y0, box.y0);
+        ctx.lineTo(c - box.y1, box.y1);
+      }
       ctx.stroke();
     }
     ctx.restore();
