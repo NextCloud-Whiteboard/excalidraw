@@ -57,6 +57,21 @@ describe("drawing (v8.2 rules)", () => {
     expect(w.nodes).toHaveLength(5);
   });
 
+  it("draws on a page whose network has a segment with a missing node", () => {
+    // partial collaboration update, or a node merged away by a colleague
+    const w: Working = {
+      nodes: [{ id: "n1", x: 50, y: -50 }],
+      segments: [{ id: "dangling", a: "n1", b: "ghost", widthM: 1 }],
+    };
+    expect(() =>
+      addSegment(w, { x: 0, y: 0 }, { x: 200, y: 0 }, opts()),
+    ).not.toThrow();
+    // the new segment is drawn; the dangling one is cleaned up as by any edit
+    expect(w.segments).toHaveLength(1);
+    expect(w.segments[0].id).not.toBe("dangling");
+    expect(w.nodes).toHaveLength(2);
+  });
+
   it("offsets a left-edge reference by half the width (v8.2: -½w·n)", () => {
     const line = drawEndpoints(
       empty(),

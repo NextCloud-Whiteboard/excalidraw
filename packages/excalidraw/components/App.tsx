@@ -152,6 +152,7 @@ import {
   isBoundToContainer,
   isFrameLikeElement,
   isImageElement,
+  isTrenchElement,
   isEmbeddableElement,
   isInitializedImageElement,
   isLinearElement,
@@ -400,6 +401,7 @@ import Library, {
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
 import { VrijTraceController } from "../vrijtrace/controller";
+import { isPdfPage, remapTrenchIds, trenchPartsOf } from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
@@ -3379,7 +3381,15 @@ class App extends React.Component<AppProps, AppState> {
      */
     fromLibrary?: boolean;
   }) => {
-    const elements = restoreElements(opts.elements, null, undefined);
+    // trench parts only come along with their page
+    const restored = restoreElements(opts.elements, null, undefined);
+    const pastedPageIds = new Set(
+      restored.filter(isPdfPage).map((el) => el.id),
+    );
+    const elements = restored.filter(
+      (el) =>
+        !isTrenchElement(el) || pastedPageIds.has(el.customData?.pdfParentId),
+    );
     const [minX, minY, maxX, maxY] = getCommonBounds(elements);
 
     const elementsCenterX = distance(minX, maxX) / 2;
@@ -3408,7 +3418,7 @@ class App extends React.Component<AppProps, AppState> {
 
     const [gridX, gridY] = getGridPoint(dx, dy, this.getEffectiveGridSize());
 
-    const { duplicatedElements } = duplicateElements({
+    const { duplicatedElements, origIdToDuplicateId } = duplicateElements({
       type: "everything",
       elements: elements.map((element) => {
         return newElementWith(element, {
@@ -3418,6 +3428,7 @@ class App extends React.Component<AppProps, AppState> {
       }),
       randomizeSeed: !opts.retainSeed,
     });
+    remapTrenchIds(duplicatedElements, origIdToDuplicateId);
 
     const prevElements = this.scene.getElementsIncludingDeleted();
     let nextElements = [...prevElements, ...duplicatedElements];
@@ -3487,8 +3498,9 @@ class App extends React.Component<AppProps, AppState> {
 
     this.store.scheduleCapture();
 
-    const nextElementsToSelect =
-      excludeElementsInFramesFromSelection(duplicatedElements);
+    const nextElementsToSelect = excludeElementsInFramesFromSelection(
+      duplicatedElements.filter((el) => !isTrenchElement(el)),
+    );
 
     this.setState(
       {
@@ -9343,8 +9355,17 @@ class App extends React.Component<AppProps, AppState> {
               selectedElements.push(hitElement);
             }
 
+            // a PDF page's Vrij Tracé network is duplicated with it
             const idsOfElementsToDuplicate = new Map(
-              selectedElements.map((el) => [el.id, el]),
+              [
+                ...selectedElements,
+                ...trenchPartsOf(
+                  elements,
+                  new Set(
+                    selectedElements.filter(isPdfPage).map((el) => el.id),
+                  ),
+                ),
+              ].map((el) => [el.id, el]),
             );
 
             const {
@@ -9371,6 +9392,7 @@ class App extends React.Component<AppProps, AppState> {
                 };
               },
             });
+            remapTrenchIds(duplicatedElements, origIdToDuplicateId);
             duplicatedElements.forEach((element) => {
               pointerDownState.originalElements.set(
                 element.id,
@@ -9443,7 +9465,7 @@ class App extends React.Component<AppProps, AppState> {
               // switch selected elements to the duplicated ones
               this.setState((prevState) => ({
                 ...getSelectionStateForElements(
-                  duplicatedElements,
+                  duplicatedElements.filter((el) => !isTrenchElement(el)),
                   this.scene.getNonDeletedElements(),
                   prevState,
                 ),

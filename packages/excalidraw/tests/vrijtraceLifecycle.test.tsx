@@ -1,16 +1,20 @@
 import React from "react";
-import { act } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 
+import { isTrenchElement } from "@excalidraw/element";
+
+import { actionCopy } from "../actions/actionClipboard";
 import { actionDeleteSelected } from "../actions/actionDeleteSelected";
 import { actionDistanceConversion } from "../actions/actionDistanceConversion";
 import { actionDuplicateSelection } from "../actions/actionDuplicateSelection";
 import { actionUnlockAllElements } from "../actions/actionElementLock";
+import { createPasteEvent } from "../clipboard";
 import { Excalidraw } from "../index";
 import { getPageParts, pageState } from "../vrijtrace/model";
 
 import { API } from "./helpers/api";
-import { Pointer, UI } from "./helpers/ui";
-import { render } from "./test-utils";
+import { Keyboard, Pointer, UI } from "./helpers/ui";
+import { GlobalTestState, render } from "./test-utils";
 
 const { h } = window;
 const mouse = new Pointer("mouse");
@@ -24,17 +28,43 @@ const pdfPage = () => ({
     width: 1000,
     height: 700,
   }),
+  fileId: "pdfpage1" as any,
+  status: "saved" as const,
   customData: { isPdf: true, pdfCmPerPx: 5 },
 });
 const page = () => h.elements.find((e) => e.id === "pdf1") as any;
 const active = () => pageState(h.elements, page())!.active;
+const pages = () =>
+  h.elements.filter((e) => (e as any).customData?.isPdf && !e.isDeleted);
+/** the page that is not pdf1 has its own, consistent copy of the network */
+const expectCopiedNetwork = () => {
+  const copy = pages().find((e) => e.id !== "pdf1")!;
+  expect(copy).toBeDefined();
+  const parts = getPageParts(h.elements, copy.id);
+  expect(parts.network?.id).toBe(`vrijtrace-${copy.id}`);
+  expect(parts.segments).toHaveLength(1);
+  expect(parts.nodes).toHaveLength(2);
+  const nodeIds = new Set(parts.nodes.map((n) => n.id));
+  for (const seg of parts.segments as any[]) {
+    expect(nodeIds.has(seg.trench.a) && nodeIds.has(seg.trench.b)).toBe(true);
+  }
+  const original = getPageParts(h.elements, "pdf1");
+  expect(original.network?.id).toBe("vrijtrace-pdf1");
+  expect(original.segments).toHaveLength(1);
+  expect(original.nodes).toHaveLength(2);
+  return { copy, parts, original };
+};
 const liveTrench = () =>
   h.elements.filter((e) => e.type === "trench" && !e.isDeleted);
 
 describe("Vrij Tracé follows its page", () => {
   beforeEach(async () => {
     await render(
-      <Excalidraw vrijTraceEnabled={true} handleKeyboardGlobally={true} />,
+      <Excalidraw
+        vrijTraceEnabled={true}
+        handleKeyboardGlobally={true}
+        autoFocus={true}
+      />,
     );
     API.setElements([pdfPage()]);
     act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
@@ -95,6 +125,57 @@ describe("Vrij Tracé follows its page", () => {
     // the copy is a new layout (new part ids): its zones wait for "Activeer"
     expect(pageState(h.elements, copy as any)!.active).toBe(false);
     expect(active()).toBe(true);
+  });
+
+  it("Ctrl+D selects the copied page, not its trench parts", () => {
+    API.setSelectedElements([page()]);
+    API.executeAction(actionDuplicateSelection);
+    const selected = h.elements.filter((e) => h.state.selectedElementIds[e.id]);
+    expect(selected).toHaveLength(1);
+    expect(selected.some(isTrenchElement)).toBe(false);
+  });
+
+  it("copy and paste brings the page's network along", async () => {
+    API.setSelectedElements([page()]);
+    let text = "";
+    const clipboardEvent = {
+      clipboardData: {
+        setData: (_type: string, data: string) => {
+          text = data;
+        },
+        getData: () => text,
+      },
+    };
+    API.executeAction(actionCopy, clipboardEvent);
+    // paste only lands with the pointer over the canvas (as clipboard.test)
+    Object.assign(document, { elementFromPoint: () => GlobalTestState.canvas });
+    await waitFor(() => expect(text).not.toBe(""));
+    document.dispatchEvent(createPasteEvent({ types: { "text/plain": text } }));
+    await waitFor(() => expect(pages()).toHaveLength(2));
+    expectCopiedNetwork();
+  });
+
+  it("alt-drag copies the page with its network, leaving the original in place", () => {
+    const before = getPageParts(h.elements, "pdf1").nodes.map((n) => [
+      n.x,
+      n.y,
+    ]);
+    API.setSelectedElements([page()]);
+    mouse.reset();
+    mouse.downAt(900, 600);
+    Keyboard.withModifierKeys({ alt: true }, () => {
+      mouse.moveTo(950, 650);
+    });
+    mouse.upAt(950, 650);
+    const { copy, parts, original } = expectCopiedNetwork();
+    expect([page().x, page().y]).toEqual([0, 0]);
+    expect(original.nodes.map((n) => [n.x, n.y])).toEqual(before);
+    // the copy's parts moved with the copy
+    const dx = copy.x;
+    expect(dx).not.toBe(0);
+    expect(parts.nodes.map((n) => n.x).sort()).toEqual(
+      before.map(([x]) => x + dx).sort(),
+    );
   });
 
   it("never unlocks trench parts", () => {

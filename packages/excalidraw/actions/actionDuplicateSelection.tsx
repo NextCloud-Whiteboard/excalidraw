@@ -16,7 +16,7 @@ import {
 
 import { syncMovedIndices } from "@excalidraw/element";
 
-import { duplicateElements } from "@excalidraw/element";
+import { duplicateElements, isTrenchElement } from "@excalidraw/element";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -108,7 +108,8 @@ export const actionDuplicateSelection = register({
       appState: {
         ...appState,
         ...getSelectionStateForElements(
-          duplicatedElements,
+          // trench parts travel with their page and are never selected
+          duplicatedElements.filter((el) => !isTrenchElement(el)),
           getNonDeletedElements(elementsWithDuplicates),
           appState,
         ),

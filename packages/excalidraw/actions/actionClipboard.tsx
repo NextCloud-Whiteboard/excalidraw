@@ -17,7 +17,10 @@ import { DuplicateIcon, cutIcon, pngIcon, svgIcon } from "../components/icons";
 import { exportCanvas, prepareElementsForExport } from "../data/index";
 import { t } from "../i18n";
 
+import { isPdfPage, trenchPartsOf } from "../vrijtrace/model";
+
 import { actionDeleteSelected } from "./actionDeleteSelected";
+
 import { register } from "./register";
 
 export const actionCopy = register({
@@ -26,11 +29,19 @@ export const actionCopy = register({
   icon: DuplicateIcon,
   trackEvent: { category: "element" },
   perform: async (elements, appState, event: ClipboardEvent | null, app) => {
-    const elementsToCopy = app.scene.getSelectedElements({
+    const selectedElements = app.scene.getSelectedElements({
       selectedElementIds: appState.selectedElementIds,
       includeBoundTextElement: true,
       includeElementsInFrames: true,
     });
+    // a PDF page's Vrij Tracé network is copied with it
+    const elementsToCopy = [
+      ...selectedElements,
+      ...trenchPartsOf(
+        elements,
+        new Set(selectedElements.filter(isPdfPage).map((el) => el.id)),
+      ),
+    ];
 
     try {
       await copyToClipboard(elementsToCopy, app.files, event);

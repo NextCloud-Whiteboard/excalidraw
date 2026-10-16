@@ -222,7 +222,10 @@ export const addSegment = (
     { t: 1, id: ib },
   ];
   for (const s of [...w.segments]) {
-    const c = crossing(A, B, nodeOf(w, s.a)!, nodeOf(w, s.b)!);
+    const sa = nodeOf(w, s.a);
+    const sb = nodeOf(w, s.b);
+    // a segment whose node has not arrived (or was merged away) is kept as is
+    const c = sa && sb ? crossing(A, B, sa, sb) : null;
     if (!c) {
       continue;
     }
