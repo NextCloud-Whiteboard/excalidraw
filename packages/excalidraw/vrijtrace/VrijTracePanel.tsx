@@ -1,13 +1,13 @@
 import React from "react";
 
+import type { VrijTraceSide } from "@excalidraw/element/types";
+
 import { useApp, useExcalidrawElements } from "../components/App";
 
 import { displayLabels, getPageParts, isPdfPage, settingsOf } from "./model";
 import { STR } from "./strings";
 
 import "./vrijtrace.scss";
-
-import type { VrijTraceSide } from "@excalidraw/element/types";
 
 import type { UIAppState } from "../types";
 
