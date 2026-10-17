@@ -88,6 +88,37 @@ describe("Vrij Tracé follows its page", () => {
     expect(active()).toBe(true);
   });
 
+  it("keeps the network on its page when resized or rotated with other elements", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 1100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([...h.elements, rect]);
+    const centreBefore = () => {
+      const n = getPageParts(h.elements, "pdf1").nodes[0];
+      const p = page();
+      // node centre in page fractions, which a group transform must keep
+      return [
+        (n.x + n.width / 2 - p.x) / p.width,
+        (n.y + n.height / 2 - p.y) / p.height,
+      ];
+    };
+    const before = centreBefore();
+    API.setSelectedElements([page(), rect]);
+    UI.resize([page(), rect], "se", [240, 160]);
+    expect(page().width).toBeGreaterThan(1000);
+    expect(centreBefore()[0]).toBeCloseTo(before[0], 3);
+    expect(centreBefore()[1]).toBeCloseTo(before[1], 3);
+    expect(active()).toBe(true);
+    API.setSelectedElements([page(), rect]);
+    UI.rotate([page(), rect], [300, 50]);
+    expect(page().angle).not.toBe(0);
+    expect(active()).toBe(true);
+  });
+
   it("deactivates zones when the page is recalibrated", () => {
     API.executeAction(actionDistanceConversion, {
       pdfCalibration: { pdfId: "pdf1", cmPerPx: 6 },

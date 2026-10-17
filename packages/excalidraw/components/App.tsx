@@ -6375,10 +6375,6 @@ class App extends React.Component<AppProps, AppState> {
   private handleCanvasPointerMove = (
     event: React.PointerEvent<HTMLCanvasElement>,
   ) => {
-    if (this.isVrijTraceActive()) {
-      this.vrijTrace.hover(viewportCoordsToSceneCoords(event, this.state));
-      return;
-    }
     this.savePointer(event.clientX, event.clientY, this.state.cursorButton);
     this.lastPointerMoveEvent = event.nativeEvent;
 
@@ -6445,6 +6441,13 @@ class App extends React.Component<AppProps, AppState> {
       isDraggingScrollBar ||
       isHandToolActive(this.state)
     ) {
+      return;
+    }
+
+    if (this.isVrijTraceActive()) {
+      if (gesture.pointers.size < 2) {
+        this.vrijTrace.hover(viewportCoordsToSceneCoords(event, this.state));
+      }
       return;
     }
 
@@ -7025,14 +7028,6 @@ class App extends React.Component<AppProps, AppState> {
   private handleCanvasPointerDown = (
     event: React.PointerEvent<HTMLElement>,
   ) => {
-    if (this.isVrijTraceActive()) {
-      if (event.button === 0) {
-        this.vrijTrace.pointerDown(
-          viewportCoordsToSceneCoords(event, this.state),
-        );
-      }
-      return;
-    }
     // Handle text bubble tool: click inserts a text bubble
     if (
       this.state.activeTool.type === "custom" &&
@@ -7168,6 +7163,19 @@ class App extends React.Component<AppProps, AppState> {
     // else it will send pointer state & laser pointer events in collab when
     // panning
     if (this.handleCanvasPanUsingWheelOrSpaceDrag(event)) {
+      return;
+    }
+
+    // Vrij Tracé takes the primary pointer once panning had its chance; a
+    // second finger is a pinch, which drops whatever was being drawn
+    if (this.isVrijTraceActive()) {
+      if (gesture.pointers.size > 1) {
+        this.vrijTrace.reset();
+      } else if (event.button === 0) {
+        this.vrijTrace.pointerDown(
+          viewportCoordsToSceneCoords(event, this.state),
+        );
+      }
       return;
     }
 

@@ -150,7 +150,13 @@ export class VrijTraceController {
       return null;
     }
     if (page.id !== this.ui.pageId) {
-      this.setUI({ pageId: page.id, draft: null, selectedSegmentId: null });
+      // drafts, selections and the active tree belong to the previous page
+      this.setUI({
+        pageId: page.id,
+        draft: null,
+        selectedSegmentId: null,
+        activeTreeId: null,
+      });
     }
     return page;
   }
@@ -376,7 +382,12 @@ export class VrijTraceController {
         this.setUI({ mode: "boom", activeTreeId: tree.id });
       }
       const tree = treeId ? this.app.scene.getElement(treeId) : null;
-      if (!tree || tree.isDeleted || this.refuseHeld(tree.id)) {
+      if (
+        !tree ||
+        tree.isDeleted ||
+        tree.customData?.pdfParentId !== page.id ||
+        this.refuseHeld(tree.id)
+      ) {
         return;
       }
       this.app.scene.mutateElement(tree, { x: p.x - 0.5, y: p.y - 0.5 });
@@ -654,10 +665,15 @@ export class VrijTraceController {
     return false;
   }
 
-  /** leaving the tool: drop drafts, drags and holds */
+  /** leaving the tool: drop drafts, drags and holds; show the PDF again */
   reset() {
     this.drag = null;
-    this.setUI({ draft: null, activeTreeId: null, selectedSegmentId: null });
+    this.setUI({
+      draft: null,
+      activeTreeId: null,
+      selectedSegmentId: null,
+      hidePdf: false,
+    });
     this.hold([]);
   }
 }

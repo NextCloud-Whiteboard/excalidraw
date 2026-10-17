@@ -182,6 +182,37 @@ const updateTextBubbleConnectionsAfterPdfResize = (
 };
 
 // Returns true when transform (resizing/rotation) happened
+/**
+ * The selection plus the children of every selected PDF page (elements tied
+ * to it through pdfParentId), so a group transform carries them along the
+ * way a single-page transform does.
+ */
+const withPdfChildren = (
+  selectedElements: readonly NonDeletedExcalidrawElement[],
+  scene: Scene,
+): readonly NonDeletedExcalidrawElement[] => {
+  const pageIds = new Set(
+    selectedElements
+      .filter((el) => isImageElement(el) && el.customData?.isPdf === true)
+      .map((el) => el.id),
+  );
+  if (!pageIds.size) {
+    return selectedElements;
+  }
+  const selectedIds = new Set(selectedElements.map((el) => el.id));
+  const children = scene
+    .getNonDeletedElements()
+    .filter(
+      (el) =>
+        !selectedIds.has(el.id) &&
+        (pageIds.has(el.customData?.pdfParentId) ||
+          (isTextBubbleElement(el) && pageIds.has(el.pdfParentId!))),
+    );
+  return children.length
+    ? [...selectedElements, ...children]
+    : selectedElements;
+};
+
 export const transformElements = (
   originalElements: PointerDownState["originalElements"],
   transformHandleType: MaybeTransformHandleType,
@@ -272,7 +303,7 @@ export const transformElements = (
     if (transformHandleType === "rotation") {
       rotateMultipleElements(
         originalElements,
-        selectedElements,
+        withPdfChildren(selectedElements, scene),
         scene,
         pointerX,
         pointerY,
@@ -300,8 +331,9 @@ export const transformElements = (
           },
         );
 
+      // the box comes from the selection; PDF children are scaled with it
       resizeMultipleElements(
-        selectedElements,
+        withPdfChildren(selectedElements, scene),
         elementsMap,
         transformHandleType,
         scene,
