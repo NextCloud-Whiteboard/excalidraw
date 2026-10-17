@@ -137,4 +137,14 @@ describe("Vrij Tracé UI", () => {
     const after = h.elements.find((e) => e.id === seg.id) as any;
     expect(after.trench.widthM).toBe(2);
   });
+
+  it("lifts toasts above the action row while the tool is open", () => {
+    const editor = container.querySelector(".excalidraw") as HTMLElement;
+    const offset = () => editor.style.getPropertyValue("--vt-actions-offset");
+    expect(offset()).toBe("");
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    expect(offset()).toMatch(/^\d+px$/);
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    expect(offset()).toBe("");
+  });
 });

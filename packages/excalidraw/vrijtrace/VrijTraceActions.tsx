@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 
-import { useApp, useExcalidrawActionManager } from "../components/App";
+import {
+  useApp,
+  useExcalidrawActionManager,
+  useExcalidrawContainer,
+} from "../components/App";
 
 import { STR } from "./strings";
 
@@ -11,6 +15,29 @@ export const VrijTraceActions = ({ appState }: { appState: UIAppState }) => {
   const app = useApp();
   const actionManager = useExcalidrawActionManager();
   const vt = app.vrijTrace;
+  const { container } = useExcalidrawContainer();
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // toasts share the bottom centre: keep them above this row (Toast.scss)
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row || !container) {
+      return;
+    }
+    const update = () =>
+      container.style.setProperty(
+        "--vt-actions-offset",
+        `${Math.round(row.offsetHeight) + 16}px`,
+      );
+    update();
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(row);
+    return () => {
+      observer?.disconnect();
+      container.style.removeProperty("--vt-actions-offset");
+    };
+  }, [container]);
   const b = (
     id: string,
     label: string,
@@ -27,7 +54,7 @@ export const VrijTraceActions = ({ appState }: { appState: UIAppState }) => {
     </button>
   );
   return (
-    <div className="vt-actions Island">
+    <div className="vt-actions Island" ref={rowRef}>
       {b("vt-activate", STR.actions.activate, () => vt.activate(), true)}
       {b("vt-finish", STR.actions.finish, () => vt.finish())}
       {b("vt-undo", STR.actions.undo, () =>
