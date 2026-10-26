@@ -400,6 +400,7 @@ import Library, {
   isValidCmPerPx,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
+import { blobText, uploadForConversion } from "../pdfImport/upload";
 import { VrijTraceController } from "../vrijtrace/controller";
 import { isPdfPage, remapTrenchIds, trenchPartsOf } from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
@@ -498,6 +499,7 @@ import {
   isPointHittingLinkIcon,
 } from "./hyperlink/helpers";
 import { MagicIcon, copyIcon, fullscreenIcon } from "./icons";
+import { PdfImportPlaceholder } from "./PdfImportPlaceholder";
 import { Toast } from "./Toast";
 import { Magnifier } from "./Magnifier";
 
@@ -1848,6 +1850,7 @@ class App extends React.Component<AppProps, AppState> {
                               />
                             </ElementCanvasButtons>
                           )}
+                        <PdfImportPlaceholder appState={this.state} />
                         {this.state.toast !== null && (
                           <Toast
                             message={this.state.toast.message}
@@ -11055,93 +11058,84 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  public onPdfImportAction = async () => {
-    // Progress tracking variables - declare outside try block for scope
-    let currentProgress = 0;
-    let progressInterval: number | undefined;
-    let isRequestComplete = false;
+  /** the PDF import in progress (a newer import or a cancel replaces it) */
+  private pdfImportRun: { file: File; abort: () => void } | null = null;
 
-    try {
-      const clientX = this.state.width / 2 + this.state.offsetLeft;
-      const clientY = this.state.height / 2 + this.state.offsetTop;
-
-      let { x, y } = viewportCoordsToSceneCoords(
-        { clientX, clientY },
-        this.state,
-      );
-
-      // Find empty space to avoid overlapping with existing elements
-      const findEmptySpace = (
-        startX: number,
-        startY: number,
-        width: number,
-        height: number,
-      ): { x: number; y: number } => {
-        const existingElements = this.scene.getNonDeletedElements();
-        const margin = 50 / this.state.zoom.value;
-        const step = 100 / this.state.zoom.value;
+  /** where a PDF lands: the first free spot near (startX = centre, startY = top) */
+  private findEmptyPdfSpace = (
+    startX: number,
+    startY: number,
+    width: number,
+    height: number,
+  ): { x: number; y: number } => {
+    const existingElements = this.scene.getNonDeletedElements();
+    const margin = 50 / this.state.zoom.value;
+    const step = 100 / this.state.zoom.value;
+    
+    // Helper to check if a rectangle overlaps with any existing element
+    const hasOverlap = (rectX: number, rectY: number, rectW: number, rectH: number): boolean => {
+      return existingElements.some((element) => {
+        const [elX1, elY1, elX2, elY2] = getElementAbsoluteCoords(
+          element,
+          this.scene.getNonDeletedElementsMap(),
+        );
         
-        // Helper to check if a rectangle overlaps with any existing element
-        const hasOverlap = (rectX: number, rectY: number, rectW: number, rectH: number): boolean => {
-          return existingElements.some((element) => {
-            const [elX1, elY1, elX2, elY2] = getElementAbsoluteCoords(
-              element,
-              this.scene.getNonDeletedElementsMap(),
-            );
-            
-            // Add margin around existing elements
-            const elLeft = elX1 - margin;
-            const elTop = elY1 - margin;
-            const elRight = elX2 + margin;
-            const elBottom = elY2 + margin;
-            
-            // Check if rectangles intersect
-            return !(
-              rectX + rectW < elLeft ||
-              rectX > elRight ||
-              rectY + rectH < elTop ||
-              rectY > elBottom
-            );
-          });
-        };
+        // Add margin around existing elements
+        const elLeft = elX1 - margin;
+        const elTop = elY1 - margin;
+        const elRight = elX2 + margin;
+        const elBottom = elY2 + margin;
+        
+        // Check if rectangles intersect
+        return !(
+          rectX + rectW < elLeft ||
+          rectX > elRight ||
+          rectY + rectH < elTop ||
+          rectY > elBottom
+        );
+      });
+    };
 
-        // Try the original position first
-        if (!hasOverlap(startX - width / 2, startY, width, height)) {
-          return { x: startX, y: startY };
+    // Try the original position first
+    if (!hasOverlap(startX - width / 2, startY, width, height)) {
+      return { x: startX, y: startY };
+    }
+
+    // Search in a spiral pattern outward from the original position
+    const maxAttempts = 100;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Try positions in a grid pattern, expanding outward
+      const positions = [
+        { x: startX, y: startY + step * attempt }, // Down
+        { x: startX + step * attempt, y: startY }, // Right
+        { x: startX - step * attempt, y: startY }, // Left
+        { x: startX, y: startY - step * attempt }, // Up
+        { x: startX + step * attempt, y: startY + step * attempt }, // Bottom-right
+        { x: startX - step * attempt, y: startY + step * attempt }, // Bottom-left
+        { x: startX + step * attempt, y: startY - step * attempt }, // Top-right
+        { x: startX - step * attempt, y: startY - step * attempt }, // Top-left
+      ];
+
+      for (const pos of positions) {
+        if (!hasOverlap(pos.x - width / 2, pos.y, width, height)) {
+          return pos;
         }
+      }
+    }
 
-        // Search in a spiral pattern outward from the original position
-        const maxAttempts = 100;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          // Try positions in a grid pattern, expanding outward
-          const positions = [
-            { x: startX, y: startY + step * attempt }, // Down
-            { x: startX + step * attempt, y: startY }, // Right
-            { x: startX - step * attempt, y: startY }, // Left
-            { x: startX, y: startY - step * attempt }, // Up
-            { x: startX + step * attempt, y: startY + step * attempt }, // Bottom-right
-            { x: startX - step * attempt, y: startY + step * attempt }, // Bottom-left
-            { x: startX + step * attempt, y: startY - step * attempt }, // Top-right
-            { x: startX - step * attempt, y: startY - step * attempt }, // Top-left
-          ];
+    // If no empty space found, return original position (far below existing content)
+    const allBounds = existingElements.length > 0
+      ? existingElements.map((el) => getElementAbsoluteCoords(el, this.scene.getNonDeletedElementsMap()))
+      : [];
+    const maxY = allBounds.length > 0
+      ? Math.max(...allBounds.map(([, , , y2]) => y2))
+      : startY;
+    return { x: startX, y: maxY + margin * 2 };
+  };
 
-          for (const pos of positions) {
-            if (!hasOverlap(pos.x - width / 2, pos.y, width, height)) {
-              return pos;
-            }
-          }
-        }
-
-        // If no empty space found, return original position (far below existing content)
-        const allBounds = existingElements.length > 0
-          ? existingElements.map((el) => getElementAbsoluteCoords(el, this.scene.getNonDeletedElementsMap()))
-          : [];
-        const maxY = allBounds.length > 0
-          ? Math.max(...allBounds.map(([, , , y2]) => y2))
-          : startY;
-        return { x: startX, y: maxY + margin * 2 };
-      };
-
+  public onPdfImportAction = async () => {
+    let pdfFile: File;
+    try {
       // Open file dialog to select PDF using native input
       const input = document.createElement("input");
       input.type = "file";
@@ -11149,7 +11143,7 @@ class App extends React.Component<AppProps, AppState> {
       input.style.display = "none";
       document.body.appendChild(input);
 
-      const pdfFile = await new Promise<File>((resolve, reject) => {
+      pdfFile = await new Promise<File>((resolve, reject) => {
         input.onchange = (e: any) => {
           const file = e.target?.files?.[0];
           document.body.removeChild(input);
@@ -11165,285 +11159,222 @@ class App extends React.Component<AppProps, AppState> {
         };
         input.click();
       });
-
-      // Function to calculate progress with slowdown at 90%
-      const updateProgress = () => {
-        if (isRequestComplete) {
-          currentProgress = 100;
-          this.setToast({
-            message: `✅ ${t("pdfImport.conversionComplete")}`,
-            closable: false,
-            progress: 100,
-            duration: Infinity,
-          });
-          clearInterval(progressInterval);
-          return;
-        }
-
-        // Slow down significantly after 90%
-        if (currentProgress >= 90) {
-          currentProgress += Math.random() * 0.5; // Very slow increment
-        } else if (currentProgress >= 70) {
-          currentProgress += Math.random() * 2; // Moderate increment
-        } else {
-          currentProgress += Math.random() * 8; // Fast increment initially
-        }
-
-        // Cap at 95% until request is done
-        currentProgress = Math.min(currentProgress, 95);
-
-        // Different messages based on progress
-        let message = "";
-        if (currentProgress < 15) {
-          message = `📄 ${t("pdfImport.importing", { name: pdfFile.name })}`;
-        } else if (currentProgress < 35) {
-          message = `🔍 ${t("pdfImport.analyzing")}`;
-        } else if (currentProgress < 60) {
-          message = `⚙️ ${t("pdfImport.processing")}`;
-        } else if (currentProgress < 80) {
-          message = `🎨 ${t("pdfImport.converting")}`;
-        } else if (currentProgress < 95) {
-          message = `✨ ${t("pdfImport.finalizing")}`;
-        } else {
-          message = `⏳ ${t("pdfImport.almostReady")}`;
-        }
-
-        this.setToast({
-          message,
-          closable: false,
-          progress: Math.round(currentProgress),
-          duration: Infinity,
-        });
-      };
-
-      // Start progress simulation
-      this.setToast({
-        message: `📄 ${t("pdfImport.importing", { name: pdfFile.name })}`,
-        closable: false,
-        progress: 0,
-        duration: Infinity,
-      });
-
-      progressInterval = window.setInterval(updateProgress, 200) as any;
-
-      // Convert PDF to image using the API
-      const formData = new FormData();
-      formData.append("file", pdfFile);
-
-      const pdfApiUrl =
-        this.props.pdfApiUrl || import.meta.env.VITE_APP_PDF_API;
-      const response = await fetch(`${pdfApiUrl}/convert`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to convert PDF: ${response.statusText}`);
-      }
-
-      // Mark request as complete to allow progress to reach 100%
-      isRequestComplete = true;
-      updateProgress();
-
-      // Try to detect JSON response (new API) vs. binary blob (legacy)
-      const responseContentType = response.headers.get("content-type") || "";
-
-      // Helper to convert base64 string to Blob using data URL fetch (efficient and safe)
-      const base64ToBlob = async (
-        base64Data: string,
-        contentType: string,
-      ): Promise<Blob> => {
-        const dataUrl = `data:${contentType};base64,${base64Data}`;
-        const res = await fetch(dataUrl);
-        return await res.blob();
-      };
-
-      let insertedElementsIds: { [id: string]: true } = {};
-      // Generate a document-level id so all pages share calibration
-      const pdfDocId = `${pdfFile.name}-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-
-      if (responseContentType.includes("application/json")) {
-        // New API: expects { files: [{ filename, content_type, data(base64) }, ...] }
-        const json = await response.json();
-        const files = Array.isArray(json?.files) ? json.files : [];
-        if (!files.length) {
-          throw new Error("No images returned from PDF conversion");
-        }
-
-        // Estimate total dimensions for finding empty space
-        // Assuming typical PDF page aspect ratio and our scaling logic
-        const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
-        const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
-        const estimatedWidth = availableWidth;
-        const gap = 40 / this.state.zoom.value;
-        // Rough estimate: each page takes up to availableHeight, stacked vertically
-        const estimatedTotalHeight = files.length * availableHeight + (files.length - 1) * gap;
-
-        // Find empty space for the entire PDF document
-        const emptySpace = findEmptySpace(x, y, estimatedWidth, estimatedTotalHeight);
-        x = emptySpace.x;
-        y = emptySpace.y;
-
-        // Insert each page sequentially, vertically stacked with a gap
-        let currentY = y;
-
-        for (let i = 0; i < files.length; i++) {
-          const fileItem = files[i];
-          const contentType = fileItem?.content_type || "image/png";
-          const filename = fileItem?.filename || `${pdfFile.name}-page-${i + 1}.png`;
-          const base64 = fileItem?.data as string;
-          if (!base64) {
-            // Skip invalid entry but continue with others
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-
-          const pageBlob = await base64ToBlob(base64, contentType);
-          const pageFile = new File([pageBlob], filename, { type: contentType });
-
-          const pageElement = this.createImageElement({
-            sceneX: x,
-            sceneY: currentY,
-            addToFrameUnderCursor: false,
-          });
-
-          // Tag as PDF page
-          this.scene.mutateElement(pageElement, {
-            customData: {
-              isPdf: true,
-              originalPdfName: pdfFile.name,
-              pdfDocId,
-              pageIndex: i + 1,
-            },
-          });
-
-          const initialized = await this.insertImageElement(pageElement, pageFile);
-          if (initialized) {
-            // Size and position the page
-            this.initializePdfImageDimensionsWithPosition(initialized, x, currentY);
-            insertedElementsIds[initialized.id] = true;
-
-            // Compute next Y based on final size after positioning
-            currentY = initialized.y + initialized.height + gap;
-          }
-        }
-
-        // Clear the progress interval and toast after processing all pages
-        clearInterval(progressInterval);
-        this.setToast(null);
-
-        // Get the inserted elements for scrolling
-        const insertedElements = this.scene
-          .getNonDeletedElements()
-          .filter((el) => insertedElementsIds[el.id]);
-
-        // Select all inserted pages (or the first if needed)
-        this.setState(
-          {
-            selectedElementIds: makeNextSelectedElementIds(
-              insertedElementsIds,
-              this.state,
-            ),
-          },
-          () => {
-            this.actionManager.executeAction(actionFinalize);
-            
-            // Focus viewport on the newly imported PDF pages
-            if (insertedElements.length > 0) {
-              this.scrollToContent(insertedElements, {
-                fitToViewport: true,
-                viewportZoomFactor: 0.9,
-                animate: true,
-                duration: 300,
-              });
-            }
-          },
-        );
-      } else {
-        // Legacy: single image blob
-        const imageBlob = await response.blob();
-
-        // Clear the progress interval and toast
-        clearInterval(progressInterval);
-        this.setToast(null);
-
-        // Estimate dimensions for finding empty space
-        const availableWidth = (this.state.width * 0.85) / this.state.zoom.value;
-        const availableHeight = (this.state.height * 0.85) / this.state.zoom.value;
-        
-        // Find empty space for the PDF
-        const emptySpace = findEmptySpace(x, y, availableWidth, availableHeight);
-        x = emptySpace.x;
-        y = emptySpace.y;
-
-        // Create a File object from the blob
-        const imageFile = new File([imageBlob], `${pdfFile.name}.png`, {
-          type: "image/png",
-        });
-
-        // Create image element using the same logic as the image tool
-        const imageElement = this.createImageElement({
-          sceneX: x,
-          sceneY: y,
-          addToFrameUnderCursor: false,
-        });
-
-        // Mark this image element as a PDF so it can't be resized
-        this.scene.mutateElement(imageElement, {
-          customData: { isPdf: true, originalPdfName: pdfFile.name, pdfDocId },
-        });
-
-        // Insert the image element
-        const initializedImageElement = await this.insertImageElement(
-          imageElement,
-          imageFile,
-        );
-
-        // For PDFs, resize to fill most of the screen
-        if (initializedImageElement) {
-          this.initializePdfImageDimensions(initializedImageElement);
-        }
-
-        // Select the imported PDF image
-        this.setState(
-          {
-            selectedElementIds: makeNextSelectedElementIds(
-              { [initializedImageElement!.id]: true },
-              this.state,
-            ),
-          },
-          () => {
-            this.actionManager.executeAction(actionFinalize);
-            
-            // Focus viewport on the newly imported PDF
-            if (initializedImageElement) {
-              this.scrollToContent([initializedImageElement], {
-                fitToViewport: true,
-                viewportZoomFactor: 0.9,
-                animate: true,
-                duration: 300,
-              });
-            }
-          },
-        );
-      }
     } catch (error: any) {
-      // Clear any loading toast and progress interval first
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-      this.setToast(null);
-
-      if (error.name !== "AbortError") {
-        console.error("PDF import error:", error);
+      // closing the file dialog is not an error worth reporting
+      if (error.message !== t("pdfImport.cancelled")) {
         this.setToast({
           message: t("pdfImport.failedToImport", { message: error.message }),
           closable: true,
           duration: 5000,
         });
       }
+      return;
+    }
+    await this.importPdf(pdfFile);
+  };
+
+  private setPdfImport = (patch: Partial<NonNullable<AppState["pdfImport"]>>) =>
+    this.setState((state) =>
+      state.pdfImport ? { pdfImport: { ...state.pdfImport, ...patch } } : null,
+    );
+
+  /** stop the import in progress (or close its error) */
+  public cancelPdfImport = () => {
+    const run = this.pdfImportRun;
+    this.pdfImportRun = null;
+    run?.abort();
+    this.setState({ pdfImport: null });
+  };
+
+  /** import the same file again after an error */
+  public retryPdfImport = () => {
+    const file = this.pdfImportRun?.file;
+    if (file) {
+      void this.importPdf(file);
+    }
+  };
+
+  /**
+   * Convert a PDF and place its pages as images. A placeholder page shows
+   * where they will land and what is happening: the real upload progress,
+   * the conversion on the server, then each page as it is placed.
+   */
+  public importPdf = async (pdfFile: File) => {
+    this.pdfImportRun?.abort();
+    const zoom = this.state.zoom.value;
+    const availableWidth = (this.state.width * 0.85) / zoom;
+    const availableHeight = (this.state.height * 0.85) / zoom;
+    const gap = 40 / zoom;
+    // until the pages arrive, assume one landscape A-series page
+    const width = Math.min(availableWidth, availableHeight * Math.SQRT2);
+    const height = width / Math.SQRT2;
+    const centre = viewportCoordsToSceneCoords(
+      {
+        clientX: this.state.width / 2 + this.state.offsetLeft,
+        clientY: this.state.height / 2 + this.state.offsetTop,
+      },
+      this.state,
+    );
+    // the first page is centred on screen, so the placeholder is in view
+    let { x, y } = this.findEmptyPdfSpace(
+      centre.x,
+      centre.y - height / 2,
+      availableWidth,
+      availableHeight,
+    );
+
+    const run = { file: pdfFile, abort: () => {} };
+    this.pdfImportRun = run;
+    const current = () => this.pdfImportRun === run;
+    this.setState({
+      pdfImport: {
+        name: pdfFile.name,
+        stage: "upload",
+        percent: 0,
+        placed: 0,
+        total: 0,
+        x,
+        y,
+        width,
+        height,
+        error: null,
+      },
+    });
+
+    try {
+      const pdfApiUrl =
+        this.props.pdfApiUrl || import.meta.env.VITE_APP_PDF_API;
+      const upload = uploadForConversion(`${pdfApiUrl}/convert`, pdfFile, {
+        progress: (percent) => current() && this.setPdfImport({ percent }),
+        uploaded: () =>
+          current() && this.setPdfImport({ stage: "convert", percent: 100 }),
+      });
+      run.abort = upload.abort;
+      const response = await upload.promise;
+      if (!current()) {
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(response.statusText || `HTTP ${response.status}`);
+      }
+      this.setPdfImport({ stage: "convert" });
+
+      // new API: { files: [{ filename, content_type, data (base64) }] };
+      // legacy: a single image blob
+      const pages: File[] = [];
+      if (response.contentType.includes("application/json")) {
+        const json = JSON.parse(await blobText(response.body));
+        const files = Array.isArray(json?.files) ? json.files : [];
+        for (let i = 0; i < files.length; i++) {
+          const item = files[i];
+          if (!item?.data) {
+            continue;
+          }
+          const contentType = item.content_type || "image/png";
+          const blob = await (
+            await fetch(`data:${contentType};base64,${item.data}`)
+          ).blob();
+          pages.push(
+            new File(
+              [blob],
+              item.filename || `${pdfFile.name}-page-${i + 1}.png`,
+              { type: contentType },
+            ),
+          );
+        }
+      } else {
+        pages.push(
+          new File([response.body], `${pdfFile.name}.png`, {
+            type: "image/png",
+          }),
+        );
+      }
+      if (!pages.length) {
+        throw new Error("No images returned from PDF conversion");
+      }
+      if (!current()) {
+        return;
+      }
+
+      // the whole stack of pages needs room, starting at the placeholder
+      const stackHeight =
+        pages.length * availableHeight + (pages.length - 1) * gap;
+      ({ x, y } = this.findEmptyPdfSpace(x, y, availableWidth, stackHeight));
+
+      // a document-level id so all pages share calibration
+      const pdfDocId = `${pdfFile.name}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+      const insertedElementsIds: { [id: string]: true } = {};
+      let currentY = y;
+      for (let i = 0; i < pages.length; i++) {
+        this.setPdfImport({
+          stage: "place",
+          placed: i,
+          total: pages.length,
+          x,
+          y: currentY,
+        });
+        const pageElement = this.createImageElement({
+          sceneX: x,
+          sceneY: currentY,
+          addToFrameUnderCursor: false,
+        });
+        this.scene.mutateElement(pageElement, {
+          customData: {
+            isPdf: true,
+            originalPdfName: pdfFile.name,
+            pdfDocId,
+            pageIndex: i + 1,
+          },
+        });
+        const initialized = await this.insertImageElement(
+          pageElement,
+          pages[i],
+        );
+        if (initialized) {
+          this.initializePdfImageDimensionsWithPosition(initialized, x, currentY);
+          insertedElementsIds[initialized.id] = true;
+          currentY = initialized.y + initialized.height + gap;
+        }
+      }
+
+      if (current()) {
+        this.pdfImportRun = null;
+      }
+      const insertedElements = this.scene
+        .getNonDeletedElements()
+        .filter((el) => insertedElementsIds[el.id]);
+      this.setState(
+        {
+          pdfImport: null,
+          selectedElementIds: makeNextSelectedElementIds(
+            insertedElementsIds,
+            this.state,
+          ),
+        },
+        () => {
+          this.actionManager.executeAction(actionFinalize);
+          // focus the viewport on the new pages
+          if (insertedElements.length > 0) {
+            this.scrollToContent(insertedElements, {
+              fitToViewport: true,
+              viewportZoomFactor: 0.9,
+              animate: true,
+              duration: 300,
+            });
+          }
+        },
+      );
+    } catch (error: any) {
+      if (!current() || error.name === "AbortError") {
+        return;
+      }
+      console.error("PDF import error:", error);
+      this.setPdfImport({
+        stage: "error",
+        error: t("pdfImport.failedToImport", { message: error.message }),
+      });
       this.setState(
         {
           activeTool: updateActiveTool(this.state, { type: "selection" }),

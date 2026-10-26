@@ -145,6 +145,7 @@ export const getDefaultAppState = (): Omit<
       draft: null,
     },
     vrijTraceRemoteHolds: {},
+    pdfImport: null,
   };
 };
 
@@ -294,6 +295,7 @@ const APP_STATE_STORAGE_CONF = (<
   selectedMetric: { browser: true, export: false, server: false },
   vrijTrace: { browser: false, export: false, server: false },
   vrijTraceRemoteHolds: { browser: false, export: false, server: false },
+  pdfImport: { browser: false, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <

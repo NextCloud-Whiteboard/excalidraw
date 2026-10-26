@@ -604,6 +604,12 @@
     "converting": "Converteren...",
     "finalizing": "Conversie afronden...",
     "almostReady": "Bijna klaar...",
-    "failedToImport": "PDF importeren mislukt: {{message}}"
+    "failedToImport": "PDF importeren mislukt: {{message}}",
+    "uploading": "Uploaden · {{percent}}%",
+    "convertingOnServer": "Converteren op de server…",
+    "placingPage": "Pagina {{current}} van {{total}} plaatsen…",
+    "cancel": "Import annuleren",
+    "retry": "Opnieuw proberen",
+    "close": "Sluiten"
   }
 }

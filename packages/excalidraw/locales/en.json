@@ -685,6 +685,12 @@
     "converting": "Converting...",
     "finalizing": "Finalizing conversion...",
     "almostReady": "Almost ready...",
-    "failedToImport": "Failed to import PDF: {{message}}"
+    "failedToImport": "Failed to import PDF: {{message}}",
+    "uploading": "Uploading · {{percent}}%",
+    "convertingOnServer": "Converting on the server…",
+    "placingPage": "Placing page {{current}} of {{total}}…",
+    "cancel": "Cancel import",
+    "retry": "Retry",
+    "close": "Close"
   }
 }

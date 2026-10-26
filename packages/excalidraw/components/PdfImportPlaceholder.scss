@@ -1,0 +1,136 @@
+.excalidraw {
+  .PdfImportPlaceholder {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    padding: 0.75rem;
+    border: 2px dashed var(--color-primary);
+    border-radius: 4px;
+    // the canvas stays usable around and under the placeholder
+    pointer-events: none;
+    background: linear-gradient(
+        100deg,
+        transparent 30%,
+        var(--color-surface-primary-container) 50%,
+        transparent 70%
+      )
+      var(--island-bg-color);
+    background-size: 250% 100%;
+    animation: PdfImportPlaceholder-shimmer 1.6s linear infinite;
+    opacity: 0.92;
+
+    &--error {
+      border-color: var(--color-danger);
+      animation: none;
+      background: var(--island-bg-color);
+    }
+  }
+
+  .PdfImportPlaceholder__body {
+    display: grid;
+    justify-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .PdfImportPlaceholder__name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-on-surface);
+    overflow-wrap: anywhere;
+  }
+
+  .PdfImportPlaceholder__state {
+    font-size: 0.8125rem;
+    color: var(--color-gray-60);
+    font-variant-numeric: tabular-nums;
+
+    .PdfImportPlaceholder--error & {
+      color: var(--color-danger);
+    }
+  }
+
+  .PdfImportPlaceholder__bar {
+    position: relative;
+    width: 10rem;
+    max-width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-surface-low);
+    overflow: hidden;
+
+    i {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0;
+      border-radius: 2px;
+      background: var(--color-primary);
+      transition: width 0.25s linear;
+    }
+
+    &--open i {
+      width: 35%;
+      animation: PdfImportPlaceholder-slide 1.2s ease-in-out infinite;
+    }
+  }
+
+  .PdfImportPlaceholder__cancel,
+  .PdfImportPlaceholder__retry {
+    pointer-events: auto;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .PdfImportPlaceholder__cancel {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.375rem;
+    border: 0;
+    background: none;
+    color: var(--color-gray-60);
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0.25rem;
+
+    &:hover {
+      color: var(--color-on-surface);
+    }
+  }
+
+  .PdfImportPlaceholder__retry {
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+    background: var(--island-bg-color);
+    border-radius: 6px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  @keyframes PdfImportPlaceholder-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -150% 0;
+    }
+  }
+
+  @keyframes PdfImportPlaceholder-slide {
+    from {
+      left: -35%;
+    }
+    to {
+      left: 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .PdfImportPlaceholder,
+    .PdfImportPlaceholder__bar--open i {
+      animation: none;
+    }
+  }
+}

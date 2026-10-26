@@ -479,6 +479,8 @@ export interface AppState {
   vrijTrace: VrijTraceUIState;
   /** trench parts other people are editing, keyed by element id (set by the host) */
   vrijTraceRemoteHolds: VrijTraceRemoteHolds;
+  /** a PDF being imported: drawn as a placeholder page where it will land */
+  pdfImport: PdfImportState | null;
 }
 
 export type VrijTraceMode =
@@ -509,6 +511,22 @@ export type VrijTraceUIState = {
   widthM: number;
   hidePdf: boolean;
   draft: VrijTraceDraft | null;
+};
+
+export type PdfImportState = {
+  name: string;
+  stage: "upload" | "convert" | "place" | "error";
+  /** upload progress, 0–100 */
+  percent: number;
+  /** pages placed so far, of total */
+  placed: number;
+  total: number;
+  /** scene position of the next page: x is its centre, y its top */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  error: string | null;
 };
 
 export type VrijTraceRemoteHolds = Record<
@@ -800,6 +818,8 @@ export type AppClassProperties = {
   onInsertElements: App["onInsertElements"];
   vrijTrace: App["vrijTrace"];
   getPdfPageAt: App["getPdfPageAt"];
+  cancelPdfImport: App["cancelPdfImport"];
+  retryPdfImport: App["retryPdfImport"];
   onExportImage: App["onExportImage"];
   lastViewportPosition: App["lastViewportPosition"];
   scrollToContent: App["scrollToContent"];
