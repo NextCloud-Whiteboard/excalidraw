@@ -54,7 +54,7 @@ describe("Vrij Tracé UI", () => {
     expect(queryByTestId(other.container, "toolbar-vrijtrace")).toBeNull();
   });
 
-  it("shows v8.2's six sections and the action row", () => {
+  it("shows the six sections, and only the zones toggle at the bottom", () => {
     fireEvent.click(byId("toolbar-vrijtrace"));
     for (const id of [
       "vt-mode-teken",
@@ -73,6 +73,11 @@ describe("Vrij Tracé UI", () => {
       "vt-tree-add",
       "vt-stop",
       "vt-activate",
+    ]) {
+      expect(byId(id)).not.toBeNull();
+    }
+    // the whiteboard covers these: undo/redo, Delete, Esc
+    for (const id of [
       "vt-finish",
       "vt-undo",
       "vt-delete",
@@ -80,13 +85,49 @@ describe("Vrij Tracé UI", () => {
       "vt-clear",
       "vt-pdf",
     ]) {
-      expect(byId(id)).not.toBeNull();
+      expect(byId(id)).toBeNull();
     }
   });
 
-  it("Voorbeeld loads the v8.2 example with three trees, Wis tracé keeps the trees", () => {
+  it("the toggle activates the zones and deactivates them again", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    mouse.reset();
+    mouse.clickAt(100, 100);
+    mouse.clickAt(400, 100);
+    expect(byId("vt-activate").textContent).toBe("Activeer zones");
+    fireEvent.click(byId("vt-activate"));
+    expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
+    expect(byId("vt-activate").textContent).toBe("Deactiveer zones");
+    fireEvent.click(byId("vt-activate"));
+    expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");
+    expect(byId("vt-activate").textContent).toBe("Activeer zones");
+    const network = getPageParts(h.elements, "pdf1").network as any;
+    expect(network.trench.activation).toBeNull();
+    // the trench itself stays
+    expect(getPageParts(h.elements, "pdf1").segments).toHaveLength(1);
+  });
+
+  it("Esc finishes the line being drawn and keeps drawing mode", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    mouse.reset();
+    mouse.clickAt(100, 100);
+    mouse.clickAt(400, 100);
+    expect(h.state.vrijTrace.draft).not.toBeNull();
+    act(() => {
+      h.app.vrijTrace.onKeyDown({ key: "Escape" });
+    });
+    expect(h.state.vrijTrace.draft).toBeNull();
+    expect(h.state.vrijTrace.mode).toBe("teken");
+    // with nothing in progress, Esc stops drawing, as before
+    act(() => {
+      h.app.vrijTrace.onKeyDown({ key: "Escape" });
+    });
+    expect(h.state.vrijTrace.mode).toBe("selecteer");
+  });
+
+  it("the example network has three trees, and clearing keeps the trees", () => {
     openOnPage();
-    fireEvent.click(byId("vt-example"));
+    act(() => h.app.vrijTrace.example());
     expect(getPageParts(h.elements, "pdf1").segments).toHaveLength(8);
     expect(
       getPageParts(h.elements, "pdf1")
@@ -95,14 +136,14 @@ describe("Vrij Tracé UI", () => {
     ).toEqual(["B1", "B2", "B3"]);
     expect(byId("vt-rows").querySelectorAll("tr")).toHaveLength(3);
     expect(byId("vt-tree-B2")).not.toBeNull();
-    fireEvent.click(byId("vt-clear"));
+    act(() => h.app.vrijTrace.clear());
     expect(getPageParts(h.elements, "pdf1").segments).toHaveLength(0);
     expect(getPageParts(h.elements, "pdf1").trees).toHaveLength(3);
   });
 
   it("changing the minimum distance changes only the verdict", () => {
     openOnPage();
-    fireEvent.click(byId("vt-example"));
+    act(() => h.app.vrijTrace.example());
     const distances = (t: string | null) =>
       (t ?? "").match(/\d+,\d+ m/g)!.filter((_, i) => i % 2 === 0);
     const before = byId("vt-rows").textContent;
@@ -126,7 +167,7 @@ describe("Vrij Tracé UI", () => {
 
   it("selecting a segment and moving the width slider widens that segment", () => {
     openOnPage();
-    fireEvent.click(byId("vt-example"));
+    act(() => h.app.vrijTrace.example());
     fireEvent.click(byId("vt-mode-selecteer"));
     const seg = getPageParts(h.elements, "pdf1").segments[0] as any;
     const a = h.elements.find((e) => e.id === seg.trench.a)!;

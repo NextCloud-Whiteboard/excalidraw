@@ -102,6 +102,18 @@
     white-space: nowrap;
   }
 
+  // zones shown: the same button, outlined, offers to hide them
+  .vt-act--toggle-on {
+    background: var(--island-bg-color);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .vt-act:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
   .vt-act--primary {
     background: var(--color-primary);
     border-color: var(--color-primary);

@@ -592,6 +592,37 @@ export class VrijTraceController {
     this.app.setToast({ message: STR.activated });
   }
 
+  /** zones of the current page are shown (activated for its current layout) */
+  zonesActive() {
+    const page = this.page();
+    return !!(
+      page && pageState(this.app.scene.getNonDeletedElements(), page)?.active
+    );
+  }
+
+  /** hide the zones again for everyone; the trench and trees stay */
+  deactivate() {
+    const page = this.page();
+    const network = page
+      ? (this.app.scene.getElement(
+          networkIdForPage(page.id),
+        ) as ExcalidrawTrenchElement | null)
+      : null;
+    if (
+      !network ||
+      network.isDeleted ||
+      network.trench.kind !== "network" ||
+      !network.trench.activation
+    ) {
+      return;
+    }
+    this.app.scene.mutateElement(network, {
+      trench: { ...network.trench, activation: null },
+    });
+    this.app.scheduleCapture();
+    this.app.setToast({ message: STR.deactivated });
+  }
+
   deleteSelectedOrMode() {
     const page = this.page();
     const id = this.ui.selectedSegmentId;
@@ -652,7 +683,12 @@ export class VrijTraceController {
   /** returns true when the key was handled */
   onKeyDown(e: { key: string }) {
     if (e.key === "Escape") {
-      this.stop();
+      // finishes the line being drawn (was "Voltooi"); else stops drawing
+      if (this.ui.draft) {
+        this.finish();
+      } else {
+        this.stop();
+      }
       return true;
     }
     if (
