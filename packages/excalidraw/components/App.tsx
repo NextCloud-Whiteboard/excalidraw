@@ -401,6 +401,13 @@ import Library, {
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
 import { blobText, uploadForConversion } from "../pdfImport/upload";
+import {
+  CM_PER_UNIT,
+  isRulerLine,
+  rulerLengthPx,
+  rulerPage,
+  rulerScale,
+} from "../ruler/calibration";
 import { VrijTraceController } from "../vrijtrace/controller";
 import { isPdfPage, remapTrenchIds, trenchPartsOf } from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
@@ -475,6 +482,8 @@ import { isMaybeMermaidDefinition } from "../mermaid";
 import { LassoTrail } from "../lasso";
 
 import { EraserTrail } from "../eraser";
+
+import { RulerCalibrationPrompt } from "../ruler/RulerCalibrationPrompt";
 
 import ConvertElementTypePopup, {
   getConversionTypeFromElements,
@@ -1851,6 +1860,7 @@ class App extends React.Component<AppProps, AppState> {
                             </ElementCanvasButtons>
                           )}
                         <PdfImportPlaceholder appState={this.state} />
+                        <RulerCalibrationPrompt appState={this.state} />
                         {this.state.toast !== null && (
                           <Toast
                             message={this.state.toast.message}
@@ -2881,7 +2891,87 @@ class App extends React.Component<AppProps, AppState> {
     }
   }
 
+  /**
+   * Ruler lines without a scale ask for their real length: when one has just
+   * been drawn, or when it alone becomes selected. A newer line takes the
+   * question over; it closes when its line goes away or gets a scale.
+   */
+  private updateRulerCalibration(prevState: AppState) {
+    const elementsMap = this.scene.getNonDeletedElementsMap();
+    const needsScale = (id: string | null | undefined) => {
+      const el = id ? elementsMap.get(id) : null;
+      return (
+        isRulerLine(el) && rulerScale(el, elementsMap, this.state) === null
+      );
+    };
+    const drawing = (state: AppState) =>
+      state.newElement?.id ?? state.multiElement?.id ?? null;
+    const finished = drawing(prevState);
+    if (finished && finished !== drawing(this.state) && needsScale(finished)) {
+      this.setState({ rulerCalibration: { elementId: finished } });
+      return;
+    }
+    const selected = Object.keys(this.state.selectedElementIds);
+    const prevSelected = Object.keys(prevState.selectedElementIds);
+    if (
+      selected.length === 1 &&
+      !drawing(this.state) &&
+      (prevSelected.length !== 1 || prevSelected[0] !== selected[0]) &&
+      this.state.rulerCalibration?.elementId !== selected[0] &&
+      needsScale(selected[0])
+    ) {
+      this.setState({ rulerCalibration: { elementId: selected[0] } });
+      return;
+    }
+    const asked = this.state.rulerCalibration?.elementId;
+    if (asked && !needsScale(asked)) {
+      this.setState({ rulerCalibration: null });
+    }
+  }
+
+  /** the real length of a ruler line sets the scale of its PDF, or the board's */
+  public calibrateRuler = (
+    elementId: string,
+    length: number,
+    unit: "mm" | "cm" | "m",
+  ) => {
+    const elementsMap = this.scene.getNonDeletedElementsMap();
+    const line = elementsMap.get(elementId);
+    const lengthPx = isRulerLine(line) ? rulerLengthPx(line, elementsMap) : 0;
+    if (!isRulerLine(line) || lengthPx <= 0) {
+      this.setState({ rulerCalibration: null });
+      return;
+    }
+    const cmPerPx = (length * CM_PER_UNIT[unit]) / lengthPx;
+    const page = rulerPage(line, elementsMap);
+    this.actionManager.executeAction(
+      actionDistanceConversion,
+      "ui",
+      page
+        ? {
+            pdfCalibration: {
+              pdfId: page.id,
+              pdfDocId: page.customData?.pdfDocId,
+              cmPerPx,
+            },
+            selectedMetric: unit,
+          }
+        : { cmPerPx, selectedMetric: unit },
+    );
+    this.setState({ rulerCalibration: null });
+    this.setToast({
+      message: t("rulerCalibration.done", {
+        px: (100 / cmPerPx).toFixed(1),
+      }),
+    });
+  };
+
+  public dismissRulerCalibration = () => {
+    this.setState({ rulerCalibration: null });
+  };
+
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
+    this.updateRulerCalibration(prevState);
     if (
       prevState.activeTool.type === "custom" &&
       prevState.activeTool.customType === "vrijtrace" &&
@@ -4874,7 +4964,7 @@ class App extends React.Component<AppProps, AppState> {
         if (pdfImage) {
           event.preventDefault();
           this.createTextBubble(scenePointer.x, scenePointer.y, pdfImage);
-          return;
+          
         }
       }
       // -----------------------------------------------------------------------
@@ -5872,10 +5962,10 @@ class App extends React.Component<AppProps, AppState> {
           insertAtParentCenter: !event.altKey,
           container,
         });
-        return;
+        
       }
       // Disable default double-click to start text editing elsewhere
-      return;
+      
     }
   };
 
@@ -9958,7 +10048,7 @@ class App extends React.Component<AppProps, AppState> {
             this.state.selectedLinearElement?.elementId ||
             this.state.editingLinearElement?.elementId ||
             null;
-          if (!id) return false;
+          if (!id) {return false;}
           const el = this.scene.getElement(id);
           return !!(
             el &&

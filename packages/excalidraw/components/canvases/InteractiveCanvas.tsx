@@ -223,6 +223,7 @@ const getRelevantAppStateProps = (
   croppingElementId: appState.croppingElementId,
   searchMatches: appState.searchMatches,
   selectedMetric: appState.selectedMetric,
+  cmPerPxCalibrated: appState.cmPerPxCalibrated,
   activeTool: appState.activeTool,
   vrijTrace: appState.vrijTrace,
   vrijTraceRemoteHolds: appState.vrijTraceRemoteHolds,

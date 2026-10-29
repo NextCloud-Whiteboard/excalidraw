@@ -46,6 +46,7 @@ import {
   hasStrokeWidth,
 } from "../scene";
 
+import { showsScalePanel } from "../ruler/calibration";
 import { STR as VRIJTRACE_STR } from "../vrijtrace/strings";
 
 import { SHAPES } from "./shapes";
@@ -212,14 +213,19 @@ export const SelectedShapeActions = ({
       {renderAction("changeOpacity")}
 
       {/* Distance conversion for ruler tool - show while the ruler tool is
-          active (so the unit/scale can be set before drawing) or when a
-          ruler-created line is selected. */}
+          active or when a ruler-created line is selected, once there is a
+          real scale; before that the first line asks for its length. */}
       {((appState.activeTool.type === "custom" &&
         appState.activeTool.customType === "ruler") ||
         targetElements.some(
           (element) =>
             element.type === "line" && element.customData?.tool === "ruler",
         )) &&
+        showsScalePanel(
+          Array.from(elementsMap.values()),
+          targetElements,
+          appState,
+        ) &&
         renderAction("distanceConversion")}
 
       <fieldset>

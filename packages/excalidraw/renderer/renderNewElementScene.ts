@@ -3,7 +3,8 @@ import { throttleRAF, getFontString } from "@excalidraw/common";
 import { renderElement } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { isLinearElement } from "@excalidraw/element";
-import { pointDistance } from "@excalidraw/math";
+
+import { rulerLabel } from "../ruler/calibration";
 
 import { bootstrapCanvas, getNormalizedCanvasDimensions } from "./helpers";
 
@@ -64,20 +65,6 @@ const _renderNewElementScene = ({
   }
 };
 
-// Metric conversion constants (to centimeters)
-const METRIC_CONVERSIONS = {
-  mm: 0.1,    // 1 mm = 0.1 cm
-  cm: 1,      // 1 cm = 1 cm
-  m: 100,     // 1 m = 100 cm
-} as const;
-
-type MetricUnit = keyof typeof METRIC_CONVERSIONS;
-
-// Convert from cm (internal storage) to any metric for display
-const convertFromCm = (valueCm: number, metric: MetricUnit): number => {
-  return valueCm / METRIC_CONVERSIONS[metric];
-};
-
 const renderRealTimeRulerDistance = (
   context: CanvasRenderingContext2D,
   element: any,
@@ -90,34 +77,13 @@ const renderRealTimeRulerDistance = (
   );
   
   if (points.length >= 2) {
-    // Calculate cumulative distance for multi-point lines
-    let totalDistancePx = 0;
-    const segmentDistances: number[] = [];
-    
-    for (let i = 0; i < points.length - 1; i++) {
-      const segmentDistance = pointDistance(points[i], points[i + 1]);
-      segmentDistances.push(segmentDistance);
-      totalDistancePx += segmentDistance;
-    }
-    
-    // Determine effective cmPerPx: prefer parent PDF calibration if available
-    const pdfParentId = (element as any)?.customData?.pdfParentId as string | undefined;
-    const pdfElement = pdfParentId ? (elementsMap.get(pdfParentId) as any) : null;
-    const cmPerPx = (pdfElement?.customData?.pdfCmPerPx ?? appState.cmPerPx) ?? 1;
-    const totalDistanceCm = totalDistancePx * cmPerPx;
-    
-    // Get selected metric from app state, default to cm
-    const selectedMetric = appState.selectedMetric || "cm";
-    
-    // Convert to selected metric for display
-    const totalDistanceInMetric = convertFromCm(totalDistanceCm, selectedMetric);
-    const precision = selectedMetric === 'mm' ? 1 : 2;
-    const distanceText = `${parseFloat(totalDistanceInMetric.toFixed(precision))} ${selectedMetric}`;
+    // real length once its PDF (or the board) has a scale, else "?"
+    const distanceText = rulerLabel(element, elementsMap, appState);
     
     // Center the distance box aligned with the ruler line direction
     const lastPoint = points[points.length - 1];
-    let textX: number, textY: number;
-    let linkStartX: number, linkStartY: number;
+    let textX: number; let textY: number;
+    let linkStartX: number; let linkStartY: number;
     
     const invZoom = 1 / appState.zoom.value;
     

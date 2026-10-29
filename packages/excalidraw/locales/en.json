@@ -692,5 +692,18 @@
     "cancel": "Cancel import",
     "retry": "Retry",
     "close": "Close"
+  },
+  "rulerCalibration": {
+    "title": "How long is this line in reality?",
+    "forPdf": "Sets the scale for all {{count}} pages of {{name}}.",
+    "forPdfOne": "Sets the scale for {{name}}.",
+    "forBoard": "Sets the scale for this board.",
+    "length": "Real length",
+    "unit": "Unit",
+    "placeholder": "e.g. 10",
+    "invalid": "Enter a length greater than 0, for example 10 or 2,5.",
+    "later": "Not now",
+    "apply": "Calibrate",
+    "done": "Scale set: 1 m = {{px}} px"
   }
 }

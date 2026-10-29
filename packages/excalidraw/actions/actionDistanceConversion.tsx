@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { register } from "./register";
-import { t } from "../i18n";
+
 import { CaptureUpdateAction } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { pointDistance } from "@excalidraw/math";
 import { isLinearElement } from "@excalidraw/element";
 
+import { t } from "../i18n";
+
 import { rescaleLibraryItems } from "../pdfCalibration";
+
+import { register } from "./register";
 
 // Metric conversion constants (to centimeters)
 const METRIC_CONVERSIONS = {
@@ -28,7 +31,7 @@ const calculateRulerPixelDistance = (element: any, elementsMap: any) => {
 
   const points = LinearElementEditor.getPointsGlobalCoordinates(element, elementsMap);
   
-  if (points.length < 2) return 0;
+  if (points.length < 2) {return 0;}
 
   // Calculate cumulative distance for multi-point lines
   let totalDistancePx = 0;
@@ -97,6 +100,8 @@ export const actionDistanceConversion = register({
     // Fallback/global scale update
     if (typeof value?.cmPerPx === "number" && isFinite(value.cmPerPx)) {
       updates.cmPerPx = value.cmPerPx;
+      // from now on board-level ruler lines have a real scale
+      updates.cmPerPxCalibrated = true;
     }
     
     if (value?.selectedMetric && ["mm", "cm", "m"].includes(value.selectedMetric)) {

@@ -1,0 +1,87 @@
+.excalidraw {
+  .RulerCalibration {
+    position: absolute;
+    z-index: 3;
+    box-sizing: border-box;
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--island-bg-color);
+    border: 1px solid var(--default-border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-island);
+    max-width: calc(100% - 16px);
+  }
+
+  .RulerCalibration__title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+  }
+
+  .RulerCalibration__scope {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--color-gray-60);
+    overflow-wrap: anywhere;
+  }
+
+  .RulerCalibration__row {
+    display: flex;
+    gap: 0.375rem;
+  }
+
+  .RulerCalibration__input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-on-surface);
+    background: var(--input-bg-color);
+    border: 1.5px solid var(--color-primary);
+    border-radius: 6px;
+  }
+
+  .RulerCalibration__unit {
+    padding: 0.375rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--color-on-surface);
+    background: var(--input-bg-color);
+    border: 1px solid var(--default-border-color);
+    border-radius: 6px;
+  }
+
+  .RulerCalibration__error {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-danger);
+  }
+
+  .RulerCalibration__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
+
+    button {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--color-on-surface);
+      background: var(--island-bg-color);
+      border: 1px solid var(--default-border-color);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .RulerCalibration__apply {
+      color: #fff;
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+  }
+}

@@ -26,6 +26,7 @@ import {
 } from "../App";
 import { openConfirmModal } from "../OverwriteConfirm/OverwriteConfirmState";
 import Trans from "../Trans";
+import { showsScalePanel } from "../../ruler/calibration";
 import DropdownMenuItem from "../dropdownMenu/DropdownMenuItem";
 import DropdownMenuItemContentRadio from "../dropdownMenu/DropdownMenuItemContentRadio";
 import DropdownMenuItemLink from "../dropdownMenu/DropdownMenuItemLink";
@@ -339,6 +340,17 @@ export const ChangeDistanceConversion = () => {
   );
 
   if (!hasRulerLineSelected) {
+    return null;
+  }
+
+  // until there is a real scale, the ruler line asks for its length instead
+  if (
+    !showsScalePanel(
+      elements,
+      elements.filter((element) => appState.selectedElementIds[element.id]),
+      appState,
+    )
+  ) {
     return null;
   }
 

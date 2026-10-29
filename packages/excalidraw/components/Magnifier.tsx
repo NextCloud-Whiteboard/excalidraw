@@ -1,8 +1,11 @@
 import React from "react";
-import type { AppState } from "../types";
+
 import { LinearElementEditor } from "@excalidraw/element";
-import { pointDistance } from "@excalidraw/math";
 import { isLinearElement } from "@excalidraw/element";
+
+import { rulerLabel } from "../ruler/calibration";
+
+import type { AppState } from "../types";
 
 interface MagnifierProps {
   appState: AppState;
@@ -38,42 +41,10 @@ export const Magnifier: React.FC<MagnifierProps> = ({
       elementsMap,
     );
 
-    if (points.length < 2) return null;
+    if (points.length < 2) {return null;}
 
-    // Calculate cumulative distance for multi-point lines
-    let totalDistancePx = 0;
-    for (let i = 0; i < points.length - 1; i++) {
-      const segmentDistance = pointDistance(points[i], points[i + 1]);
-      totalDistancePx += segmentDistance;
-    }
-
-    // Determine effective cmPerPx: prefer parent PDF calibration if available
-    const pdfParentId = element?.customData?.pdfParentId as string | undefined;
-    const pdfElement = pdfParentId
-      ? (elementsMap.get(pdfParentId) as any)
-      : null;
-    const cmPerPx =
-      pdfElement?.customData?.pdfCmPerPx ?? (appState as any).cmPerPx ?? 1;
-    const totalDistanceCm = totalDistancePx * cmPerPx;
-
-    // Get selected metric from app state, default to cm
-    const selectedMetric = (appState as any).selectedMetric || "cm";
-
-    // Metric conversion constants (to centimeters)
-    const METRIC_CONVERSIONS = {
-      mm: 0.1, // 1 mm = 0.1 cm
-      cm: 1, // 1 cm = 1 cm
-      m: 100, // 1 m = 100 cm
-    } as const;
-
-    // Convert to selected metric for display
-    const totalDistanceInMetric =
-      totalDistanceCm /
-      METRIC_CONVERSIONS[selectedMetric as keyof typeof METRIC_CONVERSIONS];
-    const precision = selectedMetric === "mm" ? 1 : 2;
-    return `${parseFloat(
-      totalDistanceInMetric.toFixed(precision),
-    )} ${selectedMetric}`;
+    // real length once its PDF (or the board) has a scale, else "?"
+    return rulerLabel(element, elementsMap, appState);
   };
 
   React.useEffect(() => {
@@ -83,7 +54,7 @@ export const Magnifier: React.FC<MagnifierProps> = ({
 
     const magnifierCanvas = canvasRef.current;
     const ctx = magnifierCanvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {return;}
 
     const { position, zoom, size } = appState.magnifier;
     const pixelRatio = window.devicePixelRatio || 1;
@@ -100,7 +71,7 @@ export const Magnifier: React.FC<MagnifierProps> = ({
 
     // Get the main canvas context
     const mainCtx = canvas.getContext("2d");
-    if (!mainCtx) return;
+    if (!mainCtx) {return;}
 
     // Calculate source area on main canvas
     const sourceSize = size / zoom;

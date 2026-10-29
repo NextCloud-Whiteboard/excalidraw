@@ -611,5 +611,18 @@
     "cancel": "Import annuleren",
     "retry": "Opnieuw proberen",
     "close": "Sluiten"
+  },
+  "rulerCalibration": {
+    "title": "Hoe lang is deze lijn in werkelijkheid?",
+    "forPdf": "Stelt de schaal in voor alle {{count}} pagina's van {{name}}.",
+    "forPdfOne": "Stelt de schaal in voor {{name}}.",
+    "forBoard": "Stelt de schaal in voor dit whiteboard.",
+    "length": "Werkelijke lengte",
+    "unit": "Eenheid",
+    "placeholder": "bijv. 10",
+    "invalid": "Vul een lengte groter dan 0 in, bijvoorbeeld 10 of 2,5.",
+    "later": "Niet nu",
+    "apply": "Kalibreren",
+    "done": "Schaal ingesteld: 1 m = {{px}} px"
   }
 }

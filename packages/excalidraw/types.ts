@@ -247,6 +247,8 @@ export type InteractiveCanvasAppState = Readonly<
     cmPerPx: number;
     /** selected metric unit for ruler display */
     selectedMetric: "mm" | "cm" | "m";
+    /** the board-wide ruler scale was set by someone */
+    cmPerPxCalibrated: boolean;
     activeTool: AppState["activeTool"];
     vrijTrace: AppState["vrijTrace"];
     vrijTraceRemoteHolds: AppState["vrijTraceRemoteHolds"];
@@ -475,6 +477,10 @@ export interface AppState {
   };
   /** selected metric unit for ruler display */
   selectedMetric: "mm" | "cm" | "m";
+  /** the board-wide ruler scale (cmPerPx) was set by someone, not the default */
+  cmPerPxCalibrated: boolean;
+  /** the ruler line whose real length is being asked for (local only) */
+  rulerCalibration: { elementId: string } | null;
   /** Vrij Tracé tool state of this user (never synced or saved) */
   vrijTrace: VrijTraceUIState;
   /** trench parts other people are editing, keyed by element id (set by the host) */
@@ -819,6 +825,8 @@ export type AppClassProperties = {
   vrijTrace: App["vrijTrace"];
   getPdfPageAt: App["getPdfPageAt"];
   cancelPdfImport: App["cancelPdfImport"];
+  calibrateRuler: App["calibrateRuler"];
+  dismissRulerCalibration: App["dismissRulerCalibration"];
   retryPdfImport: App["retryPdfImport"];
   onExportImage: App["onExportImage"];
   lastViewportPosition: App["lastViewportPosition"];

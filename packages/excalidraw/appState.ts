@@ -133,6 +133,8 @@ export const getDefaultAppState = (): Omit<
       size: 150,
     },
     selectedMetric: "cm" as const,
+    cmPerPxCalibrated: false,
+    rulerCalibration: null,
     vrijTrace: {
       mode: "teken",
       pageId: null,
@@ -293,6 +295,8 @@ const APP_STATE_STORAGE_CONF = (<
   cmPerPx: { browser: true, export: false, server: false },
   magnifier: { browser: false, export: false, server: false },
   selectedMetric: { browser: true, export: false, server: false },
+  cmPerPxCalibrated: { browser: true, export: false, server: false },
+  rulerCalibration: { browser: false, export: false, server: false },
   vrijTrace: { browser: false, export: false, server: false },
   vrijTraceRemoteHolds: { browser: false, export: false, server: false },
   pdfImport: { browser: false, export: false, server: false },
