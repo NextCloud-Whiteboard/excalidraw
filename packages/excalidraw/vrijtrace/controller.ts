@@ -589,7 +589,6 @@ export class VrijTraceController {
       },
     });
     this.app.scheduleCapture();
-    this.app.setToast({ message: STR.activated });
   }
 
   /** zones of the current page are shown (activated for its current layout) */
@@ -620,7 +619,6 @@ export class VrijTraceController {
       trench: { ...network.trench, activation: null },
     });
     this.app.scheduleCapture();
-    this.app.setToast({ message: STR.deactivated });
   }
 
   deleteSelectedOrMode() {

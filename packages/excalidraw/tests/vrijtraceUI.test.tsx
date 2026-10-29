@@ -98,8 +98,11 @@ describe("Vrij Tracé UI", () => {
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
     expect(byId("vt-activate").textContent).toBe("Deactiveer zones");
+    // the button and the sidebar show the state; no pop-up message on top
+    expect(h.state.toast).toBeNull();
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");
+    expect(h.state.toast).toBeNull();
     expect(byId("vt-activate").textContent).toBe("Activeer zones");
     const network = getPageParts(h.elements, "pdf1").network as any;
     expect(network.trench.activation).toBeNull();

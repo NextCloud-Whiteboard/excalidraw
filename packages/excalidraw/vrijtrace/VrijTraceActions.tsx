@@ -1,10 +1,6 @@
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useReducer, useRef } from "react";
 
-import {
-  useApp,
-  useExcalidrawContainer,
-  useExcalidrawElements,
-} from "../components/App";
+import { useApp, useExcalidrawContainer } from "../components/App";
 
 import { isPdfPage, pageState } from "./model";
 import { STR } from "./strings";
@@ -18,8 +14,18 @@ import type { UIAppState } from "../types";
  */
 export const VrijTraceActions = ({ appState }: { appState: UIAppState }) => {
   const app = useApp();
-  const elements = useExcalidrawElements();
   const vt = app.vrijTrace;
+  // the label follows the zones, which change in the scene, not in app state
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const unsubscribe = app.scene.onUpdate(rerender);
+    return () => {
+      // a destroyed scene has already dropped its listeners
+      try {
+        unsubscribe();
+      } catch {}
+    };
+  }, [app.scene]);
   const { container } = useExcalidrawContainer();
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +50,7 @@ export const VrijTraceActions = ({ appState }: { appState: UIAppState }) => {
     };
   }, [container]);
 
+  const elements = app.scene.getNonDeletedElements();
   const page = elements.find((el) => el.id === appState.vrijTrace.pageId);
   const active = isPdfPage(page) && !!pageState(elements, page)?.active;
 

@@ -4,8 +4,6 @@ export const STR = {
   onlyOnPdf: "Sleuven teken je alleen op een geïmporteerde PDF-pagina",
   treesOnlyOnPdf: "Bomen plaats je alleen op een geïmporteerde PDF-pagina",
   calibrateFirst: "Kalibreer eerst de liniaal op deze pagina",
-  activated: "Zones geactiveerd",
-  deactivated: "Zones gedeactiveerd",
   notActivated: "Zones niet geactiveerd",
   heldBy: (name: string) => `${name} bewerkt dit punt`,
   editing: (name: string) => `${name} bewerkt`,
