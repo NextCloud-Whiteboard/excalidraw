@@ -10,31 +10,20 @@ export const STR = {
   unknownUser: "Onbekend",
   ops: {
     tekenStart: "Tekenmodus · klik een beginpunt",
-    tekenNext: "Tekenmodus · klik volgend punt of Voltooi",
-    verplaats: "Verplaats punt · sleep een knooppunt",
-    selecteer: "Selecteer segment · klik op een sleuf",
-    verwijder: "Verwijder segment · klik op een sleuf",
+    tekenNext: "Tekenmodus · klik volgend punt, Esc rondt af",
     boom: (label: string) => `Boom verplaatsen · ${label} · klik of sleep`,
     boomToevoegen: "Boom toevoegen · klik op de pagina",
   },
   sections: {
-    mode: "1. Tekenmodus",
-    snap: "2. Magnetisch uitlijnen",
-    trench: "3. Sleufinstellingen",
-    red: "4. Schadepreventiezone",
-    work: "5. Werkruimte",
-    trees: "6. Bomen en afstandscontrole",
-  },
-  modes: {
-    teken: "Teken",
-    verplaats: "Verplaats punt",
-    selecteer: "Selecteer segment",
-    verwijder: "Verwijder segment",
+    snap: "1. Magnetisch uitlijnen",
+    trench: "2. Sleufinstellingen",
+    red: "3. Schadepreventiezone",
+    work: "4. Werkruimte",
+    trees: "5. Bomen en afstandscontrole",
   },
   help: {
-    mode: "Klik twee punten of sleep om een sleufsegment te tekenen. Klik op een bestaande lijn voor een aftakking.",
     width:
-      "Van 0,30 tot 2,30 m. Selecteer een segment om de breedte daarvan te wijzigen.",
+      "Van 0,30 tot 2,30 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
     red: "Onafhankelijke rode zone vanaf de buitenzijde van de sleuf.",
     trees:
       "Selecteer een boom en klik of sleep op de tekening om deze te verplaatsen.",

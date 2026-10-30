@@ -35,7 +35,10 @@ const SideSelect = ({
   </select>
 );
 
-/** v8.2's six settings sections; replaces the shape actions while the tool is active */
+/**
+ * v8.2's settings; replaces the shape actions while the tool is active or
+ * trench lines are selected. Drawing itself is the whiteboard's line tool.
+ */
 export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const app = useApp();
   const elements = useExcalidrawElements();
@@ -45,6 +48,8 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const parts = isPdfPage(page) ? getPageParts(elements, page.id) : null;
   const settings = settingsOf(parts?.network ?? null);
   const labels = parts ? displayLabels(parts.trees) : new Map<string, string>();
+  // a selected trench line's width, else the width of the next one
+  const width = vt.shownWidth();
   const opt = (
     pressed: boolean,
     testId: string,
@@ -65,18 +70,6 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   return (
     <div className="vt-panel">
       <div className="vt-sec">
-        <div className="vt-h">{STR.sections.mode}</div>
-        <div className="vt-grid2">
-          {(["teken", "verplaats", "selecteer", "verwijder"] as const).map(
-            (m) =>
-              opt(ui.mode === m, `vt-mode-${m}`, STR.modes[m], () =>
-                vt.setMode(m),
-              ),
-          )}
-        </div>
-        <p className="vt-help">{STR.help.mode}</p>
-      </div>
-      <div className="vt-sec">
         <div className="vt-h">{STR.sections.snap}</div>
         <div className="vt-grid3">
           {(["90", "45", "vrij"] as const).map((s) =>
@@ -93,7 +86,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         <div className="vt-h">{STR.sections.trench}</div>
         <label className="vt-lbl" htmlFor="vt-width">
           <span>{STR.labels.width}</span>
-          <span>{fmt(ui.widthM)} m</span>
+          <span>{fmt(width)} m</span>
         </label>
         <input
           id="vt-width"
@@ -102,7 +95,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           min="0.3"
           max="2.3"
           step="0.05"
-          value={ui.widthM}
+          value={width}
           onChange={(e) => vt.setWidth(Number(e.target.value), false)}
           onPointerUp={(e) =>
             vt.setWidth(Number((e.target as HTMLInputElement).value), true)

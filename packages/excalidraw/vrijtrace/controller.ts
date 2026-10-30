@@ -357,6 +357,20 @@ export class VrijTraceController {
     }
   }
 
+  /** selected trench lines of one page make that page the panel's page */
+  followSelection() {
+    const lines = this.selectedLines();
+    const pageId = lines[0]?.customData?.pdfParentId;
+    if (
+      pageId &&
+      pageId !== this.ui.pageId &&
+      lines.every((l) => l.customData?.pdfParentId === pageId) &&
+      this.page(pageId)
+    ) {
+      this.setUI({ pageId, activeTreeId: null });
+    }
+  }
+
   /** the width the slider shows */
   shownWidth() {
     const [line] = this.selectedLines();

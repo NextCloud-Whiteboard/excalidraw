@@ -31,6 +31,7 @@ import { calculateScrollCenter } from "../scene";
 import { VrijTraceActions } from "../vrijtrace/VrijTraceActions";
 
 import { VrijTracePanel } from "../vrijtrace/VrijTracePanel";
+import { isTrenchLine } from "../vrijtrace/model";
 
 import { SelectedShapeActions, ShapesSwitcher } from "./Actions";
 import { LoadingMessage } from "./LoadingMessage";
@@ -246,9 +247,11 @@ const LayerUI = ({
       appState,
       elements,
     );
+    const selected = elements.filter((el) => appState.selectedElementIds[el.id]);
     const vrijTraceActive =
-      appState.activeTool.type === "custom" &&
-      appState.activeTool.customType === "vrijtrace";
+      (appState.activeTool.type === "custom" &&
+        appState.activeTool.customType === "vrijtrace") ||
+      (selected.length > 0 && selected.every(isTrenchLine));
 
     const shouldShowStats =
       appState.stats.open &&

@@ -2979,6 +2979,9 @@ class App extends React.Component<AppProps, AppState> {
 
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
     this.updateRulerCalibration(prevState);
+    if (prevState.selectedElementIds !== this.state.selectedElementIds) {
+      this.vrijTrace.followSelection();
+    }
     if (
       prevState.activeTool.type === "custom" &&
       prevState.activeTool.customType === "vrijtrace" &&
