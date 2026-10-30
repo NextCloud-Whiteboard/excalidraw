@@ -293,8 +293,6 @@ describe("trench lines", () => {
     const fp = (els: any[]) => pageState(els, els[0])!.fingerprint;
     const moved = [page({ x: 600, y: 350 }), line("L1", 700, 500, pts)];
     expect(pageState(moved, moved[0])!.geometry.segments).toHaveLength(2);
-    expect(fp(moved)).toBe(
-      fp([page(), line("L1", 200, 200, pts)]),
-    );
+    expect(fp(moved)).toBe(fp([page(), line("L1", 200, 200, pts)]));
   });
 });

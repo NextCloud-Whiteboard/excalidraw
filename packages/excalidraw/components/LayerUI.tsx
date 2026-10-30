@@ -140,6 +140,21 @@ const DefaultOverwriteConfirmDialog = () => {
   );
 };
 
+/** Vrij Tracé's panel and zones toggle: with its tool, or trench lines selected */
+const showsVrijTrace = (
+  appState: UIAppState,
+  elements: readonly NonDeletedExcalidrawElement[],
+) => {
+  if (
+    appState.activeTool.type === "custom" &&
+    appState.activeTool.customType === "vrijtrace"
+  ) {
+    return true;
+  }
+  const selected = elements.filter((el) => appState.selectedElementIds[el.id]);
+  return selected.length > 0 && selected.every(isTrenchLine);
+};
+
 const LayerUI = ({
   actionManager,
   appState,
@@ -247,11 +262,7 @@ const LayerUI = ({
       appState,
       elements,
     );
-    const selected = elements.filter((el) => appState.selectedElementIds[el.id]);
-    const vrijTraceActive =
-      (appState.activeTool.type === "custom" &&
-        appState.activeTool.customType === "vrijtrace") ||
-      (selected.length > 0 && selected.every(isTrenchLine));
+    const vrijTraceActive = showsVrijTrace(appState, elements);
 
     const shouldShowStats =
       appState.stats.open &&
@@ -592,10 +603,9 @@ const LayerUI = ({
           >
             {renderWelcomeScreen && <tunnels.WelcomeScreenCenterTunnel.Out />}
             {renderFixedSideContainer()}
-            {appState.activeTool.type === "custom" &&
-              appState.activeTool.customType === "vrijtrace" && (
-                <VrijTraceActions appState={appState} />
-              )}
+            {showsVrijTrace(appState, elements) && (
+              <VrijTraceActions appState={appState} />
+            )}
             <Footer
               appState={appState}
               actionManager={actionManager}

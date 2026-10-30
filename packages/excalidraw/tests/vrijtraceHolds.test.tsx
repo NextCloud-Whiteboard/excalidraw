@@ -22,7 +22,7 @@ const pdfPage = () => ({
   }),
   customData: { isPdf: true, pdfCmPerPx: 5 },
 });
-const firstNode = () => getPageParts(h.elements, "pdf1").nodes[0];
+const tree = () => getPageParts(h.elements, "pdf1").trees[0];
 const holdBySanne = (id: string, expiresAt: number) =>
   act(() =>
     h.setState({
@@ -38,7 +38,7 @@ const dragBy = (c: { x: number; y: number }, dx: number) => {
   mouse.upAt(c.x + dx, c.y);
 };
 
-describe("edit holds", () => {
+describe("edit holds on trees", () => {
   const onEditing = vi.fn();
 
   beforeEach(async () => {
@@ -47,60 +47,41 @@ describe("edit holds", () => {
     );
     API.setElements([pdfPage()]);
     act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
+    act(() => h.app.vrijTrace.setMode("boomToevoegen"));
     mouse.reset();
-    mouse.clickAt(100, 100);
-    mouse.clickAt(400, 100);
-    act(() => h.app.vrijTrace.setMode("verplaats"));
+    mouse.clickAt(300, 300);
+    act(() => h.app.vrijTrace.moveTree(tree().id));
     onEditing.mockClear();
   });
 
-  it("announces the node being dragged, and its release", () => {
-    const node = firstNode();
-    dragBy(centreOf(node), 50);
-    expect(onEditing.mock.calls.map((x) => x[0])).toEqual([[node.id], []]);
+  it("announces the tree being moved, and its release", () => {
+    const t = tree();
+    dragBy(centreOf(t), 50);
+    expect(onEditing.mock.calls.map((x) => x[0])).toEqual([[t.id], []]);
   });
 
-  it("refuses a part someone else holds", () => {
-    const node = firstNode();
-    holdBySanne(node.id, Date.now() + 8000);
-    const c = centreOf(node);
-    dragBy(c, 50);
+  it("refuses a tree someone else holds", () => {
+    const t = tree();
+    const c = centreOf(t);
+    holdBySanne(t.id, Date.now() + 8000);
+    dragBy({ x: 500, y: 400 }, 50);
     expect(h.state.toast?.message).toBe("Sanne bewerkt dit punt");
-    const after = getPageParts(h.elements, "pdf1").nodes.find(
-      (n) => n.id === node.id,
-    )!;
-    expect(centreOf(after).x).toBeCloseTo(c.x);
+    expect(centreOf(tree()).x).toBeCloseTo(c.x);
     expect(onEditing).not.toHaveBeenCalled();
   });
 
   it("ignores expired holds", () => {
-    const node = firstNode();
-    holdBySanne(node.id, Date.now() - 1);
-    expect(h.app.vrijTrace.isHeldByOther(node.id)).toBeNull();
-    const c = centreOf(node);
-    dragBy(c, 50);
-    const after = getPageParts(h.elements, "pdf1").nodes.find(
-      (n) => n.id === node.id,
-    )!;
-    expect(centreOf(after).x).toBeCloseTo(c.x + 50);
-  });
-
-  it("refuses deleting a segment someone else holds", () => {
-    const seg = getPageParts(h.elements, "pdf1").segments[0];
-    holdBySanne(seg.id, Date.now() + 8000);
-    act(() => h.app.vrijTrace.setMode("verwijder"));
-    mouse.reset();
-    mouse.clickAt(250, 100);
-    expect(h.state.toast?.message).toBe("Sanne bewerkt dit punt");
-    expect(getPageParts(h.elements, "pdf1").segments).toHaveLength(1);
+    const t = tree();
+    holdBySanne(t.id, Date.now() - 1);
+    expect(h.app.vrijTrace.isHeldByOther(t.id)).toBeNull();
+    dragBy({ x: 500, y: 400 }, 50);
+    expect(centreOf(tree()).x).toBeCloseTo(550);
   });
 
   it("releases its hold when the tool is left", () => {
-    act(() => h.app.vrijTrace.setMode("selecteer"));
     mouse.reset();
-    mouse.clickAt(250, 100);
-    const seg = getPageParts(h.elements, "pdf1").segments[0];
-    expect(onEditing.mock.calls.at(-1)![0]).toEqual([seg.id]);
+    mouse.downAt(500, 400);
+    expect(onEditing.mock.calls.at(-1)![0]).toEqual([tree().id]);
     act(() => h.app.setActiveTool({ type: "selection" }));
     expect(onEditing.mock.calls.at(-1)![0]).toEqual([]);
   });

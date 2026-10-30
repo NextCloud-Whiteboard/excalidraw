@@ -125,8 +125,12 @@ describe("migrating trenches of older boards", () => {
   });
 
   it("names the lines after their segments, so clients agree", () => {
-    const a = migrateLegacyTrench(board())!.created.map((l) => l.id).sort();
-    const b = migrateLegacyTrench(board())!.created.map((l) => l.id).sort();
+    const a = migrateLegacyTrench(board())!
+      .created.map((l) => l.id)
+      .sort();
+    const b = migrateLegacyTrench(board())!
+      .created.map((l) => l.id)
+      .sort();
     expect(a).toEqual(b);
     expect(a.every((id) => !["s1", "s2", "s3"].includes(id))).toBe(true);
   });

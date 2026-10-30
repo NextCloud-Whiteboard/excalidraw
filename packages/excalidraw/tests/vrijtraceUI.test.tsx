@@ -192,6 +192,15 @@ describe("Vrij Tracé UI", () => {
     expect((byId("vt-width") as HTMLInputElement).value).toBe("1");
   });
 
+  it("keeps the zones toggle after a line, when the tool hands back to selection", () => {
+    drawLine([100, 100], [400, 100]);
+    expect(h.state.activeTool.type).toBe("selection");
+    fireEvent.click(byId("vt-activate"));
+    expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
+    API.setSelectedElements([]);
+    expect(byId("vt-activate")).toBeNull();
+  });
+
   it("keeps the usual shape actions for other selections", () => {
     API.setElements([
       pdfPage(),

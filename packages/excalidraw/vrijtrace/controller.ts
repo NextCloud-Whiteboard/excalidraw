@@ -15,7 +15,12 @@ import type {
 } from "@excalidraw/element/types";
 
 import { constrain, exampleNetwork, snapToTrench } from "./editing";
-import { chainSegments, newTrenchLine, trenchLineData, trenchLineStyle } from "./lines";
+import {
+  chainSegments,
+  newTrenchLine,
+  trenchLineData,
+  trenchLineStyle,
+} from "./lines";
 import {
   DEFAULT_SETTINGS,
   getPageFrame,

@@ -1500,7 +1500,9 @@ export const fixDuplicatedBindingsAfterDuplication = (
 
     // Handle PDF parent-child relationships during duplication
     if (duplicateElement.customData?.pdfParentId) {
-      const newPdfParentId = origIdToDuplicateId.get(duplicateElement.customData.pdfParentId);
+      const newPdfParentId = origIdToDuplicateId.get(
+        duplicateElement.customData.pdfParentId,
+      );
       if (newPdfParentId) {
         Object.assign(duplicateElement, {
           customData: {
@@ -1513,7 +1515,8 @@ export const fixDuplicatedBindingsAfterDuplication = (
         // (a Vrij Tracé trench line copied on its own stays on its page)
         const { pdfParentId, ...restCustomData } = duplicateElement.customData;
         Object.assign(duplicateElement, {
-          customData: Object.keys(restCustomData).length > 0 ? restCustomData : undefined,
+          customData:
+            Object.keys(restCustomData).length > 0 ? restCustomData : undefined,
         });
       }
     }

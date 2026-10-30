@@ -49,7 +49,14 @@ export const migrateLegacyTrench = (
       parts.nodes.map((n) => ({ id: n.id, ...centreOf(n) })),
       parts.segments.flatMap((s) =>
         s.trench.kind === "segment"
-          ? [{ id: s.id, a: s.trench.a, b: s.trench.b, widthM: s.trench.widthM }]
+          ? [
+              {
+                id: s.id,
+                a: s.trench.a,
+                b: s.trench.b,
+                widthM: s.trench.widthM,
+              },
+            ]
           : [],
       ),
     ).map((c) =>

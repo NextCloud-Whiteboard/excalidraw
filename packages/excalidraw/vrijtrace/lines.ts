@@ -61,7 +61,10 @@ export const newTrenchLine = (opts: {
  * (segments in id order), so clients converting the same board agree.
  * Each chain is named after its first segment.
  */
-export const chainSegments = (nodes: readonly WNode[], segments: readonly WSegment[]) => {
+export const chainSegments = (
+  nodes: readonly WNode[],
+  segments: readonly WSegment[],
+) => {
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const valid = segments
     .filter((s) => s.a !== s.b && nodeById.has(s.a) && nodeById.has(s.b))
@@ -80,8 +83,8 @@ export const chainSegments = (nodes: readonly WNode[], segments: readonly WSegme
     let prev = from;
     for (;;) {
       const here = atNode.get(cur) ?? [];
-      const next =
-        here.length === 2 ? here.find((s) => s !== prev) : undefined;
+      const last = prev;
+      const next = here.length === 2 ? here.find((s) => s !== last) : undefined;
       if (!next || used.has(next.id) || next.widthM !== prev.widthM) {
         return out;
       }

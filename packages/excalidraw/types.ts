@@ -489,34 +489,16 @@ export interface AppState {
   pdfImport: PdfImportState | null;
 }
 
-export type VrijTraceMode =
-  | "teken"
-  | "verplaats"
-  | "selecteer"
-  | "verwijder"
-  | "boom"
-  | "boomToevoegen";
-
-export type VrijTraceDraft = {
-  start: { x: number; y: number };
-  cur: { x: number; y: number };
-  preview: {
-    a: { x: number; y: number };
-    b: { x: number; y: number };
-    lengthM: number;
-  } | null;
-};
+export type VrijTraceMode = "teken" | "boom" | "boomToevoegen";
 
 export type VrijTraceUIState = {
   mode: VrijTraceMode;
   pageId: string | null;
   activeTreeId: string | null;
-  selectedSegmentId: string | null;
   snap: "90" | "45" | "vrij";
   reference: "midden" | "links" | "rechts";
   widthM: number;
   hidePdf: boolean;
-  draft: VrijTraceDraft | null;
 };
 
 export type PdfImportState = {

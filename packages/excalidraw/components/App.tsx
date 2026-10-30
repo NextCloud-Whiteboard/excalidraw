@@ -7460,7 +7460,14 @@ class App extends React.Component<AppProps, AppState> {
       );
     } else if (this.state.activeTool.type === "text") {
       this.handleTextOnPointerDown(event, pointerDownState);
-    } else if (this.isLinearTool()) {
+    } else if (
+      // spelled out (not isLinearTool) so the type narrows for the branches below
+      this.state.activeTool.type === "arrow" ||
+      this.state.activeTool.type === "line" ||
+      (this.state.activeTool.type === "custom" &&
+        (this.state.activeTool.customType === "ruler" ||
+          this.state.activeTool.customType === "vrijtrace"))
+    ) {
       const linearType =
         this.state.activeTool.type === "custom"
           ? "line"

@@ -84,7 +84,7 @@ export type TrenchReference = "midden" | "links" | "rechts";
 /** a whiteboard line drawn with Vrij Tracé: one trench with its own width */
 export const isTrenchLine = (
   el: ExcalidrawElement | null | undefined,
-): el is ExcalidrawLinearElement =>
+): el is ExcalidrawLinearElement & { customData: Record<string, any> } =>
   !!el &&
   el.type === "line" &&
   el.customData?.tool === "trench" &&
