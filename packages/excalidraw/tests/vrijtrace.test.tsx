@@ -2,6 +2,7 @@ import React from "react";
 import { act, fireEvent } from "@testing-library/react";
 
 import { KEYS } from "@excalidraw/common";
+import { CaptureUpdateAction, newTrenchElement } from "@excalidraw/element";
 
 import { Excalidraw } from "../index";
 import { getPageParts } from "../vrijtrace/model";
@@ -259,6 +260,42 @@ describe("Vrij Tracé tool", () => {
     fireEvent.pointerUp(canvas, touch(2, 320));
     fireEvent.pointerUp(canvas, touch(1, 80));
     expect(lines()).toHaveLength(0);
+  });
+});
+
+describe("Vrij Tracé on boards from before trench lines", () => {
+  it("converts their trench into lines when they load, without an undo step", async () => {
+    await render(<Excalidraw vrijTraceEnabled={true} />);
+    const node = (id: string, x: number) =>
+      newTrenchElement({
+        id,
+        trench: { kind: "node" },
+        pdfParentId: "pdf1",
+        x: x - 0.5,
+        y: 99.5,
+      });
+    act(() =>
+      h.app.updateScene({
+        elements: [
+          pdfPage(),
+          node("n1", 100),
+          node("n2", 300),
+          newTrenchElement({
+            id: "s1",
+            trench: { kind: "segment", a: "n1", b: "n2", widthM: 1.2 },
+            pdfParentId: "pdf1",
+            x: 0,
+            y: 0,
+          }),
+        ],
+        captureUpdate: CaptureUpdateAction.NEVER,
+      }),
+    );
+    expect(parts().segments).toHaveLength(0);
+    expect(parts().nodes).toHaveLength(0);
+    expect(lines()).toHaveLength(1);
+    expect(lines()[0].customData?.widthM).toBe(1.2);
+    expect(h.history.isUndoStackEmpty).toBe(true);
   });
 });
 

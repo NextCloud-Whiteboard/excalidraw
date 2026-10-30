@@ -409,6 +409,7 @@ import {
   rulerScale,
 } from "../ruler/calibration";
 import { VrijTraceController } from "../vrijtrace/controller";
+import { migrateLegacyTrench } from "../vrijtrace/migrate";
 import {
   isPdfPage,
   isTrenchLine,
@@ -2974,6 +2975,40 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  private trenchMigrationNonce: number | undefined = undefined;
+
+  /**
+   * Boards (or collaborators) from before trench lines bring the trench as
+   * node and segment elements: convert them once they are in the scene,
+   * like loading, so it is no undo step.
+   */
+  private migrateLegacyTrench() {
+    const nonce = this.scene.getSceneNonce();
+    if (nonce === this.trenchMigrationNonce) {
+      return;
+    }
+    this.trenchMigrationNonce = nonce;
+    const all = this.scene.getElementsIncludingDeleted();
+    const m = migrateLegacyTrench(all);
+    if (!m) {
+      return;
+    }
+    const deleted = new Set(m.deleted.map((el) => el.id));
+    const elements = all.map((el) => {
+      if (deleted.has(el.id)) {
+        return newElementWith(el, { isDeleted: true });
+      }
+      const activation = m.activations.get(el.id);
+      return activation && isTrenchElement(el) && el.trench.kind === "network"
+        ? newElementWith(el, { trench: { ...el.trench, activation } })
+        : el;
+    });
+    this.updateScene({
+      elements: [...elements, ...m.created],
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }
+
   public dismissRulerCalibration = () => {
     this.setState({ rulerCalibration: null });
   };
@@ -2983,6 +3018,7 @@ class App extends React.Component<AppProps, AppState> {
     if (prevState.selectedElementIds !== this.state.selectedElementIds) {
       this.vrijTrace.followSelection();
     }
+    this.migrateLegacyTrench();
     if (
       prevState.activeTool.type === "custom" &&
       prevState.activeTool.customType === "vrijtrace" &&
