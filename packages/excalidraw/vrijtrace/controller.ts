@@ -9,30 +9,24 @@ import { newTrenchElement } from "@excalidraw/element";
 import type { Scene } from "@excalidraw/element";
 import type {
   ExcalidrawImageElement,
+  ExcalidrawLinearElement,
   ExcalidrawTrenchElement,
   VrijTraceNetworkData,
 } from "@excalidraw/element/types";
 
-import {
-  addSegment,
-  cloneWorking,
-  deleteSegment,
-  diffWorking,
-  drawEndpoints,
-  dropNode,
-  exampleNetwork,
-  fromParts,
-} from "./editing";
+import { constrain, exampleNetwork, snapToTrench } from "./editing";
+import { chainSegments, newTrenchLine, trenchLineData, trenchLineStyle } from "./lines";
 import {
   DEFAULT_SETTINGS,
-  centreOf,
   getPageFrame,
   getPageParts,
   isPdfPage,
+  isTrenchLine,
   networkIdForPage,
   nextTreeLabel,
   pageState,
-  pxPerMetre,
+  trenchLinePoints,
+  trenchLineWidth,
 } from "./model";
 import { STR } from "./strings";
 
@@ -42,7 +36,6 @@ import type {
   VrijTraceMode,
   VrijTraceUIState,
 } from "../types";
-import type { Working } from "./editing";
 import type { Pt } from "./geometry";
 
 /** the slice of App the controller needs (kept small for testing) */
@@ -55,20 +48,14 @@ export interface VrijTraceHost {
   getPdfPageAt: (x: number, y: number) => ExcalidrawImageElement | null;
   scheduleCapture: () => void;
   setCursor: (cursor: string) => void;
+  /** switch to the Vrij Tracé tool (tree buttons work from a selection too) */
+  activateTool: () => void;
 }
 
 // screen px, divided by zoom at use
-const NODE_HIT = 9;
-const SEGMENT_HIT = 11;
-/** v8.2: a drag of more than 8 px draws on release */
-const DRAG_START = 8;
-const MERGE_PX = 12;
 const SNAP_PX = 13;
 
-type Drag =
-  | { type: "draw"; begin: Pt; moved: boolean }
-  | { type: "node"; id: string; pageId: string }
-  | { type: "tree"; id: string };
+type Drag = { type: "tree"; id: string };
 
 type SettingsPatch = Partial<
   Pick<VrijTraceNetworkData, "redSide" | "workWidthM" | "workSide" | "treeMinM">
@@ -144,19 +131,11 @@ export class VrijTraceController {
     const page = this.app.getPdfPageAt(p.x, p.y);
     if (!page || !getPageFrame(page).cmPerPx) {
       this.app.setToast({ message: page ? STR.calibrateFirst : refusal });
-      if (this.ui.draft) {
-        this.setUI({ draft: null });
-      }
       return null;
     }
     if (page.id !== this.ui.pageId) {
-      // drafts, selections and the active tree belong to the previous page
-      this.setUI({
-        pageId: page.id,
-        draft: null,
-        selectedSegmentId: null,
-        activeTreeId: null,
-      });
+      // the active tree belongs to the previous page
+      this.setUI({ pageId: page.id, activeTreeId: null });
     }
     return page;
   }
@@ -189,117 +168,20 @@ export class VrijTraceController {
     return network;
   }
 
-  private working(page: ExcalidrawImageElement): Working {
-    return fromParts(
-      getPageParts(this.app.scene.getNonDeletedElements(), page.id),
-    );
+  /** trench lines of a page, in scene px, for snapping (all but `except`) */
+  private polylines(pageId: string | null, except: string | null) {
+    return pageId
+      ? getPageParts(this.app.scene.getNonDeletedElements(), pageId)
+          .lines.filter((l) => l.id !== except)
+          .map(trenchLinePoints)
+      : [];
   }
 
-  private drawOptions(page: ExcalidrawImageElement) {
-    return {
-      snap: this.ui.snap,
-      reference: this.ui.reference,
-      widthM: this.ui.widthM,
-      pxPerMetre: pxPerMetre(getPageFrame(page)),
-      snapPx: SNAP_PX / this.zoom,
-      newId: randomId,
-    };
-  }
-
-  /** write the difference between two working copies into the scene */
-  private apply(page: ExcalidrawImageElement, before: Working, after: Working) {
-    const d = diffWorking(before, after);
-    const network = this.ensureNetwork(page);
-    const map = this.app.scene.getElementsMapIncludingDeleted();
-    const created = [
-      ...d.addedNodes.map((n) =>
-        newTrenchElement({
-          id: n.id,
-          trench: { kind: "node" },
-          pdfParentId: page.id,
-          x: n.x - 0.5,
-          y: n.y - 0.5,
-        }),
-      ),
-      ...d.addedSegments.map((s) => {
-        const a = after.nodes.find((n) => n.id === s.a)!;
-        return newTrenchElement({
-          id: s.id,
-          trench: { kind: "segment", a: s.a, b: s.b, widthM: s.widthM },
-          pdfParentId: page.id,
-          x: a.x - 0.5,
-          y: a.y - 0.5,
-        });
-      }),
-    ];
-    if (created.length) {
-      this.app.scene.insertElementsAtIndex(
-        created,
-        this.app.scene.getElementIndex(network.id) + 1,
-      );
-    }
-    for (const n of d.movedNodes) {
-      const el = map.get(n.id);
-      if (el) {
-        this.app.scene.mutateElement(el, { x: n.x - 0.5, y: n.y - 0.5 });
-      }
-    }
-    for (const s of d.changedSegments) {
-      const el = map.get(s.id) as ExcalidrawTrenchElement | undefined;
-      if (el) {
-        this.app.scene.mutateElement(el, {
-          trench: { kind: "segment", a: s.a, b: s.b, widthM: s.widthM },
-        });
-      }
-    }
-    for (const id of [...d.removedNodes, ...d.removedSegments]) {
-      const el = map.get(id);
-      if (el) {
-        this.app.scene.mutateElement(el, { isDeleted: true });
-      }
-    }
-  }
-
-  /** run one edit on a working copy and record it as one undo step */
-  private edit(page: ExcalidrawImageElement, op: (w: Working) => void) {
-    const before = this.working(page);
-    const after = cloneWorking(before);
-    op(after);
-    this.apply(page, before, after);
-    this.app.scheduleCapture();
-  }
-
-  private hitNode(page: ExcalidrawImageElement, p: Pt) {
-    const parts = getPageParts(this.app.scene.getNonDeletedElements(), page.id);
-    return (
-      parts.nodes.find((n) => {
-        const c = centreOf(n);
-        return Math.hypot(c.x - p.x, c.y - p.y) <= NODE_HIT / this.zoom;
-      }) ?? null
-    );
-  }
-
-  private hitSegment(page: ExcalidrawImageElement, p: Pt) {
-    const w = this.working(page);
-    const ppm = pxPerMetre(getPageFrame(page));
-    for (const s of w.segments) {
-      const a = w.nodes.find((n) => n.id === s.a);
-      const b = w.nodes.find((n) => n.id === s.b);
-      if (!a || !b) {
-        continue;
-      }
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const l2 = dx * dx + dy * dy;
-      const t = l2
-        ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
-        : 0;
-      const d = Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
-      if (d <= Math.max(SEGMENT_HIT / this.zoom, (s.widthM * ppm) / 2)) {
-        return s.id;
-      }
-    }
-    return null;
+  /** selected trench lines (the width slider changes these) */
+  selectedLines(): ExcalidrawLinearElement[] {
+    return this.app.scene
+      .getSelectedElements(this.app.state)
+      .filter(isTrenchLine);
   }
 
   private refuseHeld(id: string) {
@@ -310,123 +192,97 @@ export class VrijTraceController {
     return !!name;
   }
 
-  private preview(page: ExcalidrawImageElement, start: Pt, cur: Pt) {
-    const o = this.drawOptions(page);
-    const line = drawEndpoints(this.working(page), start, cur, o);
-    return line
+  /** tree placing takes the pointer; drawing is the whiteboard's line tool */
+  placesTrees() {
+    const mode = this.ui.mode;
+    return mode === "boom" || mode === "boomToevoegen";
+  }
+
+  /** may a trench line start at p? Refuses with a toast off a calibrated page */
+  canStartLine(p: Pt) {
+    return !!this.pageForCreate(p, STR.onlyOnPdf);
+  }
+
+  /** what a new trench line on the current page is made of */
+  newLineProps() {
+    const page = this.page();
+    return page
       ? {
-          ...line,
-          lengthM:
-            Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y) / o.pxPerMetre,
+          ...trenchLineStyle(this.ui.reference),
+          customData: trenchLineData(
+            this.ui.widthM,
+            this.ui.reference,
+            page.id,
+          ),
         }
       : null;
   }
 
-  private commitDraw(page: ExcalidrawImageElement, p: Pt) {
-    const draft = this.ui.draft!;
-    let endId: string | null = null;
-    this.edit(page, (w) => {
-      endId = addSegment(w, draft.start, p, this.drawOptions(page));
-    });
-    const end = endId
-      ? this.working(page).nodes.find((n) => n.id === endId)
-      : null;
-    this.setUI({
-      draft: end
-        ? { start: { x: end.x, y: end.y }, cur: p, preview: null }
-        : { ...draft, cur: p },
-    });
+  /** a trench line was started on the current page: it needs a network */
+  lineStarted() {
+    const page = this.page();
+    if (page) {
+      this.ensureNetwork(page);
+    }
+  }
+
+  /**
+   * Where a trench line's point goes: onto a nearby trench line of the page,
+   * else turned to the chosen angle step from the previous point.
+   */
+  snapPoint(from: Pt | null, p: Pt, lineId: string | null): Pt {
+    const hit = snapToTrench(
+      this.polylines(this.ui.pageId, lineId),
+      p,
+      SNAP_PX / this.zoom,
+    );
+    if (hit) {
+      return hit;
+    }
+    return from ? constrain(from, p, this.ui.snap) : p;
   }
 
   pointerDown(p: Pt) {
     const mode = this.ui.mode;
-    if (mode === "teken") {
-      const page = this.pageForCreate(p, STR.onlyOnPdf);
-      if (!page) {
-        return;
-      }
-      if (!this.ui.draft) {
-        const node = this.hitNode(page, p);
-        this.setUI({
-          draft: { start: node ? centreOf(node) : p, cur: p, preview: null },
-        });
-        this.beginDrag({ type: "draw", begin: p, moved: false });
-      } else {
-        this.commitDraw(page, p);
-      }
+    if (mode !== "boom" && mode !== "boomToevoegen") {
       return;
     }
-    if (mode === "boom" || mode === "boomToevoegen") {
-      const page = this.pageForCreate(p, STR.treesOnlyOnPdf);
-      if (!page) {
-        return;
-      }
-      let treeId = this.ui.activeTreeId;
-      if (mode === "boomToevoegen") {
-        const trees = getPageParts(
-          this.app.scene.getNonDeletedElements(),
-          page.id,
-        ).trees;
-        const network = this.ensureNetwork(page);
-        const tree = newTrenchElement({
-          trench: { kind: "tree", label: nextTreeLabel(trees) },
-          pdfParentId: page.id,
-          x: p.x - 0.5,
-          y: p.y - 0.5,
-        });
-        this.app.scene.insertElementAtIndex(
-          tree,
-          this.app.scene.getElementIndex(network.id) + 1,
-        );
-        treeId = tree.id;
-        this.setUI({ mode: "boom", activeTreeId: tree.id });
-      }
-      const tree = treeId ? this.app.scene.getElement(treeId) : null;
-      if (
-        !tree ||
-        tree.isDeleted ||
-        tree.customData?.pdfParentId !== page.id ||
-        this.refuseHeld(tree.id)
-      ) {
-        return;
-      }
-      this.app.scene.mutateElement(tree, { x: p.x - 0.5, y: p.y - 0.5 });
-      this.hold([tree.id]);
-      this.beginDrag({ type: "tree", id: tree.id });
+    const page = this.pageForCreate(p, STR.treesOnlyOnPdf);
+    if (!page) {
       return;
     }
-    const page = this.app.getPdfPageAt(p.x, p.y) ?? this.page();
-    if (!page || !getPageFrame(page).cmPerPx) {
-      return;
-    }
-    if (mode === "verplaats") {
-      const node = this.hitNode(page, p);
-      if (node && !this.refuseHeld(node.id)) {
-        this.hold([node.id]);
-        this.beginDrag({ type: "node", id: node.id, pageId: page.id });
-      }
-    } else if (mode === "selecteer") {
-      const id = this.hitSegment(page, p);
-      if (id && this.refuseHeld(id)) {
-        return;
-      }
-      const seg = id
-        ? (this.app.scene.getElement(id) as ExcalidrawTrenchElement | null)
-        : null;
-      this.setUI({
-        pageId: page.id,
-        selectedSegmentId: id,
-        ...(seg?.trench.kind === "segment"
-          ? { widthM: seg.trench.widthM }
-          : {}),
+    let treeId = this.ui.activeTreeId;
+    if (mode === "boomToevoegen") {
+      const trees = getPageParts(
+        this.app.scene.getNonDeletedElements(),
+        page.id,
+      ).trees;
+      const network = this.ensureNetwork(page);
+      const tree = newTrenchElement({
+        trench: { kind: "tree", label: nextTreeLabel(trees) },
+        pdfParentId: page.id,
+        x: p.x - 0.5,
+        y: p.y - 0.5,
       });
-      this.hold(id ? [id] : []);
-    } else if (mode === "verwijder") {
-      const id = this.hitSegment(page, p);
-      if (id && !this.refuseHeld(id)) {
-        this.edit(page, (w) => deleteSegment(w, id));
-      }
+      this.app.scene.insertElementAtIndex(
+        tree,
+        this.app.scene.getElementIndex(network.id) + 1,
+      );
+      treeId = tree.id;
+      this.setUI({ mode: "boom", activeTreeId: tree.id });
     }
+    const tree = treeId ? this.app.scene.getElement(treeId) : null;
+    if (
+      !tree ||
+      tree.isDeleted ||
+      tree.customData?.pdfParentId !== page.id ||
+      this.refuseHeld(tree.id)
+    ) {
+      return;
+    }
+    this.app.scene.mutateElement(tree, { x: p.x - 0.5, y: p.y - 0.5 });
+    this.hold([tree.id]);
+    this.beginDrag({ type: "tree", id: tree.id });
   }
 
   private beginDrag(drag: Drag) {
@@ -445,110 +301,66 @@ export class VrijTraceController {
 
   private dragMove(p: Pt) {
     const d = this.drag;
-    if (!d) {
-      return;
-    }
-    if (d.type === "draw") {
-      if (
-        Math.hypot(p.x - d.begin.x, p.y - d.begin.y) >
-        DRAG_START / this.zoom
-      ) {
-        d.moved = true;
-      }
-      this.hover(p);
-    } else {
-      const el = this.app.scene.getElement(d.id);
-      if (el && !el.isDeleted) {
-        this.app.scene.mutateElement(el, { x: p.x - 0.5, y: p.y - 0.5 });
-      }
+    const el = d ? this.app.scene.getElement(d.id) : null;
+    if (el && !el.isDeleted) {
+      this.app.scene.mutateElement(el, { x: p.x - 0.5, y: p.y - 0.5 });
     }
   }
 
-  private dragEnd(p: Pt) {
+  private dragEnd(_p: Pt) {
     const d = this.drag;
     this.drag = null;
-    if (!d) {
-      return;
-    }
-    if (d.type === "draw") {
-      const page = this.page();
-      if (!page) {
-        this.setUI({ draft: null });
-      } else if (d.moved && this.ui.draft) {
-        this.commitDraw(page, p);
-      }
-    } else if (d.type === "node") {
-      const page = this.page(d.pageId);
-      if (page) {
-        this.edit(page, (w) => dropNode(w, d.id, MERGE_PX / this.zoom));
-      }
-      this.hold([]);
-    } else {
+    if (d) {
       this.app.scheduleCapture();
       this.hold([]);
     }
   }
 
   hover(p: Pt) {
-    const mode = this.ui.mode;
-    if (mode === "teken" || mode === "boom" || mode === "boomToevoegen") {
-      this.app.setCursor(
-        this.app.getPdfPageAt(p.x, p.y) ? "crosshair" : "not-allowed",
-      );
-    } else {
-      this.app.setCursor("default");
-    }
-    const draft = this.ui.draft;
-    if (!draft) {
-      return;
-    }
-    const page = this.page();
-    this.setUI({
-      draft: page
-        ? { ...draft, cur: p, preview: this.preview(page, draft.start, p) }
-        : null,
-    });
+    this.app.setCursor(
+      this.app.getPdfPageAt(p.x, p.y) ? "crosshair" : "not-allowed",
+    );
   }
 
   setMode(mode: VrijTraceMode) {
-    this.setUI({
-      mode,
-      draft: null,
-      activeTreeId: null,
-      ...(mode === "selecteer" ? {} : { selectedSegmentId: null }),
-    });
+    this.setUI({ mode, activeTreeId: null });
     this.hold([]);
+    if (mode !== "teken") {
+      this.app.activateTool();
+    }
   }
 
   moveTree(treeId: string) {
-    this.setUI({ mode: "boom", activeTreeId: treeId, draft: null });
+    this.setUI({ mode: "boom", activeTreeId: treeId });
+    this.app.activateTool();
   }
 
-  /** v8.2 Stop: back to segment selection */
+  /** v8.2 Stop: done with trees, back to drawing */
   stop() {
-    this.setMode("selecteer");
+    this.setMode("teken");
   }
 
-  finish() {
-    this.setUI({ draft: null });
-  }
-
+  /** the width of the selected trench lines, else of the next one drawn */
   setWidth(widthM: number, commit: boolean) {
     const v = Math.min(2.3, Math.max(0.3, widthM));
-    const seg = this.ui.selectedSegmentId
-      ? (this.app.scene.getElement(
-          this.ui.selectedSegmentId,
-        ) as ExcalidrawTrenchElement | null)
-      : null;
-    if (seg && !seg.isDeleted && seg.trench.kind === "segment") {
-      this.app.scene.mutateElement(seg, {
-        trench: { ...seg.trench, widthM: v },
+    const lines = this.selectedLines();
+    for (const line of lines) {
+      this.app.scene.mutateElement(line, {
+        customData: { ...line.customData, widthM: v },
       });
-      if (commit) {
-        this.app.scheduleCapture();
-      }
     }
-    this.setUI({ widthM: v });
+    if (lines.length && commit) {
+      this.app.scheduleCapture();
+    }
+    if (!lines.length) {
+      this.setUI({ widthM: v });
+    }
+  }
+
+  /** the width the slider shows */
+  shownWidth() {
+    const [line] = this.selectedLines();
+    return line ? trenchLineWidth(line) : this.ui.widthM;
   }
 
   updateSettings(patch: SettingsPatch, commit: boolean) {
@@ -621,18 +433,6 @@ export class VrijTraceController {
     this.app.scheduleCapture();
   }
 
-  deleteSelectedOrMode() {
-    const page = this.page();
-    const id = this.ui.selectedSegmentId;
-    if (page && id && !this.refuseHeld(id)) {
-      this.edit(page, (w) => deleteSegment(w, id));
-      this.setUI({ selectedSegmentId: null });
-      this.hold([]);
-    } else if (!id) {
-      this.setMode("verwijder");
-    }
-  }
-
   /** v8.2 Voorbeeld: replace this page's network and trees with the example */
   example() {
     const page = this.page();
@@ -640,13 +440,20 @@ export class VrijTraceController {
       return;
     }
     const { working, trees } = exampleNetwork(getPageFrame(page), randomId);
-    this.apply(page, this.working(page), working);
-    for (const t of getPageParts(
-      this.app.scene.getNonDeletedElements(),
-      page.id,
-    ).trees) {
-      this.app.scene.mutateElement(t, { isDeleted: true });
+    const network = this.ensureNetwork(page);
+    const old = getPageParts(this.app.scene.getNonDeletedElements(), page.id);
+    for (const el of [...old.lines, ...old.trees]) {
+      this.app.scene.mutateElement(el, { isDeleted: true });
     }
+    this.app.scene.insertElements(
+      chainSegments(working.nodes, working.segments).map((c) =>
+        newTrenchLine({
+          points: c.points,
+          widthM: c.widthM,
+          pdfParentId: page.id,
+        }),
+      ),
+    );
     this.app.scene.insertElementsAtIndex(
       trees.map((t) =>
         newTrenchElement({
@@ -656,21 +463,23 @@ export class VrijTraceController {
           y: t.y - 0.5,
         }),
       ),
-      this.app.scene.getElementIndex(networkIdForPage(page.id)) + 1,
+      this.app.scene.getElementIndex(network.id) + 1,
     );
-    this.setUI({ draft: null, selectedSegmentId: null, activeTreeId: null });
+    this.setUI({ activeTreeId: null });
     this.app.scheduleCapture();
   }
 
-  /** v8.2 Wis tracé: nodes and segments go, trees and settings stay */
+  /** v8.2 Wis tracé: the trench lines go, trees and settings stay */
   clear() {
     const page = this.page();
     if (page) {
-      this.edit(page, (w) => {
-        w.nodes = [];
-        w.segments = [];
-      });
-      this.setUI({ draft: null, selectedSegmentId: null });
+      for (const line of getPageParts(
+        this.app.scene.getNonDeletedElements(),
+        page.id,
+      ).lines) {
+        this.app.scene.mutateElement(line, { isDeleted: true });
+      }
+      this.app.scheduleCapture();
     }
   }
 
@@ -680,34 +489,18 @@ export class VrijTraceController {
 
   /** returns true when the key was handled */
   onKeyDown(e: { key: string }) {
-    if (e.key === "Escape") {
-      // finishes the line being drawn (was "Voltooi"); else stops drawing
-      if (this.ui.draft) {
-        this.finish();
-      } else {
-        this.stop();
-      }
-      return true;
-    }
-    if (
-      (e.key === "Delete" || e.key === "Backspace") &&
-      this.ui.selectedSegmentId
-    ) {
-      this.deleteSelectedOrMode();
+    // Esc leaves tree placing; lines are finished by the line tool itself
+    if (e.key === "Escape" && this.placesTrees()) {
+      this.stop();
       return true;
     }
     return false;
   }
 
-  /** leaving the tool: drop drafts, drags and holds; show the PDF again */
+  /** leaving the tool: drop drags and holds; show the PDF again */
   reset() {
     this.drag = null;
-    this.setUI({
-      draft: null,
-      activeTreeId: null,
-      selectedSegmentId: null,
-      hidePdf: false,
-    });
+    this.setUI({ activeTreeId: null, hidePdf: false });
     this.hold([]);
   }
 }

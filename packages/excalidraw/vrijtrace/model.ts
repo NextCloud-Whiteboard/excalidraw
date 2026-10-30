@@ -3,6 +3,7 @@ import { isImageElement, isTrenchElement } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
   ExcalidrawImageElement,
+  ExcalidrawLinearElement,
   ExcalidrawTrenchElement,
 } from "@excalidraw/element/types";
 
@@ -78,11 +79,38 @@ export const centreOf = (el: {
   y: el.y + el.height / 2,
 });
 
+export type TrenchReference = "midden" | "links" | "rechts";
+
+/** a whiteboard line drawn with Vrij Tracé: one trench with its own width */
+export const isTrenchLine = (
+  el: ExcalidrawElement | null | undefined,
+): el is ExcalidrawLinearElement =>
+  !!el &&
+  el.type === "line" &&
+  el.customData?.tool === "trench" &&
+  !el.isDeleted;
+
+export const trenchLineWidth = (line: ExcalidrawLinearElement) => {
+  const w = line.customData?.widthM;
+  return typeof w === "number" && Number.isFinite(w)
+    ? Math.min(2.3, Math.max(0.3, w))
+    : 1;
+};
+
+export const trenchLineReference = (
+  line: ExcalidrawLinearElement,
+): TrenchReference => {
+  const r = line.customData?.reference;
+  return r === "links" || r === "rechts" ? r : "midden";
+};
+
 export type PageParts = {
   network: ExcalidrawTrenchElement | null;
+  /** legacy parts, from before trenches were lines (migrated on load) */
   nodes: ExcalidrawTrenchElement[];
   segments: ExcalidrawTrenchElement[];
   trees: ExcalidrawTrenchElement[];
+  lines: ExcalidrawLinearElement[];
 };
 
 export const getPageParts = (
@@ -94,8 +122,13 @@ export const getPageParts = (
     nodes: [],
     segments: [],
     trees: [],
+    lines: [],
   };
   for (const el of elements) {
+    if (isTrenchLine(el) && el.customData?.pdfParentId === pdfId) {
+      parts.lines.push(el);
+      continue;
+    }
     if (
       !isTrenchElement(el) ||
       el.isDeleted ||
@@ -142,6 +175,94 @@ export const settingsOf = (
 
 export const MIN_SEGMENT_PX = 3;
 
+/** a line's points in scene px, rotated like the whiteboard draws it */
+export const trenchLinePoints = (line: ExcalidrawLinearElement): Pt[] => {
+  const pts = line.points.map(([x, y]) => ({ x: line.x + x, y: line.y + y }));
+  if (!line.angle) {
+    return pts;
+  }
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  const c = {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+  return pts.map((p) => rotate(p, c, line.angle));
+};
+
+/**
+ * The polyline moved sideways by `d` along each segment's n = (uy, -ux)
+ * (v8.2's drawing reference), joined with mitres; a mitre is capped at 4·|d|
+ * so a near reversal cannot throw a corner far away.
+ */
+const offsetPolyline = (pts: Pt[], d: number): Pt[] => {
+  const normals = pts.slice(1).map((b, i) => {
+    const a = pts[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return { x: (b.y - a.y) / len, y: -(b.x - a.x) / len };
+  });
+  return pts.map((p, i) => {
+    const n1 = normals[Math.max(0, i - 1)];
+    const n2 = normals[Math.min(normals.length - 1, i)];
+    if (!n1 || !n2) {
+      return p;
+    }
+    const k = 1 + n1.x * n2.x + n1.y * n2.y;
+    let mx = n1.x + n2.x;
+    let my = n1.y + n2.y;
+    if (k < 1e-6) {
+      mx = n1.x;
+      my = n1.y;
+    } else {
+      mx /= k;
+      my /= k;
+      const len = Math.hypot(mx, my);
+      if (len > 4) {
+        mx = (mx / len) * 4;
+        my = (my / len) * 4;
+      }
+    }
+    return { x: p.x + mx * d, y: p.y + my * d };
+  });
+};
+
+/** a trench line as nodes and segments in page metres (ids `line:i`) */
+const lineGeometry = (
+  line: ExcalidrawLinearElement,
+  frame: PageFrame,
+  out: NetworkGeometry,
+) => {
+  const scene = trenchLinePoints(line);
+  const widthM = trenchLineWidth(line);
+  const ref = trenchLineReference(line);
+  const metres = scene.map((p) => sceneToPage(frame, p));
+  const centre =
+    ref === "midden"
+      ? metres
+      : offsetPolyline(metres, ref === "links" ? -widthM / 2 : widthM / 2);
+  const used = new Set<number>();
+  for (let i = 0; i + 1 < scene.length; i++) {
+    const a = scene[i];
+    const b = scene[i + 1];
+    if (Math.hypot(a.x - b.x, a.y - b.y) < MIN_SEGMENT_PX) {
+      continue;
+    }
+    out.segments.push({
+      id: `${line.id}:${i}`,
+      a: `${line.id}:${i}`,
+      b: `${line.id}:${i + 1}`,
+      widthM,
+    });
+    used.add(i);
+    used.add(i + 1);
+  }
+  centre.forEach((m, i) => {
+    if (used.has(i)) {
+      out.nodes.push({ id: `${line.id}:${i}`, ...m });
+    }
+  });
+};
+
 /** v8.2 req. 9: only visible, valid segments count; unused nodes are ignored. */
 export const toGeometry = (
   parts: PageParts,
@@ -172,7 +293,11 @@ export const toGeometry = (
   const nodes = parts.nodes
     .filter((n) => used.has(n.id))
     .map((n) => ({ id: n.id, ...sceneToPage(frame, centreOf(n)) }));
-  return { nodes, segments };
+  const geometry = { nodes, segments };
+  for (const line of parts.lines) {
+    lineGeometry(line, frame, geometry);
+  }
+  return geometry;
 };
 
 const labelOf = (t: ExcalidrawTrenchElement) =>

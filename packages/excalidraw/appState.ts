@@ -140,7 +140,7 @@ export const getDefaultAppState = (): Omit<
       pageId: null,
       activeTreeId: null,
       selectedSegmentId: null,
-      snap: "90",
+      snap: "vrij",
       reference: "midden",
       widthM: 1,
       hidePdf: false,

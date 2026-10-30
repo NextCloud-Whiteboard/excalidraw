@@ -409,7 +409,12 @@ import {
   rulerScale,
 } from "../ruler/calibration";
 import { VrijTraceController } from "../vrijtrace/controller";
-import { isPdfPage, remapTrenchIds, trenchPartsOf } from "../vrijtrace/model";
+import {
+  isPdfPage,
+  isTrenchLine,
+  remapTrenchIds,
+  trenchPartsOf,
+} from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
@@ -835,6 +840,8 @@ class App extends React.Component<AppProps, AppState> {
       getPdfPageAt: (x, y) => app.getPdfPageAt(x, y),
       scheduleCapture: () => app.store.scheduleCapture(),
       setCursor: (cursor) => setCursor(app.interactiveCanvas, cursor),
+      activateTool: () =>
+        app.setActiveTool({ type: "custom", customType: "vrijtrace" }),
     });
 
     if (excalidrawAPI) {
@@ -6537,7 +6544,7 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    if (this.isVrijTraceActive()) {
+    if (this.isVrijTraceActive() && this.vrijTrace.placesTrees()) {
       if (gesture.pointers.size < 2) {
         this.vrijTrace.hover(viewportCoordsToSceneCoords(event, this.state));
       }
@@ -6756,7 +6763,16 @@ class App extends React.Component<AppProps, AppState> {
         let dxFromLastCommitted = gridX - rx - lastCommittedX;
         let dyFromLastCommitted = gridY - ry - lastCommittedY;
 
-        if (shouldRotateWithDiscreteAngle(event)) {
+        if (isTrenchLine(multiElement)) {
+          // Vrij Tracé's angle step and snapping onto other trench lines
+          const p = this.vrijTrace.snapPoint(
+            { x: lastCommittedX + rx, y: lastCommittedY + ry },
+            { x: gridX, y: gridY },
+            multiElement.id,
+          );
+          dxFromLastCommitted = p.x - rx - lastCommittedX;
+          dyFromLastCommitted = p.y - ry - lastCommittedY;
+        } else if (shouldRotateWithDiscreteAngle(event)) {
           ({ width: dxFromLastCommitted, height: dyFromLastCommitted } =
             getLockedLinearCursorAlignSize(
               // actual coordinate of the last committed point
@@ -7114,6 +7130,14 @@ class App extends React.Component<AppProps, AppState> {
     }
   }
 
+  /** tools that draw a line: the line and arrow tools, the ruler, Vrij Tracé */
+  private isLinearTool = () =>
+    this.state.activeTool.type === "arrow" ||
+    this.state.activeTool.type === "line" ||
+    (this.state.activeTool.type === "custom" &&
+      (this.state.activeTool.customType === "ruler" ||
+        this.state.activeTool.customType === "vrijtrace"));
+
   private isVrijTraceActive = () =>
     this.state.activeTool.type === "custom" &&
     this.state.activeTool.customType === "vrijtrace";
@@ -7259,17 +7283,30 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    // Vrij Tracé takes the primary pointer once panning had its chance; a
-    // second finger is a pinch, which drops whatever was being drawn
+    // Vrij Tracé places trees itself once panning had its chance; trenches
+    // are drawn by the line tool, but only from a calibrated PDF page. A
+    // second finger is a pinch, which drops whatever was being placed.
     if (this.isVrijTraceActive()) {
       if (gesture.pointers.size > 1) {
         this.vrijTrace.reset();
-      } else if (event.button === 0) {
-        this.vrijTrace.pointerDown(
-          viewportCoordsToSceneCoords(event, this.state),
-        );
+        // a trench line just started by the first finger is dropped
+        const started = this.state.newElement ?? this.state.multiElement;
+        if (isTrenchLine(started)) {
+          this.scene.mutateElement(started, { isDeleted: true });
+          this.setState({ newElement: null, multiElement: null });
+        }
+        return;
       }
-      return;
+      if (event.button === 0) {
+        const p = viewportCoordsToSceneCoords(event, this.state);
+        if (this.vrijTrace.placesTrees()) {
+          this.vrijTrace.pointerDown(p);
+          return;
+        }
+        if (!this.state.multiElement && !this.vrijTrace.canStartLine(p)) {
+          return;
+        }
+      }
     }
 
     this.setState({
@@ -7383,15 +7420,9 @@ class App extends React.Component<AppProps, AppState> {
       );
     } else if (this.state.activeTool.type === "text") {
       this.handleTextOnPointerDown(event, pointerDownState);
-    } else if (
-      this.state.activeTool.type === "arrow" ||
-      this.state.activeTool.type === "line" ||
-      (this.state.activeTool.type === "custom" &&
-        this.state.activeTool.customType === "ruler")
-    ) {
+    } else if (this.isLinearTool()) {
       const linearType =
-        this.state.activeTool.type === "custom" &&
-        this.state.activeTool.customType === "ruler"
+        this.state.activeTool.type === "custom"
           ? "line"
           : this.state.activeTool.type;
 
@@ -8572,11 +8603,22 @@ class App extends React.Component<AppProps, AppState> {
       });
       setCursor(this.interactiveCanvas, CURSOR_TYPE.POINTER);
     } else {
-      const [gridX, gridY] = getGridPoint(
+      let [gridX, gridY] = getGridPoint(
         pointerDownState.origin.x,
         pointerDownState.origin.y,
         event[KEYS.CTRL_OR_CMD] ? null : this.getEffectiveGridSize(),
       );
+      // a trench line: Vrij Tracé's look and data, starting on a nearby trench
+      const trench = this.isVrijTraceActive()
+        ? this.vrijTrace.newLineProps()
+        : null;
+      if (trench) {
+        ({ x: gridX, y: gridY } = this.vrijTrace.snapPoint(
+          null,
+          { x: gridX, y: gridY },
+          null,
+        ));
+      }
 
       const topLayerFrame = this.getTopLayerFrameAtSceneCoords({
         x: gridX,
@@ -8646,6 +8688,7 @@ class App extends React.Component<AppProps, AppState> {
                 this.state.activeTool.customType === "ruler"
                   ? { tool: "ruler" }
                   : undefined,
+              ...trench,
             });
       this.setState((prevState) => {
         const nextSelectedElementIds = {
@@ -8672,7 +8715,13 @@ class App extends React.Component<AppProps, AppState> {
       );
 
       // Check if we're creating an element over a PDF image and set parent relationship
-      const pdfParent = this.getPdfImageAtPosition(gridX, gridY);
+      // (a trench line already belongs to the page Vrij Tracé checked)
+      const pdfParent = trench
+        ? null
+        : this.getPdfImageAtPosition(gridX, gridY);
+      if (trench) {
+        this.vrijTrace.lineStarted();
+      }
       if (pdfParent) {
         this.scene.mutateElement(element, {
           customData: {
@@ -9046,13 +9095,7 @@ class App extends React.Component<AppProps, AppState> {
       // to ensure we don't create a 2-point arrow by mistake when
       // user clicks mouse in a way that it moves a tiny bit (thus
       // triggering pointermove)
-      if (
-        !pointerDownState.drag.hasOccurred &&
-        (this.state.activeTool.type === "arrow" ||
-          this.state.activeTool.type === "line" ||
-          (this.state.activeTool.type === "custom" &&
-            this.state.activeTool.customType === "ruler"))
-      ) {
+      if (!pointerDownState.drag.hasOccurred && this.isLinearTool()) {
         if (
           pointDistance(
             pointFrom(pointerCoords.x, pointerCoords.y),
@@ -9662,7 +9705,18 @@ class App extends React.Component<AppProps, AppState> {
           let dx = gridX - newElement.x;
           let dy = gridY - newElement.y;
 
-          if (shouldRotateWithDiscreteAngle(event) && points.length === 2) {
+          if (isTrenchLine(newElement)) {
+            const p = this.vrijTrace.snapPoint(
+              { x: newElement.x, y: newElement.y },
+              { x: gridX, y: gridY },
+              newElement.id,
+            );
+            dx = p.x - newElement.x;
+            dy = p.y - newElement.y;
+          } else if (
+            shouldRotateWithDiscreteAngle(event) &&
+            points.length === 2
+          ) {
             ({ width: dx, height: dy } = getLockedLinearCursorAlignSize(
               newElement.x,
               newElement.y,

@@ -1,4 +1,11 @@
-import { newImageElement, newTrenchElement } from "@excalidraw/element";
+import {
+  newImageElement,
+  newLinearElement,
+  newTrenchElement,
+} from "@excalidraw/element";
+import { pointFrom } from "@excalidraw/math";
+
+import type { LocalPoint } from "@excalidraw/math";
 
 import {
   displayLabels,
@@ -41,6 +48,24 @@ const seg = (id: string, a: string, b: string) =>
     x: 0,
     y: 0,
   });
+const line = (
+  id: string,
+  x: number,
+  y: number,
+  pts: [number, number][],
+  customData: any = { tool: "trench", widthM: 1, pdfParentId: "pdf1" },
+  over: any = {},
+) => ({
+  ...newLinearElement({
+    type: "line",
+    x,
+    y,
+    points: pts.map(([px, py]) => pointFrom<LocalPoint>(px, py)),
+    customData,
+  }),
+  id,
+  ...over,
+});
 const tree = (id: string, label: string) =>
   newTrenchElement({
     id,
@@ -164,5 +189,112 @@ describe("tree labels", () => {
       "B4b",
       "B1",
     ]);
+  });
+});
+
+describe("trench lines", () => {
+  const geometry = (els: any[]) =>
+    toGeometry(getPageParts(els, "pdf1"), getPageFrame(els[0]));
+  const near = (p: { x: number; y: number }, x: number, y: number) => {
+    expect(p.x).toBeCloseTo(x, 6);
+    expect(p.y).toBeCloseTo(y, 6);
+  };
+
+  it("turns each pair of points into a segment with the line's width", () => {
+    const els = [
+      page(),
+      line(
+        "L1",
+        200,
+        200,
+        [
+          [0, 0],
+          [200, 0],
+          [200, 100],
+        ],
+        { tool: "trench", widthM: 0.8, pdfParentId: "pdf1" },
+      ),
+    ];
+    expect(getPageParts(els, "pdf1").lines.map((l) => l.id)).toEqual(["L1"]);
+    const g = geometry(els);
+    expect(g.segments).toEqual([
+      { id: "L1:0", a: "L1:0", b: "L1:1", widthM: 0.8 },
+      { id: "L1:1", a: "L1:1", b: "L1:2", widthM: 0.8 },
+    ]);
+    // page at (100, 50), 5 cm/px
+    near(g.nodes[0], 5, 7.5);
+    near(g.nodes[2], 15, 12.5);
+  });
+
+  it("ignores ordinary, ruler, deleted and other pages' lines", () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [200, 0],
+    ];
+    const els = [
+      page(),
+      line("plain", 200, 200, pts, { pdfParentId: "pdf1" }),
+      line("ruler", 200, 200, pts, { tool: "ruler", pdfParentId: "pdf1" }),
+      line("gone", 200, 200, pts, undefined, { isDeleted: true }),
+      line("other", 200, 200, pts, { tool: "trench", pdfParentId: "pdf2" }),
+    ];
+    expect(getPageParts(els, "pdf1").lines).toEqual([]);
+    expect(geometry(els).segments).toEqual([]);
+  });
+
+  it("follows a rotated line", () => {
+    const els = [
+      page(),
+      line(
+        "L1",
+        200,
+        200,
+        [
+          [0, 0],
+          [200, 0],
+        ],
+        undefined,
+        { angle: Math.PI / 2 },
+      ),
+    ];
+    const g = geometry(els);
+    near(g.nodes[0], 10, 2.5);
+    near(g.nodes[1], 10, 12.5);
+  });
+
+  it("offsets an edge reference by half the width, mitred at corners", () => {
+    const els = [
+      page(),
+      line(
+        "L1",
+        200,
+        200,
+        [
+          [0, 0],
+          [200, 0],
+          [200, 200],
+        ],
+        { tool: "trench", widthM: 1, reference: "links", pdfParentId: "pdf1" },
+      ),
+    ];
+    // the drawn line is the left edge: the centre lies ½ m to its right
+    const g = geometry(els);
+    near(g.nodes[0], 5, 8);
+    near(g.nodes[1], 14.5, 8);
+    near(g.nodes[2], 14.5, 17.5);
+  });
+
+  it("keeps the fingerprint when the page moves with its trench lines", () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [300, 0],
+      [300, 200],
+    ];
+    const fp = (els: any[]) => pageState(els, els[0])!.fingerprint;
+    const moved = [page({ x: 600, y: 350 }), line("L1", 700, 500, pts)];
+    expect(pageState(moved, moved[0])!.geometry.segments).toHaveLength(2);
+    expect(fp(moved)).toBe(
+      fp([page(), line("L1", 200, 200, pts)]),
+    );
   });
 });
