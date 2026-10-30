@@ -16,7 +16,7 @@ import {
 
 import { syncMovedIndices } from "@excalidraw/element";
 
-import { duplicateElements, isTrenchElement } from "@excalidraw/element";
+import { duplicateElements } from "@excalidraw/element";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -26,7 +26,12 @@ import { DuplicateIcon } from "../components/icons";
 import { t } from "../i18n";
 import { isSomeElementSelected } from "../scene";
 
-import { isPdfPage, remapTrenchIds, trenchPartsOf } from "../vrijtrace/model";
+import {
+  isPdfPage,
+  remapTrenchIds,
+  selectableCopies,
+  trenchPartsOf,
+} from "../vrijtrace/model";
 
 import { register } from "./register";
 
@@ -109,7 +114,7 @@ export const actionDuplicateSelection = register({
         ...appState,
         ...getSelectionStateForElements(
           // trench parts travel with their page and are never selected
-          duplicatedElements.filter((el) => !isTrenchElement(el)),
+          selectableCopies(duplicatedElements),
           getNonDeletedElements(elementsWithDuplicates),
           appState,
         ),

@@ -378,17 +378,30 @@ export const pageState = (
   };
 };
 
-/** live trench parts of the given pages (they travel with their page) */
+/** live trench parts and lines of the given pages (they travel with their page) */
 export const trenchPartsOf = (
   elements: readonly ExcalidrawElement[],
   pageIds: ReadonlySet<string>,
 ) =>
   elements.filter(
-    (el): el is ExcalidrawTrenchElement =>
-      isTrenchElement(el) &&
+    (el) =>
+      (isTrenchElement(el) || isTrenchLine(el)) &&
       !el.isDeleted &&
       pageIds.has(el.customData?.pdfParentId),
   );
+
+/**
+ * The copies to select after duplicating: not trench parts, and not the
+ * trench lines that came along with their copied page.
+ */
+export const selectableCopies = (duplicated: readonly ExcalidrawElement[]) => {
+  const pages = new Set(duplicated.filter(isPdfPage).map((el) => el.id));
+  return duplicated.filter(
+    (el) =>
+      !isTrenchElement(el) &&
+      !(isTrenchLine(el) && pages.has(el.customData?.pdfParentId)),
+  );
+};
 
 /**
  * After pages were duplicated together with their trench parts: give each

@@ -413,6 +413,7 @@ import {
   isPdfPage,
   isTrenchLine,
   remapTrenchIds,
+  selectableCopies,
   trenchPartsOf,
 } from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
@@ -3602,7 +3603,7 @@ class App extends React.Component<AppProps, AppState> {
     this.store.scheduleCapture();
 
     const nextElementsToSelect = excludeElementsInFramesFromSelection(
-      duplicatedElements.filter((el) => !isTrenchElement(el)),
+      selectableCopies(duplicatedElements),
     );
 
     this.setState(
@@ -9612,7 +9613,7 @@ class App extends React.Component<AppProps, AppState> {
               // switch selected elements to the duplicated ones
               this.setState((prevState) => ({
                 ...getSelectionStateForElements(
-                  duplicatedElements.filter((el) => !isTrenchElement(el)),
+                  selectableCopies(duplicatedElements),
                   this.scene.getNonDeletedElements(),
                   prevState,
                 ),

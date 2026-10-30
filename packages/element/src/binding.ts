@@ -1508,8 +1508,9 @@ export const fixDuplicatedBindingsAfterDuplication = (
             pdfParentId: newPdfParentId,
           },
         });
-      } else {
+      } else if (duplicateElement.customData.tool !== "trench") {
         // If PDF parent wasn't duplicated, remove the parent relationship
+        // (a Vrij Tracé trench line copied on its own stays on its page)
         const { pdfParentId, ...restCustomData } = duplicateElement.customData;
         Object.assign(duplicateElement, {
           customData: Object.keys(restCustomData).length > 0 ? restCustomData : undefined,
