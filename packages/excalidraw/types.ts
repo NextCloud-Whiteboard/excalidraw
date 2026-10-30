@@ -499,6 +499,8 @@ export type VrijTraceUIState = {
   reference: "midden" | "links" | "rechts";
   widthM: number;
   hidePdf: boolean;
+  /** the freehand stroke being drawn, in scene px */
+  stroke: { x: number; y: number }[] | null;
 };
 
 export type PdfImportState = {

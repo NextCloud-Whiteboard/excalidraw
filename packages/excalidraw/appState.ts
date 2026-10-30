@@ -143,6 +143,7 @@ export const getDefaultAppState = (): Omit<
       reference: "midden",
       widthM: 1,
       hidePdf: false,
+      stroke: null,
     },
     vrijTraceRemoteHolds: {},
     pdfImport: null,

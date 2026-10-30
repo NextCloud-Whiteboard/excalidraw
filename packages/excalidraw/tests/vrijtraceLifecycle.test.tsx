@@ -1,7 +1,6 @@
 import React from "react";
 import { act, waitFor } from "@testing-library/react";
 
-import { KEYS } from "@excalidraw/common";
 import { isTrenchElement } from "@excalidraw/element";
 
 import { actionCopy } from "../actions/actionClipboard";
@@ -68,11 +67,11 @@ describe("Vrij Tracé follows its page", () => {
     API.setElements([pdfPage()]);
     act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
     mouse.reset();
-    for (const x of [100, 400]) {
+    mouse.downAt(100, 100);
+    for (let x = 110; x <= 400; x += 10) {
       mouse.moveTo(x, 100);
-      mouse.clickAt(x, 100);
     }
-    Keyboard.keyPress(KEYS.ESCAPE);
+    mouse.upAt(400, 100);
     act(() => h.app.vrijTrace.activate());
     act(() => h.app.setActiveTool({ type: "selection" }));
     API.setSelectedElements([]);

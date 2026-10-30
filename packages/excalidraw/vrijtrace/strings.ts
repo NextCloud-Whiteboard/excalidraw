@@ -22,6 +22,7 @@ export const STR = {
     trees: "5. Bomen en afstandscontrole",
   },
   help: {
+    draw: "Teken een sleuf uit de vrije hand. Bij 90° of 45° wordt de lijn bij het loslaten rechtgetrokken.",
     width:
       "Van 0,30 tot 2,30 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
     red: "Onafhankelijke rode zone vanaf de buitenzijde van de sleuf.",

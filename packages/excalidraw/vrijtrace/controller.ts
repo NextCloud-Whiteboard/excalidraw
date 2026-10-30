@@ -14,13 +14,8 @@ import type {
   VrijTraceNetworkData,
 } from "@excalidraw/element/types";
 
-import { constrain, exampleNetwork, snapToTrench } from "./editing";
-import {
-  chainSegments,
-  newTrenchLine,
-  trenchLineData,
-  trenchLineStyle,
-} from "./lines";
+import { exampleNetwork, simplify, snapToTrench, straighten } from "./editing";
+import { chainSegments, newTrenchLine } from "./lines";
 import {
   DEFAULT_SETTINGS,
   getPageFrame,
@@ -59,8 +54,14 @@ export interface VrijTraceHost {
 
 // screen px, divided by zoom at use
 const SNAP_PX = 13;
+/** a hand's wobble: stroke points within this of a straight piece are dropped */
+const SMOOTH_PX = 3;
+/** pointer moves closer than this to the last stroke point are skipped */
+const STEP_PX = 2;
+/** shorter strokes are a click, not a trench */
+const MIN_STROKE_PX = 8;
 
-type Drag = { type: "tree"; id: string };
+type Drag = { type: "tree"; id: string } | { type: "stroke"; pageId: string };
 
 type SettingsPatch = Partial<
   Pick<VrijTraceNetworkData, "redSide" | "workWidthM" | "workSide" | "treeMinM">
@@ -197,59 +198,76 @@ export class VrijTraceController {
     return !!name;
   }
 
-  /** tree placing takes the pointer; drawing is the whiteboard's line tool */
+  /** tree placing takes the pointer; else the tool draws trenches */
   placesTrees() {
     const mode = this.ui.mode;
     return mode === "boom" || mode === "boomToevoegen";
   }
 
-  /** may a trench line start at p? Refuses with a toast off a calibrated page */
-  canStartLine(p: Pt) {
-    return !!this.pageForCreate(p, STR.onlyOnPdf);
-  }
-
-  /** what a new trench line on the current page is made of */
-  newLineProps() {
-    const page = this.page();
-    return page
-      ? {
-          ...trenchLineStyle(this.ui.reference),
-          customData: trenchLineData(
-            this.ui.widthM,
-            this.ui.reference,
-            page.id,
-          ),
-        }
-      : null;
-  }
-
-  /** a trench line was started on the current page: it needs a network */
-  lineStarted() {
-    const page = this.page();
-    if (page) {
-      this.ensureNetwork(page);
-    }
-  }
-
-  /**
-   * Where a trench line's point goes: onto a nearby trench line of the page,
-   * else turned to the chosen angle step from the previous point.
-   */
-  snapPoint(from: Pt | null, p: Pt, lineId: string | null): Pt {
-    const hit = snapToTrench(
-      this.polylines(this.ui.pageId, lineId),
-      p,
-      SNAP_PX / this.zoom,
+  /** a stroke point near another trench line of the page lands on it */
+  private snapToLines(pageId: string, p: Pt): Pt {
+    return (
+      snapToTrench(this.polylines(pageId, null), p, SNAP_PX / this.zoom) ?? p
     );
-    if (hit) {
-      return hit;
+  }
+
+  /** v8.2 Teken, freehand: press on a calibrated page and draw */
+  private startStroke(p: Pt) {
+    const page = this.pageForCreate(p, STR.onlyOnPdf);
+    if (!page) {
+      return;
     }
-    return from ? constrain(from, p, this.ui.snap) : p;
+    this.setUI({ stroke: [this.snapToLines(page.id, p)] });
+    this.beginDrag({ type: "stroke", pageId: page.id });
+  }
+
+  private extendStroke(p: Pt) {
+    const stroke = this.ui.stroke;
+    const last = stroke?.[stroke.length - 1];
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) >= STEP_PX / this.zoom) {
+      this.setUI({ stroke: [...stroke!, p] });
+    }
+  }
+
+  /** release: the stroke, smoothed (and straightened), becomes a trench line */
+  private finishStroke(pageId: string, p: Pt) {
+    const stroke = this.ui.stroke;
+    this.setUI({ stroke: null });
+    const page = this.page(pageId);
+    if (!stroke || !page) {
+      return;
+    }
+    const drawn = simplify([...stroke, p], SMOOTH_PX / this.zoom);
+    const length = drawn
+      .slice(1)
+      .reduce(
+        (n, q, i) => n + Math.hypot(q.x - drawn[i].x, q.y - drawn[i].y),
+        0,
+      );
+    if (length < MIN_STROKE_PX / this.zoom) {
+      return;
+    }
+    const points = straighten(drawn, this.ui.snap);
+    points[points.length - 1] = this.snapToLines(
+      pageId,
+      points[points.length - 1],
+    );
+    this.ensureNetwork(page);
+    this.app.scene.insertElement(
+      newTrenchLine({
+        points,
+        widthM: this.ui.widthM,
+        reference: this.ui.reference,
+        pdfParentId: pageId,
+      }),
+    );
+    this.app.scheduleCapture();
   }
 
   pointerDown(p: Pt) {
     const mode = this.ui.mode;
     if (mode !== "boom" && mode !== "boomToevoegen") {
+      this.startStroke(p);
       return;
     }
     const page = this.pageForCreate(p, STR.treesOnlyOnPdf);
@@ -306,16 +324,22 @@ export class VrijTraceController {
 
   private dragMove(p: Pt) {
     const d = this.drag;
+    if (d?.type === "stroke") {
+      this.extendStroke(p);
+      return;
+    }
     const el = d ? this.app.scene.getElement(d.id) : null;
     if (el && !el.isDeleted) {
       this.app.scene.mutateElement(el, { x: p.x - 0.5, y: p.y - 0.5 });
     }
   }
 
-  private dragEnd(_p: Pt) {
+  private dragEnd(p: Pt) {
     const d = this.drag;
     this.drag = null;
-    if (d) {
+    if (d?.type === "stroke") {
+      this.finishStroke(d.pageId, p);
+    } else if (d) {
       this.app.scheduleCapture();
       this.hold([]);
     }
@@ -507,18 +531,26 @@ export class VrijTraceController {
 
   /** returns true when the key was handled */
   onKeyDown(e: { key: string }) {
-    // Esc leaves tree placing; lines are finished by the line tool itself
-    if (e.key === "Escape" && this.placesTrees()) {
+    if (e.key !== "Escape") {
+      return false;
+    }
+    // Esc drops a stroke being drawn, or leaves tree placing
+    if (this.ui.stroke) {
+      this.drag = null;
+      this.setUI({ stroke: null });
+      return true;
+    }
+    if (this.placesTrees()) {
       this.stop();
       return true;
     }
     return false;
   }
 
-  /** leaving the tool: drop drags and holds; show the PDF again */
+  /** leaving the tool (or a pinch): drop strokes, drags and holds; show the PDF */
   reset() {
     this.drag = null;
-    this.setUI({ activeTreeId: null, hidePdf: false });
+    this.setUI({ activeTreeId: null, hidePdf: false, stroke: null });
     this.hold([]);
   }
 }

@@ -1,7 +1,6 @@
 import React from "react";
 import { act, fireEvent } from "@testing-library/react";
 
-import { KEYS } from "@excalidraw/common";
 import { CaptureUpdateAction, newTrenchElement } from "@excalidraw/element";
 
 import { Excalidraw } from "../index";
@@ -34,11 +33,28 @@ const click = (x: number, y: number) => {
   mouse.reset();
   mouse.clickAt(x, y);
 };
-/** a line tool click: the pointer moves there first, as a mouse does */
-const point = (x: number, y: number) => {
-  mouse.moveTo(x, y);
-  mouse.clickAt(x, y);
+/** a pencil stroke through the points */
+const stroke = (pts: [number, number][]) => {
+  mouse.reset();
+  mouse.downAt(...pts[0]);
+  for (const p of pts.slice(1)) {
+    mouse.moveTo(...p);
+  }
+  mouse.upAt(...pts[pts.length - 1]);
 };
+/** points every 10 px from a to b */
+const line_ = (a: [number, number], b: [number, number]) => {
+  const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 10));
+  return Array.from({ length: n + 1 }, (_, i) => [
+    a[0] + ((b[0] - a[0]) * i) / n,
+    a[1] + ((b[1] - a[1]) * i) / n,
+  ]) as [number, number][];
+};
+/** a hand-drawn curve from a to b */
+const wiggle = (a: [number, number], b: [number, number]) =>
+  line_(a, b).map(
+    ([x, y], i) => [x + 15 * Math.sin(i / 3), y] as [number, number],
+  );
 
 describe("Vrij Tracé tool", () => {
   beforeEach(async () => {
@@ -54,7 +70,10 @@ describe("Vrij Tracé tool", () => {
   it("refuses to draw outside an imported PDF page", () => {
     API.setElements([pdfPage()]);
     tool();
-    click(1200, 100);
+    stroke([
+      [1200, 100],
+      [1300, 100],
+    ]);
     expect(h.state.toast?.message).toBe(
       "Sleuven teken je alleen op een geïmporteerde PDF-pagina",
     );
@@ -64,23 +83,22 @@ describe("Vrij Tracé tool", () => {
   it("asks for a calibration first", () => {
     API.setElements([pdfPage({ customData: { isPdf: true } })]);
     tool();
-    click(100, 100);
+    stroke([
+      [100, 100],
+      [300, 100],
+    ]);
     expect(h.state.toast?.message).toBe(
       "Kalibreer eerst de liniaal op deze pagina",
     );
     expect(h.elements.filter((e) => e.type === "line")).toHaveLength(0);
   });
 
-  it("draws a trench as a whiteboard line, point by point, ended with Esc", () => {
+  it("draws a trench freehand: one stroke is one trench line, and the tool stays", () => {
     API.setElements([pdfPage()]);
     tool();
-    point(100, 100);
-    point(300, 100);
-    point(300, 300);
-    Keyboard.keyPress(KEYS.ESCAPE);
+    stroke(wiggle([100, 100], [400, 300]));
     const [line] = lines();
     expect(lines()).toHaveLength(1);
-    expect(line.points).toHaveLength(3);
     expect(line.customData).toMatchObject({
       tool: "trench",
       widthM: 1,
@@ -89,23 +107,56 @@ describe("Vrij Tracé tool", () => {
     });
     expect(line.locked).toBe(false);
     expect(line.strokeStyle).toBe("dashed");
+    expect(line.x).toBeCloseTo(100, 0);
+    expect(line.y).toBeCloseTo(100, 0);
     // the page's network (zone settings) is created once, with the first line
     expect(parts().network?.id).toBe("vrijtrace-pdf1");
     expect(h.state.vrijTrace.pageId).toBe("pdf1");
-    // like the line tool: back to selection, with the new line selected
-    expect(h.state.activeTool.type).toBe("selection");
-    expect(h.state.selectedElementIds[line.id]).toBe(true);
+    // like the pencil: the tool stays for the next stroke
+    expect(h.state.activeTool).toMatchObject({ customType: "vrijtrace" });
+    expect(h.state.vrijTrace.stroke).toBeNull();
   });
 
-  it("draws a straight trench line by dragging", () => {
+  it("smooths a shaky hand: a wobbly straight stroke becomes one segment", () => {
     API.setElements([pdfPage()]);
     tool();
-    mouse.reset();
-    mouse.downAt(100, 100);
-    mouse.moveTo(250, 160);
-    mouse.upAt(300, 200);
-    expect(lines()).toHaveLength(1);
+    const pts: [number, number][] = [];
+    for (let x = 100; x <= 400; x += 10) {
+      pts.push([x, 100 + ((x / 10) % 2 ? 1 : -1)]);
+    }
+    stroke(pts);
     expect(lines()[0].points).toHaveLength(2);
+  });
+
+  it("keeps the drawn shape with Vrij", () => {
+    API.setElements([pdfPage()]);
+    expect(h.state.vrijTrace.snap).toBe("vrij");
+    tool();
+    stroke([
+      ...line_([100, 100], [300, 120]),
+      ...line_([300, 120], [330, 300]),
+    ]);
+    const pts = lines()[0].points;
+    expect(pts).toHaveLength(3);
+    expect(pts[1][0]).toBeCloseTo(200, -1);
+    expect(pts[1][1]).toBeCloseTo(20, -1);
+  });
+
+  it("straightens the stroke to 90° steps when chosen", () => {
+    API.setElements([pdfPage()]);
+    act(() => h.app.vrijTrace.setUI({ snap: "90" }));
+    tool();
+    stroke([
+      ...line_([100, 100], [300, 120]),
+      ...line_([300, 120], [330, 300]),
+    ]);
+    const pts = lines()[0].points;
+    expect(pts).toHaveLength(3);
+    for (let i = 1; i < pts.length; i++) {
+      const dx = Math.abs(pts[i][0] - pts[i - 1][0]);
+      const dy = Math.abs(pts[i][1] - pts[i - 1][1]);
+      expect(Math.min(dx, dy)).toBeLessThan(0.01);
+    }
   });
 
   it("uses the chosen width and drawing reference", () => {
@@ -115,9 +166,7 @@ describe("Vrij Tracé tool", () => {
       h.app.vrijTrace.setWidth(1.5, true);
       h.app.vrijTrace.setUI({ reference: "links" });
     });
-    point(100, 100);
-    point(300, 100);
-    Keyboard.keyPress(KEYS.ESCAPE);
+    stroke(line_([100, 100], [300, 100]));
     expect(lines()[0].customData).toMatchObject({
       widthM: 1.5,
       reference: "links",
@@ -126,76 +175,49 @@ describe("Vrij Tracé tool", () => {
     expect(lines()[0].strokeStyle).toBe("solid");
   });
 
-  it("leaves lines drawn with the line tool ordinary", () => {
+  it("leaves the pencil's and line tool's drawings ordinary", () => {
     API.setElements([pdfPage()]);
-    act(() => h.app.setActiveTool({ type: "line" }));
-    point(100, 100);
-    point(300, 100);
-    Keyboard.keyPress(KEYS.ESCAPE);
-    expect(h.elements.filter((e) => e.type === "line")).toHaveLength(1);
+    act(() => h.app.setActiveTool({ type: "freedraw" }));
+    stroke(line_([100, 100], [300, 200]));
+    expect(h.elements.filter((e) => e.type === "freedraw")).toHaveLength(1);
     expect(lines()).toHaveLength(0);
   });
 
-  it("undoes a trench line like any other line", () => {
+  it("makes one undo step per stroke", () => {
     API.setElements([pdfPage()]);
-    for (const y of [100, 300]) {
-      tool();
-      point(100, y);
-      point(300, y);
-      Keyboard.keyPress(KEYS.ESCAPE);
-    }
+    tool();
+    stroke(line_([100, 100], [300, 100]));
+    stroke(line_([100, 300], [300, 300]));
     expect(lines()).toHaveLength(2);
-    // the line tool's own steps: the selection, then the line
-    Keyboard.undo();
     Keyboard.undo();
     expect(lines()).toHaveLength(1);
   });
 
-  it("draws free by default and snaps to 90° when chosen", () => {
+  it("draws nothing for a click", () => {
     API.setElements([pdfPage()]);
-    expect(h.state.vrijTrace.snap).toBe("vrij");
-    const end = () => {
-      const l = lines()[lines().length - 1];
-      return l.points[l.points.length - 1];
-    };
     tool();
-    point(100, 100);
-    point(300, 130);
-    Keyboard.keyPress(KEYS.ESCAPE);
-    expect(end()[0]).toBeCloseTo(200);
-    expect(end()[1]).toBeCloseTo(30);
-    act(() => h.app.vrijTrace.setUI({ snap: "90" }));
-    tool();
-    point(100, 400);
-    point(300, 430);
-    Keyboard.keyPress(KEYS.ESCAPE);
-    expect(end()[0]).toBeCloseTo(Math.hypot(200, 30));
-    expect(end()[1]).toBeCloseTo(0);
+    click(200, 200);
+    expect(lines()).toHaveLength(0);
   });
 
-  it("starts a branch exactly on an existing trench line", () => {
+  it("starts and ends a branch exactly on existing trench lines", () => {
     API.setElements([pdfPage()]);
     tool();
-    point(100, 300);
-    point(500, 300);
-    Keyboard.keyPress(KEYS.ESCAPE);
-    tool();
-    point(300, 306);
-    point(300, 500);
-    Keyboard.keyPress(KEYS.ESCAPE);
-    const branch = lines()[1];
+    stroke(line_([100, 300], [500, 300]));
+    stroke(line_([100, 500], [500, 500]));
+    stroke(line_([300, 306], [300, 494]));
+    const branch = lines()[2];
     expect(branch.x).toBeCloseTo(300);
     expect(branch.y).toBeCloseTo(300);
+    const end = branch.points[branch.points.length - 1];
+    expect(branch.y + end[1]).toBeCloseTo(500);
   });
 
   it("never creates two networks for one page", () => {
     API.setElements([pdfPage()]);
-    for (const y of [100, 300]) {
-      tool();
-      point(100, y);
-      point(300, y);
-      Keyboard.keyPress(KEYS.ESCAPE);
-    }
+    tool();
+    stroke(line_([100, 100], [300, 100]));
+    stroke(line_([100, 300], [300, 300]));
     act(() => h.app.vrijTrace.updateSettings({ treeMinM: 4 }, true));
     expect(
       h.elements.filter(
@@ -244,7 +266,7 @@ describe("Vrij Tracé tool", () => {
     expect(h.elements.filter((e) => e.type === "line")).toHaveLength(0);
   });
 
-  it("draws no trench when a second finger starts a pinch", () => {
+  it("drops the stroke when a second finger starts a pinch", () => {
     API.setElements([pdfPage()]);
     tool();
     const canvas = GlobalTestState.interactiveCanvas;
@@ -256,9 +278,12 @@ describe("Vrij Tracé tool", () => {
       button: 0,
     });
     fireEvent.pointerDown(canvas, touch(1, 100));
+    fireEvent.pointerMove(canvas, touch(1, 150));
+    expect(h.state.vrijTrace.stroke).not.toBeNull();
     fireEvent.pointerDown(canvas, touch(2, 300));
     fireEvent.pointerUp(canvas, touch(2, 320));
-    fireEvent.pointerUp(canvas, touch(1, 80));
+    fireEvent.pointerUp(canvas, touch(1, 200));
+    expect(h.state.vrijTrace.stroke).toBeNull();
     expect(lines()).toHaveLength(0);
   });
 });

@@ -10,9 +10,11 @@ import { checkTree } from "./geometry";
 import {
   centreOf,
   displayLabels,
+  getPageFrame,
   isPdfPage,
   pageState,
   pageToScene,
+  pxPerMetre,
   sceneToPage,
 } from "./model";
 import { STR } from "./strings";
@@ -395,6 +397,29 @@ export const renderVrijTraceInteractive = (
     return;
   }
   const ui = appState.vrijTrace;
+  const page = ui.pageId ? elementsMap.get(ui.pageId) : null;
+  if (ui.stroke && ui.stroke.length > 1 && isPdfPage(page)) {
+    // the stroke being drawn, as wide as the trench it becomes
+    const frame = getPageFrame(page);
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ui.stroke.forEach((p, i) =>
+      i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
+    );
+    if (frame.cmPerPx) {
+      ctx.strokeStyle = COLORS.fillOn;
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = ui.widthM * pxPerMetre(frame);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = COLORS.edgeOn;
+    ctx.lineWidth = 2 / z;
+    ctx.stroke();
+    ctx.restore();
+  }
   const tree = ui.activeTreeId ? elementsMap.get(ui.activeTreeId) : null;
   if (tree && !tree.isDeleted && ui.mode === "boom") {
     const c = centreOf(tree);

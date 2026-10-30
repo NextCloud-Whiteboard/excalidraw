@@ -1,7 +1,6 @@
 import React from "react";
 import { act } from "@testing-library/react";
 
-import { KEYS } from "@excalidraw/common";
 
 import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
@@ -9,7 +8,7 @@ import { networkIdForPage } from "../vrijtrace/model";
 import { renderVrijTraceStatic } from "../vrijtrace/render";
 
 import { API } from "./helpers/api";
-import { Keyboard, Pointer } from "./helpers/ui";
+import { Pointer } from "./helpers/ui";
 import { render } from "./test-utils";
 
 const { h } = window;
@@ -30,11 +29,11 @@ const pdfPage = () => ({
 const drawLine = () => {
   act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
   mouse.reset();
-  for (const x of [100, 400]) {
+  mouse.downAt(100, 100);
+  for (let x = 110; x <= 400; x += 10) {
     mouse.moveTo(x, 100);
-    mouse.clickAt(x, 100);
   }
-  Keyboard.keyPress(KEYS.ESCAPE);
+  mouse.upAt(400, 100);
 };
 const svgOf = () =>
   exportToSvg(h.elements, { ...h.state, exportBackground: false }, {});

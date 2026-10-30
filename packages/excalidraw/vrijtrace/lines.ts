@@ -1,3 +1,4 @@
+import { getSizeFromPoints } from "@excalidraw/common";
 import { newLinearElement } from "@excalidraw/element";
 import { pointFrom } from "@excalidraw/math";
 
@@ -41,13 +42,16 @@ export const newTrenchLine = (opts: {
 }): ExcalidrawLinearElement => {
   const reference = opts.reference ?? "midden";
   const [first] = opts.points;
+  const points = opts.points.map((p) =>
+    pointFrom<LocalPoint>(p.x - first.x, p.y - first.y),
+  );
   const line = newLinearElement({
     type: "line",
     x: first.x,
     y: first.y,
-    points: opts.points.map((p) =>
-      pointFrom<LocalPoint>(p.x - first.x, p.y - first.y),
-    ),
+    // sized like the whiteboard sizes the lines it draws
+    ...getSizeFromPoints(points),
+    points,
     ...trenchLineStyle(reference),
     locked: false,
     customData: trenchLineData(opts.widthM, reference, opts.pdfParentId),

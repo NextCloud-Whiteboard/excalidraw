@@ -28,22 +28,25 @@ const pdfPage = () => ({
 describe("Vrij Tracé UI", () => {
   let container: HTMLElement;
   const byId = (id: string) => queryByTestId(container, id)!;
-  const point = (x: number, y: number) => {
-    mouse.moveTo(x, y);
-    mouse.clickAt(x, y);
-  };
-  /** a trench line drawn with the tool (left selected, tool back to selection) */
+  /** a trench drawn with the tool, as one stroke (the tool stays) */
   const drawLine = (from: [number, number], to: [number, number]) => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
-    point(...from);
-    point(...to);
-    Keyboard.keyPress(KEYS.ESCAPE);
+    if (h.state.activeTool.type !== "custom") {
+      fireEvent.click(byId("toolbar-vrijtrace"));
+    }
+    mouse.reset();
+    mouse.downAt(...from);
+    for (let i = 1; i <= 10; i++) {
+      mouse.moveTo(
+        from[0] + ((to[0] - from[0]) * i) / 10,
+        from[1] + ((to[1] - from[1]) * i) / 10,
+      );
+    }
+    mouse.upAt(...to);
   };
   const openOnPage = () => {
     fireEvent.click(byId("toolbar-vrijtrace"));
-    point(100, 100); // makes pdf1 the current page
-    Keyboard.keyPress(KEYS.ESCAPE);
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    mouse.reset();
+    mouse.clickAt(100, 100); // makes pdf1 the current page
   };
 
   beforeEach(async () => {
@@ -107,7 +110,6 @@ describe("Vrij Tracé UI", () => {
 
   it("the toggle activates the zones and deactivates them again", () => {
     drawLine([100, 100], [400, 100]);
-    fireEvent.click(byId("toolbar-vrijtrace"));
     expect(byId("vt-activate").textContent).toBe("Activeer zones");
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
@@ -167,7 +169,6 @@ describe("Vrij Tracé UI", () => {
 
   it("shows the activation state and who activated", () => {
     drawLine([100, 100], [400, 100]);
-    fireEvent.click(byId("toolbar-vrijtrace"));
     expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toMatch(
@@ -195,9 +196,10 @@ describe("Vrij Tracé UI", () => {
     expect((byId("vt-width") as HTMLInputElement).value).toBe("1");
   });
 
-  it("keeps the zones toggle after a line, when the tool hands back to selection", () => {
+  it("keeps the zones toggle for a selected trench line with the selection tool", () => {
     drawLine([100, 100], [400, 100]);
-    expect(h.state.activeTool.type).toBe("selection");
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
     API.setSelectedElements([]);
@@ -215,6 +217,8 @@ describe("Vrij Tracé UI", () => {
 
   it("the tree buttons switch to the tool from a selected trench line", () => {
     drawLine([100, 100], [400, 100]);
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     expect(h.state.activeTool.type).toBe("selection");
     fireEvent.click(byId("vt-tree-add"));
     expect(h.state.activeTool).toMatchObject({

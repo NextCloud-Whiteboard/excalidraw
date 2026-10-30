@@ -81,6 +81,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
             ),
           )}
         </div>
+        <p className="vt-help">{STR.help.draw}</p>
       </div>
       <div className="vt-sec">
         <div className="vt-h">{STR.sections.trench}</div>

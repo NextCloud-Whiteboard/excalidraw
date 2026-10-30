@@ -38,6 +38,69 @@ export const constrain = (a: Pt, b: Pt, snap: Snap): Pt => {
   return { x: a.x + Math.cos(angle) * len, y: a.y + Math.sin(angle) * len };
 };
 
+/** Douglas–Peucker: drop points within `tol` of the line through their neighbours */
+export const simplify = (pts: readonly Pt[], tol: number): Pt[] => {
+  if (pts.length < 3) {
+    return [...pts];
+  }
+  const keep = new Array(pts.length).fill(false);
+  keep[0] = keep[pts.length - 1] = true;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [i, j] = stack.pop()!;
+    let worst = -1;
+    let worstD = tol;
+    for (let k = i + 1; k < j; k++) {
+      const d = project(pts[k], pts[i], pts[j]).d;
+      if (d > worstD) {
+        worstD = d;
+        worst = k;
+      }
+    }
+    if (worst > 0) {
+      keep[worst] = true;
+      stack.push([i, worst], [worst, j]);
+    }
+  }
+  return pts.filter((_, k) => keep[k]);
+};
+
+/**
+ * 90°/45°: each piece turned to the nearest step (its length kept), joined
+ * end to end from the first point; runs in one direction become one piece.
+ */
+export const straighten = (pts: readonly Pt[], snap: Snap): Pt[] => {
+  if (snap === "vrij" || pts.length < 2) {
+    return [...pts];
+  }
+  const out: Pt[] = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const from = out[out.length - 1];
+    const q = constrain(
+      from,
+      {
+        x: from.x + pts[i].x - pts[i - 1].x,
+        y: from.y + pts[i].y - pts[i - 1].y,
+      },
+      snap,
+    );
+    const prev = out[out.length - 2];
+    const sameWay =
+      prev &&
+      Math.abs(
+        (from.x - prev.x) * (q.y - from.y) - (from.y - prev.y) * (q.x - from.x),
+      ) < 1e-6 &&
+      (from.x - prev.x) * (q.x - from.x) + (from.y - prev.y) * (q.y - from.y) >
+        0;
+    if (sameWay) {
+      out[out.length - 1] = q;
+    } else {
+      out.push(q);
+    }
+  }
+  return out;
+};
+
 /**
  * v8.2 node snap for trench lines: a point within `th` of another trench
  * line's point lands on it; else one within 10/13 of that (v8.2's segment

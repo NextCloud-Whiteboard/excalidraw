@@ -1,5 +1,5 @@
 import { constrain, snapToTrench } from "./editing";
-import { chainSegments } from "./lines";
+import { chainSegments, newTrenchLine } from "./lines";
 
 describe("angle steps (v8.2)", () => {
   it("turns to the nearest 90° or 45° step and keeps the length", () => {
@@ -88,5 +88,21 @@ describe("chaining segments into lines", () => {
     expect(ring).toHaveLength(1);
     expect(ring[0].points).toHaveLength(4);
     expect(ring[0].points[0]).toEqual(ring[0].points[3]);
+  });
+});
+
+describe("new trench lines", () => {
+  it("are sized to their points, like lines the whiteboard draws", () => {
+    const line = newTrenchLine({
+      points: [
+        { x: 100, y: 100 },
+        { x: 40, y: 160 },
+        { x: 300, y: 130 },
+      ],
+      widthM: 1,
+      pdfParentId: "pdf1",
+    });
+    expect([line.x, line.y]).toEqual([100, 100]);
+    expect([line.width, line.height]).toEqual([260, 60]);
   });
 });
