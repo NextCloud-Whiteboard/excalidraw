@@ -13,7 +13,6 @@ import {
   isPdfPage,
   pageState,
   pageToScene,
-  pxPerMetre,
   sceneToPage,
 } from "./model";
 import { STR } from "./strings";
@@ -66,13 +65,6 @@ const tracePath = (
     ctx.closePath();
   }
 };
-
-const centreLines = (s: PageState) =>
-  s.geometry.segments.map((seg) => {
-    const a = s.geometry.nodes.find((n) => n.id === seg.a)!;
-    const b = s.geometry.nodes.find((n) => n.id === seg.b)!;
-    return [pageToScene(s.frame, a), pageToScene(s.frame, b)];
-  });
 
 const drawTree = (
   ctx: CanvasRenderingContext2D,
@@ -273,15 +265,7 @@ const drawPage = (
   ctx.strokeStyle = s.active ? COLORS.edgeOn : COLORS.edge;
   ctx.lineWidth = 1.2 / z;
   ctx.stroke();
-  ctx.setLineDash([7 / z, 5 / z]);
-  ctx.strokeStyle = s.active ? COLORS.centreOn : COLORS.centre;
-  ctx.lineWidth = 1.5 / z;
-  const view = screenBox(appState, 20);
-  for (const [a, b] of centreLines(s)) {
-    dashedLine(ctx, a, b, view, 12 / z);
-  }
-  ctx.setLineDash([]);
-  ctx.lineDashOffset = 0;
+  // the centre (or edge) line is the trench line element itself
   const labels = displayLabels(s.parts.trees);
   for (const t of s.parts.trees) {
     const c = centreOf(t);
@@ -377,7 +361,7 @@ export const renderVrijTraceSvg = (
   }
 };
 
-/** editing layer: colleagues' holds, and for the current page nodes, selection, active tree and draft */
+/** editing layer: colleagues' holds, and the tree being placed */
 export const renderVrijTraceInteractive = (
   ctx: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -411,47 +395,6 @@ export const renderVrijTraceInteractive = (
     return;
   }
   const ui = appState.vrijTrace;
-  const page = ui.pageId ? elementsMap.get(ui.pageId) : null;
-  if (!isPdfPage(page)) {
-    return;
-  }
-  const s = pageState([...elementsMap.values()], page);
-  if (!s) {
-    return;
-  }
-  ctx.save();
-  const r = (ui.mode === "verplaats" ? 8 : 5.3) / z;
-  ctx.lineWidth = 2 / z;
-  ctx.strokeStyle = COLORS.edge;
-  ctx.fillStyle = "#ffffff";
-  for (const n of s.geometry.nodes) {
-    const p = pageToScene(s.frame, n);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-  const sel = s.geometry.segments.find((x) => x.id === ui.selectedSegmentId);
-  if (sel) {
-    const a = pageToScene(
-      s.frame,
-      s.geometry.nodes.find((n) => n.id === sel.a)!,
-    );
-    const b = pageToScene(
-      s.frame,
-      s.geometry.nodes.find((n) => n.id === sel.b)!,
-    );
-    ctx.save();
-    ctx.setLineDash([5 / z, 5 / z]);
-    ctx.strokeStyle = "#111111";
-    ctx.globalAlpha = 0.75;
-    ctx.lineCap = "round";
-    ctx.lineWidth = sel.widthM * pxPerMetre(s.frame) + 6 / z;
-    // grow the box by the stroke width so the clipped ends stay off screen
-    const margin = ctx.lineWidth * z + 20;
-    dashedLine(ctx, a, b, screenBox(appState, margin), 10 / z);
-    ctx.restore();
-  }
   const tree = ui.activeTreeId ? elementsMap.get(ui.activeTreeId) : null;
   if (tree && !tree.isDeleted && ui.mode === "boom") {
     const c = centreOf(tree);
@@ -464,27 +407,6 @@ export const renderVrijTraceInteractive = (
     ctx.stroke();
     ctx.restore();
   }
-  const pv = ui.draft?.preview;
-  if (pv) {
-    ctx.save();
-    ctx.setLineDash([8 / z, 5 / z]);
-    ctx.strokeStyle = "#555555";
-    ctx.lineWidth = 2 / z;
-    ctx.beginPath();
-    ctx.moveTo(pv.a.x, pv.a.y);
-    ctx.lineTo(pv.b.x, pv.b.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.font = `${12 / z}px sans-serif`;
-    ctx.fillStyle = "#555555";
-    ctx.fillText(
-      `${pv.lengthM.toFixed(2).replace(".", ",")} m`,
-      (pv.a.x + pv.b.x) / 2 + 8 / z,
-      (pv.a.y + pv.b.y) / 2 - 8 / z,
-    );
-    ctx.restore();
-  }
-  ctx.restore();
 };
 
 /** "PDF verbergen": a dashed outline where this user's current page is */

@@ -1,13 +1,15 @@
 import React from "react";
 import { act } from "@testing-library/react";
 
+import { KEYS } from "@excalidraw/common";
+
 import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
 import { networkIdForPage } from "../vrijtrace/model";
 import { renderVrijTraceStatic } from "../vrijtrace/render";
 
 import { API } from "./helpers/api";
-import { Pointer } from "./helpers/ui";
+import { Keyboard, Pointer } from "./helpers/ui";
 import { render } from "./test-utils";
 
 const { h } = window;
@@ -24,22 +26,32 @@ const pdfPage = () => ({
   }),
   customData: { isPdf: true, pdfCmPerPx: 5 },
 });
+/** a trench line from (100,100) to (400,100), drawn with the tool */
+const drawLine = () => {
+  act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
+  mouse.reset();
+  for (const x of [100, 400]) {
+    mouse.moveTo(x, 100);
+    mouse.clickAt(x, 100);
+  }
+  Keyboard.keyPress(KEYS.ESCAPE);
+};
 const svgOf = () =>
   exportToSvg(h.elements, { ...h.state, exportBackground: false }, {});
 
 describe("Vrij Tracé rendering", () => {
   beforeEach(async () => {
-    await render(<Excalidraw vrijTraceEnabled={true} />);
+    await render(
+      <Excalidraw handleKeyboardGlobally={true} vrijTraceEnabled={true} />,
+    );
     API.setElements([pdfPage()]);
-    act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
-    mouse.reset();
-    mouse.clickAt(100, 100);
-    mouse.clickAt(400, 100);
+    drawLine();
   });
 
   it("exports the trench, and zones only once activated", async () => {
     const before = await svgOf();
     expect(before.querySelector("[data-vrijtrace='trench']")).not.toBeNull();
+    expect(h.app.vrijTrace.zonesActive()).toBe(false);
     expect(before.querySelector("[data-vrijtrace='red']")).toBeNull();
     act(() => h.app.vrijTrace.activate());
     const after = await svgOf();
@@ -88,7 +100,9 @@ const countingContext = () => {
 
 /** a calibrated page with one activated segment from (100,100) to (400,100) */
 const drawOnPage = async (width: number, height: number) => {
-  await render(<Excalidraw vrijTraceEnabled={true} />);
+  await render(
+    <Excalidraw handleKeyboardGlobally={true} vrijTraceEnabled={true} />,
+  );
   // jsdom lays the canvas out at 0×0; give it a real screen
   act(() => h.setState({ width: 1200, height: 800 }));
   API.setElements([
@@ -104,10 +118,7 @@ const drawOnPage = async (width: number, height: number) => {
       customData: { isPdf: true, pdfCmPerPx: 5 },
     },
   ]);
-  act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
-  mouse.reset();
-  mouse.clickAt(100, 100);
-  mouse.clickAt(400, 100);
+  drawLine();
   act(() => h.app.vrijTrace.activate());
   return h.app.scene.getElement(networkIdForPage("pdf1")) as any;
 };
@@ -145,20 +156,5 @@ describe("Vrij Tracé rendering cost", () => {
     expect(() => renderStatic(network)).not.toThrow();
     expect(alert).not.toHaveBeenCalled();
     alert.mockRestore();
-  });
-
-  it("dashed centrelines are clipped to the screen", async () => {
-    const network = await drawOnPage(1_000_000, 700);
-    const seg = h.elements.find(
-      (e: any) => e.type === "trench" && e.trench.kind === "segment",
-    ) as any;
-    const b = h.app.scene.getElement(seg.trench.b)!;
-    act(() => h.app.scene.mutateElement(b, { x: 900_000 }));
-    const { dashedPoints } = renderStatic(network);
-    expect(dashedPoints.length).toBeGreaterThan(0);
-    const maxX = Math.max(...dashedPoints.map(([x]) => x));
-    expect(maxX).toBeLessThanOrEqual(
-      -h.state.scrollX + h.state.width / h.state.zoom.value + 100,
-    );
   });
 });
