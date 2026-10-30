@@ -193,6 +193,25 @@ describe("Vrij Tracé follows its page", () => {
     expectCopiedNetwork();
   });
 
+  it("copy and paste of a page with its lines selected copies each line once", async () => {
+    API.setSelectedElements([page(), trenchLine()]);
+    let text = "";
+    const clipboardEvent = {
+      clipboardData: {
+        setData: (_type: string, data: string) => {
+          text = data;
+        },
+        getData: () => text,
+      },
+    };
+    API.executeAction(actionCopy, clipboardEvent);
+    Object.assign(document, { elementFromPoint: () => GlobalTestState.canvas });
+    await waitFor(() => expect(text).not.toBe(""));
+    expect(
+      JSON.parse(text).elements.filter((e: any) => e.type === "line"),
+    ).toHaveLength(1);
+  });
+
   it("alt-drag copies the page with its network, leaving the original in place", () => {
     const before = [trenchLine().x, trenchLine().y];
     API.setSelectedElements([page()]);

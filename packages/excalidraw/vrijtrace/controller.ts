@@ -357,9 +357,8 @@ export class VrijTraceController {
     if (lines.length && commit) {
       this.app.scheduleCapture();
     }
-    if (!lines.length) {
-      this.setUI({ widthM: v });
-    }
+    // also the width of the next line; and it redraws the panel
+    this.setUI({ widthM: v });
   }
 
   /** selected trench lines of one page make that page the panel's page */

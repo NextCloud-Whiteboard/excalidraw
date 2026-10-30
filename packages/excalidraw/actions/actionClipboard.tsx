@@ -35,12 +35,17 @@ export const actionCopy = register({
       includeElementsInFrames: true,
     });
     // a PDF page's Vrij Tracé network is copied with it
+    // (trench lines can be selected too: each element goes in once)
     const elementsToCopy = [
-      ...selectedElements,
-      ...trenchPartsOf(
-        elements,
-        new Set(selectedElements.filter(isPdfPage).map((el) => el.id)),
-      ),
+      ...new Map(
+        [
+          ...selectedElements,
+          ...trenchPartsOf(
+            elements,
+            new Set(selectedElements.filter(isPdfPage).map((el) => el.id)),
+          ),
+        ].map((el) => [el.id, el]),
+      ).values(),
     ];
 
     try {

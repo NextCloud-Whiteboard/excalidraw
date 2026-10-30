@@ -187,6 +187,9 @@ describe("Vrij Tracé UI", () => {
       (h.elements.find((e) => e.id === id) as any).customData.widthM;
     expect(width(first.id)).toBe(2);
     expect(width(second.id)).toBe(1);
+    // the panel shows the new width at once
+    expect((byId("vt-width") as HTMLInputElement).value).toBe("2");
+    expect(container.querySelector(".vt-lbl")!.textContent).toContain("2,00 m");
     // the slider shows the selected line's width
     API.setSelectedElements([second]);
     expect((byId("vt-width") as HTMLInputElement).value).toBe("1");

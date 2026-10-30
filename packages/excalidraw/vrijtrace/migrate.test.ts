@@ -159,6 +159,14 @@ describe("migrating trenches of older boards", () => {
     expect(m.activations.size).toBe(0);
   });
 
+  it("never adds a line whose id is already on the board", () => {
+    // e.g. a collaborator's converted line arrived before ours ran
+    const first = migrateLegacyTrench(board())!;
+    const again = migrateLegacyTrench([...board(), ...first.created])!;
+    expect(again.created).toHaveLength(0);
+    expect(again.deleted).toHaveLength(7);
+  });
+
   it("leaves parts whose page is missing", () => {
     expect(
       migrateLegacyTrench([

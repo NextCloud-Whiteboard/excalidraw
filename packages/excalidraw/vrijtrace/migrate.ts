@@ -34,6 +34,7 @@ export const migrateLegacyTrench = (
       pageIds.add(el.customData?.pdfParentId);
     }
   }
+  const existing = new Set(elements.map((el) => el.id));
   const out: LegacyMigration = {
     created: [],
     deleted: [],
@@ -45,7 +46,7 @@ export const migrateLegacyTrench = (
       continue;
     }
     const parts = getPageParts(elements, pageId);
-    const lines = chainSegments(
+    const converted = chainSegments(
       parts.nodes.map((n) => ({ id: n.id, ...centreOf(n) })),
       parts.segments.flatMap((s) =>
         s.trench.kind === "segment"
@@ -67,13 +68,20 @@ export const migrateLegacyTrench = (
         pdfParentId: pageId,
       }),
     );
+    // a line already on the board (converted elsewhere) is not added twice
+    const lines = converted.filter((l) => !existing.has(l.id));
     const removed = [...parts.nodes, ...parts.segments];
     const before = pageState(elements, page);
     const activation =
       parts.network?.trench.kind === "network"
         ? parts.network.trench.activation
         : null;
-    if (before?.active && activation && parts.network) {
+    if (
+      before?.active &&
+      activation &&
+      parts.network &&
+      lines.length === converted.length
+    ) {
       const gone = new Set(removed.map((el) => el.id));
       const after = pageState(
         [...elements.filter((el) => !gone.has(el.id)), ...lines],
