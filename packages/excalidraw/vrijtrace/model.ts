@@ -241,9 +241,12 @@ const offsetPolyline = (pts: Pt[], d: number): Pt[] => {
 /**
  * The sideways shift (along n = (uy, -ux) of the line's overall direction,
  * see offsetPolyline) that puts the centre half a width from the drawn edge,
- * on the plan side the reference names. A line exactly along the other axis
- * (e.g. "boven" on a vertical line) has no such side; it shifts as if drawn
- * left to right or top to bottom.
+ * on the plan side the reference names. Boven/onder decide on lines that run
+ * mostly horizontally, links/rechts on mostly vertical ones; on the other
+ * kind each falls back to a fixed side (links = onder: trench above,
+ * rechts = boven: below; boven = rechts: left, onder = links: right), so
+ * neither the drawing direction nor a slight slope picks the side. At 45°
+ * both readings give the same side.
  */
 const edgeOffset = (
   metres: Pt[],
@@ -255,8 +258,19 @@ const edgeOffset = (
   const dx = last.x - first.x;
   const dy = last.y - first.y;
   const half = widthM / 2;
+  const flat = Math.abs(dx) >= Math.abs(dy);
+  const side =
+    flat && ref === "links"
+      ? "onder"
+      : flat && ref === "rechts"
+      ? "boven"
+      : !flat && ref === "boven"
+      ? "rechts"
+      : !flat && ref === "onder"
+      ? "links"
+      : ref;
   // n points up (−y) for dx > 0 and right (+x) for dy > 0
-  switch (ref) {
+  switch (side) {
     case "boven":
       return dx >= 0 ? -half : half;
     case "onder":

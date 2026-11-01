@@ -322,6 +322,63 @@ describe("trench lines", () => {
     }
   });
 
+  it("never lets the drawing direction or a slight slope pick the side", () => {
+    // nearly horizontal, rising or falling a little, drawn either way
+    const flat: [number, number][][] = [
+      [
+        [0, 0],
+        [200, 3],
+      ],
+      [
+        [0, 0],
+        [200, -3],
+      ],
+      [
+        [200, 0],
+        [0, 3],
+      ],
+      [
+        [200, 0],
+        [0, -3],
+      ],
+    ];
+    const ys = (ref: string, pts: [number, number][]) => {
+      const [a, b] = edge(ref, pts);
+      // the centre's height relative to the drawn line, at its middle
+      return (a.y + b.y) / 2 - (12.5 + (pts[0][1] + pts[1][1]) / 40);
+    };
+    for (const pts of flat) {
+      expect(ys("links", pts)).toBeCloseTo(-0.5, 2); // like Onderrand: above
+      expect(ys("rechts", pts)).toBeCloseTo(0.5, 2); // like Bovenrand: below
+    }
+    const steep: [number, number][][] = [
+      [
+        [0, 0],
+        [3, 200],
+      ],
+      [
+        [0, 200],
+        [3, 0],
+      ],
+      [
+        [3, 0],
+        [0, 200],
+      ],
+      [
+        [3, 200],
+        [0, 0],
+      ],
+    ];
+    const xs = (ref: string, pts: [number, number][]) => {
+      const [a, b] = edge(ref, pts);
+      return (a.x + b.x) / 2 - (10 + (pts[0][0] + pts[1][0]) / 40);
+    };
+    for (const pts of steep) {
+      expect(xs("boven", pts)).toBeCloseTo(-0.5, 2); // like Rechter rand: left
+      expect(xs("onder", pts)).toBeCloseTo(0.5, 2); // like Linker rand: right
+    }
+  });
+
   it("keeps an edge's side along a whole line, mitred at corners", () => {
     // east, then south: overall it runs down to the right; the trench lies
     // below the top edge, so the corner moves down-left by ½ m
