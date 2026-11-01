@@ -238,15 +238,32 @@ const offsetPolyline = (pts: Pt[], d: number): Pt[] => {
   });
 };
 
+/** the plan direction each edge reference puts the trench towards (y down) */
+const EDGE_TOWARDS: Record<Exclude<TrenchReference, "midden">, Pt> = {
+  boven: { x: 0, y: 1 }, // the top edge: the trench lies below
+  onder: { x: 0, y: -1 }, // the bottom edge: the trench lies above
+  links: { x: 1, y: 0 }, // the left edge: the trench lies to the right
+  rechts: { x: -1, y: 0 }, // the right edge: the trench lies to the left
+};
+
+/** a line within this angle of an edge's own direction keeps a fixed side */
+const EDGE_DEAD_ZONE = Math.sin((10 * Math.PI) / 180);
+
+/** the fixed side there: links = onder, rechts = boven, boven = rechts, onder = links */
+const EDGE_FALLBACK: Record<Exclude<TrenchReference, "midden">, Pt> = {
+  links: EDGE_TOWARDS.onder,
+  rechts: EDGE_TOWARDS.boven,
+  boven: EDGE_TOWARDS.rechts,
+  onder: EDGE_TOWARDS.links,
+};
+
 /**
  * The sideways shift (along n = (uy, -ux) of the line's overall direction,
  * see offsetPolyline) that puts the centre half a width from the drawn edge,
- * on the plan side the reference names. Boven/onder decide on lines that run
- * mostly horizontally, links/rechts on mostly vertical ones; on the other
- * kind each falls back to a fixed side (links = onder: trench above,
- * rechts = boven: below; boven = rechts: left, onder = links: right), so
- * neither the drawing direction nor a slight slope picks the side. At 45°
- * both readings give the same side.
+ * on the side of the line that faces the direction the reference names, for
+ * any slope and either drawing direction. A line (nearly) parallel to that
+ * direction has no such side and takes a fixed one, so neither the drawing
+ * direction nor a slight wobble picks it.
  */
 const edgeOffset = (
   metres: Pt[],
@@ -255,31 +272,14 @@ const edgeOffset = (
 ) => {
   const first = metres[0];
   const last = metres[metres.length - 1];
-  const dx = last.x - first.x;
-  const dy = last.y - first.y;
-  const half = widthM / 2;
-  const flat = Math.abs(dx) >= Math.abs(dy);
-  const side =
-    flat && ref === "links"
-      ? "onder"
-      : flat && ref === "rechts"
-      ? "boven"
-      : !flat && ref === "boven"
-      ? "rechts"
-      : !flat && ref === "onder"
-      ? "links"
-      : ref;
-  // n points up (−y) for dx > 0 and right (+x) for dy > 0
-  switch (side) {
-    case "boven":
-      return dx >= 0 ? -half : half;
-    case "onder":
-      return dx >= 0 ? half : -half;
-    case "links":
-      return dy >= 0 ? half : -half;
-    case "rechts":
-      return dy >= 0 ? -half : half;
-  }
+  const len = Math.hypot(last.x - first.x, last.y - first.y) || 1;
+  const n = { x: (last.y - first.y) / len, y: -(last.x - first.x) / len };
+  const facing = (t: Pt) => n.x * t.x + n.y * t.y;
+  const towards =
+    Math.abs(facing(EDGE_TOWARDS[ref])) < EDGE_DEAD_ZONE
+      ? EDGE_FALLBACK[ref]
+      : EDGE_TOWARDS[ref];
+  return facing(towards) >= 0 ? widthM / 2 : -widthM / 2;
 };
 
 /** a trench line as nodes and segments in page metres (ids `line:i`) */

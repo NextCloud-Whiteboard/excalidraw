@@ -379,6 +379,49 @@ describe("trench lines", () => {
     }
   });
 
+  it("puts the trench on the named side of sloped lines, either way drawn", () => {
+    // where the trench centre lies relative to the drawn line's middle
+    const shift = (ref: string, pts: [number, number][]) => {
+      const [a, b] = edge(ref, pts);
+      const mx = 10 + (pts[0][0] + pts[1][0]) / 40;
+      const my = 12.5 + (pts[0][1] + pts[1][1]) / 40;
+      return { x: (a.x + b.x) / 2 - mx, y: (a.y + b.y) / 2 - my };
+    };
+    const rising: [number, number][][] = [
+      [
+        [0, 140],
+        [200, 0],
+      ],
+      [
+        [200, 0],
+        [0, 140],
+      ],
+    ];
+    const falling: [number, number][][] = [
+      [
+        [0, 0],
+        [200, 140],
+      ],
+      [
+        [200, 140],
+        [0, 0],
+      ],
+    ];
+    for (const pts of [...rising, ...falling]) {
+      expect(shift("boven", pts).y).toBeGreaterThan(0.2); // below
+      expect(shift("onder", pts).y).toBeLessThan(-0.2); // above
+      expect(shift("links", pts).x).toBeGreaterThan(0.2); // to the right
+      expect(shift("rechts", pts).x).toBeLessThan(-0.2); // to the left
+    }
+    // a gentle slope (15°) still follows the name; within 10° a fixed side
+    const gentle: [number, number][] = [
+      [0, 54],
+      [200, 0],
+    ];
+    expect(shift("links", gentle).x).toBeGreaterThan(0.05);
+    expect(shift("rechts", gentle).x).toBeLessThan(-0.05);
+  });
+
   it("keeps an edge's side along a whole line, mitred at corners", () => {
     // east, then south: overall it runs down to the right; the trench lies
     // below the top edge, so the corner moves down-left by ½ m
