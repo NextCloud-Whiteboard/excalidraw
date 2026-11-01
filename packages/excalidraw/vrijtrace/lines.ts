@@ -5,6 +5,8 @@ import { pointFrom } from "@excalidraw/math";
 import type { LocalPoint } from "@excalidraw/math";
 import type { ExcalidrawLinearElement } from "@excalidraw/element/types";
 
+import { DEFAULT_LINE_WIDTH_PX } from "./model";
+
 import type { TrenchReference } from "./model";
 import type { WNode, WSegment } from "./editing";
 import type { Pt } from "./geometry";
@@ -13,12 +15,15 @@ import type { Pt } from "./geometry";
 export const TRENCH_LINE_COLOR = "#737b83";
 
 /** the look of a trench line; the trench body and zones come from render.ts */
-export const trenchLineStyle = (reference: TrenchReference) =>
+export const trenchLineStyle = (
+  reference: TrenchReference,
+  strokeWidth = DEFAULT_LINE_WIDTH_PX,
+) =>
   ({
     strokeColor: TRENCH_LINE_COLOR,
     backgroundColor: "transparent",
     fillStyle: "solid",
-    strokeWidth: 1,
+    strokeWidth,
     // the centre is dashed, as in v8.2; an edge reference draws the edge
     strokeStyle: reference === "midden" ? "dashed" : "solid",
     roughness: 0,
@@ -39,6 +44,7 @@ export const newTrenchLine = (opts: {
   widthM: number;
   reference?: TrenchReference;
   pdfParentId: string;
+  strokeWidth?: number;
 }): ExcalidrawLinearElement => {
   const reference = opts.reference ?? "midden";
   const [first] = opts.points;
@@ -52,7 +58,7 @@ export const newTrenchLine = (opts: {
     // sized like the whiteboard sizes the lines it draws
     ...getSizeFromPoints(points),
     points,
-    ...trenchLineStyle(reference),
+    ...trenchLineStyle(reference, opts.strokeWidth),
     locked: false,
     customData: trenchLineData(opts.widthM, reference, opts.pdfParentId),
   });

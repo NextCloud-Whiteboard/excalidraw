@@ -256,6 +256,24 @@ describe("Vrij Tracé UI", () => {
     expect(field.value).toBe("10,00");
   });
 
+  it("draws thin trench lines; Lijndikte restyles a page's trench lines", () => {
+    drawLine([100, 100], [400, 100]);
+    const widths = () =>
+      getPageParts(h.elements, "pdf1").lines.map((l) => l.strokeWidth);
+    expect(widths()).toEqual([0.5]);
+    expect(byId("vt-stroke-thin").getAttribute("aria-pressed")).toBe("true");
+    act(() => h.app.vrijTrace.activate());
+    fireEvent.click(byId("vt-stroke-thick"));
+    expect(widths()).toEqual([2]);
+    expect(byId("vt-stroke-thick").getAttribute("aria-pressed")).toBe("true");
+    // only the look changes: the zones stay on
+    expect(h.app.vrijTrace.zonesActive()).toBe(true);
+    drawLine([100, 300], [400, 300]);
+    expect(widths()).toEqual([2, 2]);
+    fireEvent.click(byId("vt-stroke-normal"));
+    expect(widths()).toEqual([1, 1]);
+  });
+
   it("keeps the usual shape actions for other selections", () => {
     API.setElements([
       pdfPage(),

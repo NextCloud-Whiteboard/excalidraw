@@ -9,6 +9,7 @@ import {
   TRENCH_WIDTH_MIN_M,
   displayLabels,
   getPageParts,
+  lineWidthOf,
   isPdfPage,
   settingsOf,
 } from "./model";
@@ -99,6 +100,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const labels = parts ? displayLabels(parts.trees) : new Map<string, string>();
   // a selected trench line's width, else the width of the next one
   const width = vt.shownWidth();
+  const lineWidth = lineWidthOf(parts?.network ?? null);
   const opt = (
     pressed: boolean,
     testId: string,
@@ -177,6 +179,20 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
             "vt-ref-onder",
             STR.labels.bottom,
             () => vt.setUI({ reference: "onder" }),
+          )}
+        </div>
+        <div className="vt-lbl">{STR.labels.lineWidth}</div>
+        <div className="vt-grid3">
+          {(
+            [
+              ["thin", 0.5, STR.labels.thin],
+              ["normal", 1, STR.labels.normal],
+              ["thick", 2, STR.labels.thick],
+            ] as const
+          ).map(([key, px, label]) =>
+            opt(lineWidth === px, `vt-stroke-${key}`, label, () =>
+              vt.setLineWidth(px),
+            ),
           )}
         </div>
       </div>

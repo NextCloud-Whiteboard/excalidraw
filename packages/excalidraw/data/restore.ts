@@ -449,6 +449,7 @@ const restoreElement = (
             workWidthM: num(data.workWidthM, 0.5, 4, 1.5),
             workSide: side(data.workSide),
             treeMinM: num(data.treeMinM, 0, 15, 5),
+            lineWidthPx: num(data.lineWidthPx, 0.25, 4, 0.5),
             // rebuilt field by field: every viewer's sidebar reads it
             activation:
               data.activation && typeof data.activation.fingerprint === "string"

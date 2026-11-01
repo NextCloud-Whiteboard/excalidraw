@@ -23,6 +23,7 @@ import {
   getPageParts,
   isPdfPage,
   isTrenchLine,
+  lineWidthOf,
   networkIdForPage,
   nextTreeLabel,
   pageState,
@@ -274,13 +275,14 @@ export class VrijTraceController {
       pageId,
       points[points.length - 1],
     );
-    this.ensureNetwork(page);
+    const network = this.ensureNetwork(page);
     this.app.scene.insertElement(
       newTrenchLine({
         points,
         widthM: this.ui.widthM,
         reference: this.ui.reference,
         pdfParentId: pageId,
+        strokeWidth: lineWidthOf(network),
       }),
     );
     this.app.scheduleCapture();
@@ -432,6 +434,29 @@ export class VrijTraceController {
     ) {
       this.setUI({ pageId, activeTreeId: null });
     }
+  }
+
+  /** Lijndikte: how thick this page's trench lines are drawn (all of them) */
+  setLineWidth(px: number) {
+    const page = this.page();
+    if (!page) {
+      return;
+    }
+    const network = this.ensureNetwork(page);
+    if (network.trench.kind === "network") {
+      this.app.scene.mutateElement(network, {
+        trench: { ...network.trench, lineWidthPx: px },
+      });
+    }
+    for (const line of getPageParts(
+      this.app.scene.getNonDeletedElements(),
+      page.id,
+    ).lines) {
+      this.app.scene.mutateElement(line, { strokeWidth: px });
+    }
+    this.app.scheduleCapture();
+    // the panel shows the page setting: redraw it
+    this.setUI({});
   }
 
   /** the width the slider shows */

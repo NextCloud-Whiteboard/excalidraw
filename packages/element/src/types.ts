@@ -121,6 +121,8 @@ export type VrijTraceNetworkData = {
   workWidthM: number;
   workSide: VrijTraceSide;
   treeMinM: number;
+  /** stroke width (px at 100 %) of this page's trench lines; absent: thin */
+  lineWidthPx?: number;
   activation: VrijTraceActivation | null;
 };
 

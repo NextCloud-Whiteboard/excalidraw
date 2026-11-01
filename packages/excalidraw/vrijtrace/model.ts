@@ -187,6 +187,15 @@ export const settingsOf = (
 
 export const MIN_SEGMENT_PX = 3;
 
+/** trench lines are drawn thin unless the page says otherwise */
+export const DEFAULT_LINE_WIDTH_PX = 0.5;
+
+/** the stroke width a page's trench lines are drawn with */
+export const lineWidthOf = (network: ExcalidrawTrenchElement | null) =>
+  network?.trench.kind === "network" && network.trench.lineWidthPx
+    ? network.trench.lineWidthPx
+    : DEFAULT_LINE_WIDTH_PX;
+
 /** a line's points in scene px, rotated like the whiteboard draws it */
 export const trenchLinePoints = (line: ExcalidrawLinearElement): Pt[] => {
   const pts = line.points.map(([x, y]) => ({ x: line.x + x, y: line.y + y }));

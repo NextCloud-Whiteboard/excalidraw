@@ -1,5 +1,7 @@
 import { newImageElement, newTrenchElement } from "@excalidraw/element";
 
+import { restoreElements } from "../data/restore";
+
 import { migrateLegacyTrench } from "./migrate";
 import { getPageParts, pageState } from "./model";
 
@@ -175,5 +177,20 @@ describe("migrating trenches of older boards", () => {
         seg("s1", "n1", "n2", 1, "gone"),
       ]),
     ).toBeNull();
+  });
+});
+
+describe("loading a page's trench line thickness", () => {
+  const withWidth = (lineWidthPx: unknown) => {
+    const net = network() as any;
+    net.trench = { ...net.trench, lineWidthPx };
+    return (restoreElements([page(), net] as any, null)[1] as any).trench
+      .lineWidthPx;
+  };
+  it("keeps it, and falls back to thin for missing or broken values", () => {
+    expect(withWidth(2)).toBe(2);
+    expect(withWidth(undefined)).toBe(0.5);
+    expect(withWidth("x")).toBe(0.5);
+    expect(withWidth(99)).toBe(4);
   });
 });
