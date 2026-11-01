@@ -1,7 +1,6 @@
 import React from "react";
 import { act, fireEvent, queryByTestId } from "@testing-library/react";
 
-
 import { Excalidraw } from "../index";
 import { getPageParts, pageState } from "../vrijtrace/model";
 
@@ -189,7 +188,7 @@ describe("Vrij Tracé UI", () => {
     expect(width(second.id)).toBe(1);
     // the panel shows the new width at once
     expect((byId("vt-width") as HTMLInputElement).value).toBe("2");
-    expect(container.querySelector(".vt-lbl")!.textContent).toContain("2,00 m");
+    expect((byId("vt-width-input") as HTMLInputElement).value).toBe("2,00");
     // the slider shows the selected line's width
     API.setSelectedElements([second]);
     expect((byId("vt-width") as HTMLInputElement).value).toBe("1");
@@ -218,6 +217,43 @@ describe("Vrij Tracé UI", () => {
     fireEvent.click(byId("toolbar-vrijtrace"));
     drawLine([100, 300], [400, 300]);
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(2);
+  });
+
+  it("offers Bovenrand and Onderrand as drawing references", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    expect(byId("vt-ref-boven").textContent).toBe("Bovenrand");
+    expect(byId("vt-ref-onder").textContent).toBe("Onderrand");
+    fireEvent.click(byId("vt-ref-boven"));
+    expect(byId("vt-ref-boven").getAttribute("aria-pressed")).toBe("true");
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    expect(line.customData?.reference).toBe("boven");
+    expect(line.strokeStyle).toBe("solid");
+  });
+
+  it("sets widths from 0,30 to 10 m, by slider or typed", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([line]);
+    expect(byId("vt-width").getAttribute("max")).toBe("10");
+    const field = byId("vt-width-input") as HTMLInputElement;
+    expect(field.value).toBe("1,00");
+    const width = () =>
+      (h.elements.find((e) => e.id === line.id) as any).customData.widthM;
+    fireEvent.change(field, { target: { value: "7,5" } });
+    fireEvent.blur(field);
+    expect(width()).toBe(7.5);
+    expect(field.value).toBe("7,50");
+    fireEvent.change(field, { target: { value: "12" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(width()).toBe(10);
+    expect(field.value).toBe("10,00");
+    // nonsense leaves the width as it was
+    fireEvent.change(field, { target: { value: "abc" } });
+    fireEvent.blur(field);
+    expect(width()).toBe(10);
+    expect(field.value).toBe("10,00");
   });
 
   it("keeps the usual shape actions for other selections", () => {

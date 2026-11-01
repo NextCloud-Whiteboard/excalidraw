@@ -262,26 +262,92 @@ describe("trench lines", () => {
     near(g.nodes[1], 10, 12.5);
   });
 
-  it("offsets an edge reference by half the width, mitred at corners", () => {
-    const els = [
+  const edge = (reference: string, pts: [number, number][], widthM = 1) =>
+    geometry([
       page(),
-      line(
-        "L1",
-        200,
-        200,
-        [
-          [0, 0],
-          [200, 0],
-          [200, 200],
-        ],
-        { tool: "trench", widthM: 1, reference: "links", pdfParentId: "pdf1" },
-      ),
-    ];
-    // the drawn line is the left edge: the centre lies ½ m to its right
-    const g = geometry(els);
-    near(g.nodes[0], 5, 8);
-    near(g.nodes[1], 14.5, 8);
-    near(g.nodes[2], 14.5, 17.5);
+      line("L1", 300, 300, pts, {
+        tool: "trench",
+        widthM,
+        reference,
+        pdfParentId: "pdf1",
+      }),
+    ]).nodes;
+  // page at (100, 50), 5 cm/px: the line at (300, 300) is at (10 m, 12.5 m)
+  const east: [number, number][] = [
+    [0, 0],
+    [200, 0],
+  ];
+  const west: [number, number][] = [
+    [200, 0],
+    [0, 0],
+  ];
+  const south: [number, number][] = [
+    [0, 0],
+    [0, 200],
+  ];
+  const north: [number, number][] = [
+    [0, 200],
+    [0, 0],
+  ];
+
+  it("Bovenrand: the line is the top edge, the trench lies below it, either way drawn", () => {
+    for (const pts of [east, west]) {
+      for (const n of edge("boven", pts)) {
+        expect(n.y).toBeCloseTo(13, 6);
+      }
+    }
+  });
+
+  it("Onderrand: the line is the bottom edge, the trench lies above it", () => {
+    for (const pts of [east, west]) {
+      for (const n of edge("onder", pts, 2)) {
+        expect(n.y).toBeCloseTo(11.5, 6);
+      }
+    }
+  });
+
+  it("Linker rand: the line is the left edge, the trench lies to its right on the plan", () => {
+    for (const pts of [south, north]) {
+      for (const n of edge("links", pts)) {
+        expect(n.x).toBeCloseTo(10.5, 6);
+      }
+    }
+  });
+
+  it("Rechter rand: the line is the right edge, the trench lies to its left", () => {
+    for (const pts of [south, north]) {
+      for (const n of edge("rechts", pts)) {
+        expect(n.x).toBeCloseTo(9.5, 6);
+      }
+    }
+  });
+
+  it("keeps an edge's side along a whole line, mitred at corners", () => {
+    // east, then south: overall it runs down to the right; the trench lies
+    // below the top edge, so the corner moves down-left by ½ m
+    const [a, b, c] = edge("boven", [
+      [0, 0],
+      [200, 0],
+      [200, 200],
+    ]);
+    near(a, 10, 13);
+    near(b, 19.5, 13);
+    near(c, 19.5, 22.5);
+  });
+
+  it("allows trench widths up to 10 m", () => {
+    const g = (widthM: number) =>
+      geometry([
+        page(),
+        line("L1", 300, 300, east, {
+          tool: "trench",
+          widthM,
+          pdfParentId: "pdf1",
+        }),
+      ]).segments[0].widthM;
+    expect(g(10)).toBe(10);
+    expect(g(25)).toBe(10);
+    expect(g(0.1)).toBe(0.3);
   });
 
   it("keeps the fingerprint when the page moves with its trench lines", () => {

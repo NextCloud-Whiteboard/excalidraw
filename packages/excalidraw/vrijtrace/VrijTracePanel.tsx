@@ -1,10 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 
 import type { VrijTraceSide } from "@excalidraw/element/types";
 
 import { useApp, useExcalidrawElements } from "../components/App";
 
-import { displayLabels, getPageParts, isPdfPage, settingsOf } from "./model";
+import {
+  TRENCH_WIDTH_MAX_M,
+  TRENCH_WIDTH_MIN_M,
+  displayLabels,
+  getPageParts,
+  isPdfPage,
+  settingsOf,
+} from "./model";
 import { STR } from "./strings";
 
 import "./vrijtrace.scss";
@@ -34,6 +41,48 @@ const SideSelect = ({
     <option value="rechts">{STR.labels.sideRight}</option>
   </select>
 );
+
+/** the trench width typed in metres (a comma or a dot); applied on Enter or leaving */
+const WidthField = ({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (widthM: number) => void;
+}) => {
+  // the text being typed; null shows the current width
+  const [text, setText] = useState<string | null>(null);
+  const commit = () => {
+    if (text !== null) {
+      const v = Number(text.trim().replace(",", "."));
+      if (text.trim() && Number.isFinite(v)) {
+        onCommit(v);
+      }
+      setText(null);
+    }
+  };
+  return (
+    <span className="vt-num-wrap">
+      <input
+        id="vt-width-input"
+        data-testid="vt-width-input"
+        className="vt-num"
+        type="text"
+        inputMode="decimal"
+        aria-label={STR.labels.width}
+        value={text ?? fmt(value)}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+          }
+        }}
+      />
+      m
+    </span>
+  );
+};
 
 /**
  * v8.2's settings; replaces the shape actions while the tool is active or
@@ -85,16 +134,16 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
       </div>
       <div className="vt-sec">
         <div className="vt-h">{STR.sections.trench}</div>
-        <label className="vt-lbl" htmlFor="vt-width">
-          <span>{STR.labels.width}</span>
-          <span>{fmt(width)} m</span>
-        </label>
+        <div className="vt-lbl">
+          <label htmlFor="vt-width">{STR.labels.width}</label>
+          <WidthField value={width} onCommit={(v) => vt.setWidth(v, true)} />
+        </div>
         <input
           id="vt-width"
           data-testid="vt-width"
           type="range"
-          min="0.3"
-          max="2.3"
+          min={TRENCH_WIDTH_MIN_M}
+          max={TRENCH_WIDTH_MAX_M}
           step="0.05"
           value={width}
           onChange={(e) => vt.setWidth(Number(e.target.value), false)}
@@ -119,6 +168,15 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
             "vt-ref-rechts",
             STR.labels.right,
             () => vt.setUI({ reference: "rechts" }),
+          )}
+          {opt(ui.reference === "boven", "vt-ref-boven", STR.labels.top, () =>
+            vt.setUI({ reference: "boven" }),
+          )}
+          {opt(
+            ui.reference === "onder",
+            "vt-ref-onder",
+            STR.labels.bottom,
+            () => vt.setUI({ reference: "onder" }),
           )}
         </div>
       </div>

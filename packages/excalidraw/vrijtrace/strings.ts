@@ -24,7 +24,7 @@ export const STR = {
   help: {
     draw: "Teken een sleuf uit de vrije hand. Bij 90° of 45° wordt de lijn bij het loslaten rechtgetrokken.",
     width:
-      "Van 0,30 tot 2,30 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
+      "Van 0,30 tot 10,00 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
     red: "Onafhankelijke rode zone vanaf de buitenzijde van de sleuf.",
     trees:
       "Selecteer een boom en klik of sleep op de tekening om deze te verplaatsen.",
@@ -35,6 +35,8 @@ export const STR = {
     middle: "Middenlijn",
     left: "Linker rand",
     right: "Rechter rand",
+    top: "Bovenrand",
+    bottom: "Onderrand",
     redDistance: "Afstand buiten sleufrand",
     side: "Zijde",
     workWidth: "Breedte buiten sleufrand",

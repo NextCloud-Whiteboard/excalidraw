@@ -496,7 +496,7 @@ export type VrijTraceUIState = {
   pageId: string | null;
   activeTreeId: string | null;
   snap: "90" | "45" | "vrij";
-  reference: "midden" | "links" | "rechts";
+  reference: "midden" | "links" | "rechts" | "boven" | "onder";
   widthM: number;
   hidePdf: boolean;
   /** the freehand stroke being drawn, in scene px */

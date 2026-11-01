@@ -79,7 +79,19 @@ export const centreOf = (el: {
   y: el.y + el.height / 2,
 });
 
-export type TrenchReference = "midden" | "links" | "rechts";
+/**
+ * Which part of the trench the drawn line is: its centre, or one of its
+ * edges. Edges are directions on the plan, whichever way the line was drawn:
+ * "links" is the left edge (the trench lies to its right), "boven" the top
+ * edge (the trench lies below it), and so on.
+ */
+export type TrenchReference = "midden" | "links" | "rechts" | "boven" | "onder";
+
+export const TRENCH_WIDTH_MIN_M = 0.3;
+export const TRENCH_WIDTH_MAX_M = 10;
+
+export const clampTrenchWidth = (widthM: number) =>
+  Math.min(TRENCH_WIDTH_MAX_M, Math.max(TRENCH_WIDTH_MIN_M, widthM));
 
 /** a whiteboard line drawn with Vrij Tracé: one trench with its own width */
 export const isTrenchLine = (
@@ -92,16 +104,16 @@ export const isTrenchLine = (
 
 export const trenchLineWidth = (line: ExcalidrawLinearElement) => {
   const w = line.customData?.widthM;
-  return typeof w === "number" && Number.isFinite(w)
-    ? Math.min(2.3, Math.max(0.3, w))
-    : 1;
+  return typeof w === "number" && Number.isFinite(w) ? clampTrenchWidth(w) : 1;
 };
 
 export const trenchLineReference = (
   line: ExcalidrawLinearElement,
 ): TrenchReference => {
   const r = line.customData?.reference;
-  return r === "links" || r === "rechts" ? r : "midden";
+  return r === "links" || r === "rechts" || r === "boven" || r === "onder"
+    ? r
+    : "midden";
 };
 
 export type PageParts = {
@@ -226,6 +238,36 @@ const offsetPolyline = (pts: Pt[], d: number): Pt[] => {
   });
 };
 
+/**
+ * The sideways shift (along n = (uy, -ux) of the line's overall direction,
+ * see offsetPolyline) that puts the centre half a width from the drawn edge,
+ * on the plan side the reference names. A line exactly along the other axis
+ * (e.g. "boven" on a vertical line) has no such side; it shifts as if drawn
+ * left to right or top to bottom.
+ */
+const edgeOffset = (
+  metres: Pt[],
+  ref: Exclude<TrenchReference, "midden">,
+  widthM: number,
+) => {
+  const first = metres[0];
+  const last = metres[metres.length - 1];
+  const dx = last.x - first.x;
+  const dy = last.y - first.y;
+  const half = widthM / 2;
+  // n points up (−y) for dx > 0 and right (+x) for dy > 0
+  switch (ref) {
+    case "boven":
+      return dx >= 0 ? -half : half;
+    case "onder":
+      return dx >= 0 ? half : -half;
+    case "links":
+      return dy >= 0 ? half : -half;
+    case "rechts":
+      return dy >= 0 ? -half : half;
+  }
+};
+
 /** a trench line as nodes and segments in page metres (ids `line:i`) */
 const lineGeometry = (
   line: ExcalidrawLinearElement,
@@ -239,7 +281,7 @@ const lineGeometry = (
   const centre =
     ref === "midden"
       ? metres
-      : offsetPolyline(metres, ref === "links" ? -widthM / 2 : widthM / 2);
+      : offsetPolyline(metres, edgeOffset(metres, ref, widthM));
   const used = new Set<number>();
   for (let i = 0; i + 1 < scene.length; i++) {
     const a = scene[i];

@@ -18,6 +18,7 @@ import { exampleNetwork, simplify, snapToTrench, straighten } from "./editing";
 import { chainSegments, newTrenchLine } from "./lines";
 import {
   DEFAULT_SETTINGS,
+  clampTrenchWidth,
   getPageFrame,
   getPageParts,
   isPdfPage,
@@ -405,7 +406,7 @@ export class VrijTraceController {
 
   /** the width of the selected trench lines, else of the next one drawn */
   setWidth(widthM: number, commit: boolean) {
-    const v = Math.min(2.3, Math.max(0.3, widthM));
+    const v = clampTrenchWidth(widthM);
     const lines = this.selectedLines();
     for (const line of lines) {
       this.app.scene.mutateElement(line, {
