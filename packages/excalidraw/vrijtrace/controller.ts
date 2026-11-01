@@ -22,6 +22,8 @@ import {
   getPageFrame,
   getPageParts,
   isPdfPage,
+  LINE_WIDTH_MAX_PX,
+  LINE_WIDTH_MIN_PX,
   isTrenchLine,
   lineWidthOf,
   networkIdForPage,
@@ -436,27 +438,35 @@ export class VrijTraceController {
     }
   }
 
-  /** Lijndikte: how thick this page's trench lines are drawn (all of them) */
-  setLineWidth(px: number) {
+  /**
+   * Lijndikte: how thick this page's trench lines are drawn (all of them).
+   * `commit` ends a slider drag as one undo step.
+   */
+  setLineWidth(px: number, commit: boolean) {
     const page = this.page();
     if (!page) {
       return;
     }
+    const v = Math.min(LINE_WIDTH_MAX_PX, Math.max(LINE_WIDTH_MIN_PX, px));
     const network = this.ensureNetwork(page);
     if (network.trench.kind === "network") {
       this.app.scene.mutateElement(network, {
-        trench: { ...network.trench, lineWidthPx: px },
+        trench: { ...network.trench, lineWidthPx: v },
       });
     }
     for (const line of getPageParts(
       this.app.scene.getNonDeletedElements(),
       page.id,
     ).lines) {
-      this.app.scene.mutateElement(line, { strokeWidth: px });
-      // the cached drawing has the old width baked in
-      ShapeCache.delete(line);
+      if (line.strokeWidth !== v) {
+        this.app.scene.mutateElement(line, { strokeWidth: v });
+        // the cached drawing has the old width baked in
+        ShapeCache.delete(line);
+      }
     }
-    this.app.scheduleCapture();
+    if (commit) {
+      this.app.scheduleCapture();
+    }
     // the panel shows the page setting: redraw it
     this.setUI({});
   }

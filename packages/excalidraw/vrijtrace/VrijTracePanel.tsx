@@ -7,6 +7,8 @@ import { useApp, useExcalidrawElements } from "../components/App";
 import {
   TRENCH_WIDTH_MAX_M,
   TRENCH_WIDTH_MIN_M,
+  LINE_WIDTH_MAX_PX,
+  LINE_WIDTH_MIN_PX,
   displayLabels,
   getPageParts,
   lineWidthOf,
@@ -181,20 +183,23 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
             () => vt.setUI({ reference: "onder" }),
           )}
         </div>
-        <div className="vt-lbl">{STR.labels.lineWidth}</div>
-        <div className="vt-grid3">
-          {(
-            [
-              ["thin", 0.5, STR.labels.thin],
-              ["normal", 1, STR.labels.normal],
-              ["thick", 2, STR.labels.thick],
-            ] as const
-          ).map(([key, px, label]) =>
-            opt(lineWidth === px, `vt-stroke-${key}`, label, () =>
-              vt.setLineWidth(px),
-            ),
-          )}
-        </div>
+        <label className="vt-lbl" htmlFor="vt-line-width">
+          <span>{STR.labels.lineWidth}</span>
+          <span>{fmt(lineWidth)} px</span>
+        </label>
+        <input
+          id="vt-line-width"
+          data-testid="vt-line-width"
+          type="range"
+          min={LINE_WIDTH_MIN_PX}
+          max={LINE_WIDTH_MAX_PX}
+          step="0.25"
+          value={lineWidth}
+          onChange={(e) => vt.setLineWidth(Number(e.target.value), false)}
+          onPointerUp={(e) =>
+            vt.setLineWidth(Number((e.target as HTMLInputElement).value), true)
+          }
+        />
       </div>
       <div className="vt-sec">
         <div className="vt-h">{STR.sections.red}</div>

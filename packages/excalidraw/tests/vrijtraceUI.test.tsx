@@ -258,22 +258,25 @@ describe("Vrij Tracé UI", () => {
     expect(field.value).toBe("10,00");
   });
 
-  it("draws thin trench lines; Lijndikte restyles a page's trench lines", () => {
+  it("draws thin trench lines; the Lijndikte slider restyles a page's trench lines", () => {
     drawLine([100, 100], [400, 100]);
     const widths = () =>
       getPageParts(h.elements, "pdf1").lines.map((l) => l.strokeWidth);
+    const slider = () => byId("vt-line-width") as HTMLInputElement;
     expect(widths()).toEqual([0.5]);
-    expect(byId("vt-stroke-thin").getAttribute("aria-pressed")).toBe("true");
+    expect(slider().value).toBe("0.5");
+    expect([slider().min, slider().max]).toEqual(["0.25", "4"]);
     act(() => h.app.vrijTrace.activate());
-    fireEvent.click(byId("vt-stroke-thick"));
+    fireEvent.change(slider(), { target: { value: "2" } });
     expect(widths()).toEqual([2]);
-    expect(byId("vt-stroke-thick").getAttribute("aria-pressed")).toBe("true");
+    expect(slider().value).toBe("2");
+    expect(container.textContent).toContain("2,00 px");
     // only the look changes: the zones stay on
     expect(h.app.vrijTrace.zonesActive()).toBe(true);
     drawLine([100, 300], [400, 300]);
     expect(widths()).toEqual([2, 2]);
-    fireEvent.click(byId("vt-stroke-normal"));
-    expect(widths()).toEqual([1, 1]);
+    fireEvent.change(slider(), { target: { value: "0.25" } });
+    expect(widths()).toEqual([0.25, 0.25]);
   });
 
   it("redraws trench lines when Lijndikte changes", () => {
@@ -281,7 +284,7 @@ describe("Vrij Tracé UI", () => {
     const [line] = getPageParts(h.elements, "pdf1").lines;
     ShapeCache.generateElementShape(line, null);
     expect(ShapeCache.get(line)).toBeDefined();
-    fireEvent.click(byId("vt-stroke-thick"));
+    fireEvent.change(byId("vt-line-width"), { target: { value: "3" } });
     // the cached drawing had the old width baked in
     expect(ShapeCache.get(line)).toBeUndefined();
   });

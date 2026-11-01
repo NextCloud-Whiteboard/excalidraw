@@ -189,6 +189,9 @@ export const MIN_SEGMENT_PX = 3;
 
 /** trench lines are drawn thin unless the page says otherwise */
 export const DEFAULT_LINE_WIDTH_PX = 0.5;
+/** the Lijndikte slider's range (restore clamps loaded values to it) */
+export const LINE_WIDTH_MIN_PX = 0.25;
+export const LINE_WIDTH_MAX_PX = 4;
 
 /** the stroke width a page's trench lines are drawn with */
 export const lineWidthOf = (network: ExcalidrawTrenchElement | null) =>
