@@ -265,7 +265,7 @@ describe("Vrij Tracé UI", () => {
     const slider = () => byId("vt-line-width") as HTMLInputElement;
     expect(widths()).toEqual([0.5]);
     expect(slider().value).toBe("0.5");
-    expect([slider().min, slider().max]).toEqual(["0.25", "4"]);
+    expect([slider().min, slider().max]).toEqual(["0.1", "4"]);
     act(() => h.app.vrijTrace.activate());
     fireEvent.change(slider(), { target: { value: "2" } });
     expect(widths()).toEqual([2]);
@@ -275,8 +275,9 @@ describe("Vrij Tracé UI", () => {
     expect(h.app.vrijTrace.zonesActive()).toBe(true);
     drawLine([100, 300], [400, 300]);
     expect(widths()).toEqual([2, 2]);
-    fireEvent.change(slider(), { target: { value: "0.25" } });
-    expect(widths()).toEqual([0.25, 0.25]);
+    fireEvent.change(slider(), { target: { value: "0.1" } });
+    expect(widths()).toEqual([0.1, 0.1]);
+    expect(container.textContent).toContain("0,10 px");
   });
 
   it("redraws trench lines when Lijndikte changes", () => {

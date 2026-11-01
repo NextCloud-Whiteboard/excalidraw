@@ -192,5 +192,7 @@ describe("loading a page's trench line thickness", () => {
     expect(withWidth(undefined)).toBe(0.5);
     expect(withWidth("x")).toBe(0.5);
     expect(withWidth(99)).toBe(4);
+    expect(withWidth(0.1)).toBe(0.1);
+    expect(withWidth(0.01)).toBe(0.1);
   });
 });

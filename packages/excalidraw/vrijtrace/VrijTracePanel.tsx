@@ -193,7 +193,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           type="range"
           min={LINE_WIDTH_MIN_PX}
           max={LINE_WIDTH_MAX_PX}
-          step="0.25"
+          step="0.05"
           value={lineWidth}
           onChange={(e) => vt.setLineWidth(Number(e.target.value), false)}
           onPointerUp={(e) =>
