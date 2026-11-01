@@ -1,6 +1,8 @@
 import React from "react";
 import { act, fireEvent, queryByTestId } from "@testing-library/react";
 
+import { ShapeCache } from "@excalidraw/element";
+
 import { Excalidraw } from "../index";
 import { getPageParts, pageState } from "../vrijtrace/model";
 
@@ -272,6 +274,16 @@ describe("Vrij Tracé UI", () => {
     expect(widths()).toEqual([2, 2]);
     fireEvent.click(byId("vt-stroke-normal"));
     expect(widths()).toEqual([1, 1]);
+  });
+
+  it("redraws trench lines when Lijndikte changes", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    ShapeCache.generateElementShape(line, null);
+    expect(ShapeCache.get(line)).toBeDefined();
+    fireEvent.click(byId("vt-stroke-thick"));
+    // the cached drawing had the old width baked in
+    expect(ShapeCache.get(line)).toBeUndefined();
   });
 
   it("keeps the usual shape actions for other selections", () => {

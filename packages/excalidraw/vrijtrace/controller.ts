@@ -4,7 +4,7 @@ import {
   randomId,
   viewportCoordsToSceneCoords,
 } from "@excalidraw/common";
-import { newTrenchElement } from "@excalidraw/element";
+import { ShapeCache, newTrenchElement } from "@excalidraw/element";
 
 import type { Scene } from "@excalidraw/element";
 import type {
@@ -453,6 +453,8 @@ export class VrijTraceController {
       page.id,
     ).lines) {
       this.app.scene.mutateElement(line, { strokeWidth: px });
+      // the cached drawing has the old width baked in
+      ShapeCache.delete(line);
     }
     this.app.scheduleCapture();
     // the panel shows the page setting: redraw it
