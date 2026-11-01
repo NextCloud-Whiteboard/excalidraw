@@ -89,6 +89,36 @@ describe("Vrij Tracé follows its page", () => {
     expect(active()).toBe(true);
   });
 
+  it("keeps a curved trench in place, and its zones on, when the page is resized", () => {
+    // a stroke that rises from its start: its points go negative
+    act(() => h.app.setActiveTool({ type: "custom", customType: "vrijtrace" }));
+    mouse.reset();
+    mouse.downAt(200, 400);
+    for (let i = 1; i <= 20; i++) {
+      mouse.moveTo(200 + i * 10, 400 - 120 * Math.sin((Math.PI * i) / 20));
+    }
+    mouse.upAt(400, 400);
+    act(() => h.app.vrijTrace.activate());
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    const curve = () =>
+      getPageParts(h.elements, "pdf1").lines.find((l) => l.points.length > 2)!;
+    expect(curve().points.some(([, y]) => y < 0)).toBe(true);
+    const fractions = () =>
+      curve().points.map(([px, py]) => [
+        (curve().x + px - page().x) / page().width,
+        (curve().y + py - page().y) / page().height,
+      ]);
+    const before = fractions();
+    API.setSelectedElements([page()]);
+    UI.resize(page(), "se", [370, 259]);
+    expect(page().width).toBeGreaterThan(1000);
+    fractions().forEach(([fx, fy], i) => {
+      expect(fx).toBeCloseTo(before[i][0], 4);
+      expect(fy).toBeCloseTo(before[i][1], 4);
+    });
+    expect(active()).toBe(true);
+  });
+
   it("keeps the network on its page when resized or rotated with other elements", () => {
     const rect = API.createElement({
       type: "rectangle",

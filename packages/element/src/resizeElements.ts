@@ -1327,12 +1327,14 @@ export const resizeSingleElement = (
             fontSize: newFontSize,
           });
         } else if (isLinearElement(child) || isFreeDrawElement(child)) {
-          // Scale points for linear and freedraw elements
+          // Scale points for linear and freedraw elements, exactly about the
+          // child's origin (normalizing would keep a negative minimum
+          // unscaled and shift lines that run left or up from their start)
           const scaledPoints = rescalePointsInElement(
             origChild,
             newChildWidth,
             newChildHeight,
-            true,
+            false,
           );
           scene.mutateElement(child, {
             x: newChildX,
