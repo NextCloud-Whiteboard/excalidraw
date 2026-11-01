@@ -64,11 +64,19 @@
     font-size: 12px;
     font-family: inherit;
     cursor: pointer;
-    overflow-wrap: anywhere;
+    // wrap at spaces only: never break a word like "Middenlijn" in two
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: manual;
 
     &:hover {
       border-color: var(--color-primary);
     }
+  }
+
+  // Middenlijn on its own row, then the four edges two by two
+  .vt-refs > :first-child {
+    grid-column: 1 / -1;
   }
 
   .vt-opt[aria-pressed="true"] {

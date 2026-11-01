@@ -157,30 +157,19 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         />
         <p className="vt-help">{STR.help.width}</p>
         <div className="vt-lbl">{STR.labels.reference}</div>
-        <div className="vt-grid3">
-          {opt(
-            ui.reference === "midden",
-            "vt-ref-midden",
-            STR.labels.middle,
-            () => vt.setUI({ reference: "midden" }),
-          )}
-          {opt(ui.reference === "links", "vt-ref-links", STR.labels.left, () =>
-            vt.setUI({ reference: "links" }),
-          )}
-          {opt(
-            ui.reference === "rechts",
-            "vt-ref-rechts",
-            STR.labels.right,
-            () => vt.setUI({ reference: "rechts" }),
-          )}
-          {opt(ui.reference === "boven", "vt-ref-boven", STR.labels.top, () =>
-            vt.setUI({ reference: "boven" }),
-          )}
-          {opt(
-            ui.reference === "onder",
-            "vt-ref-onder",
-            STR.labels.bottom,
-            () => vt.setUI({ reference: "onder" }),
+        <div className="vt-grid2 vt-refs">
+          {(
+            [
+              ["midden", STR.labels.middle],
+              ["boven", STR.labels.top],
+              ["onder", STR.labels.bottom],
+              ["links", STR.labels.left],
+              ["rechts", STR.labels.right],
+            ] as const
+          ).map(([ref, label]) =>
+            opt(ui.reference === ref, `vt-ref-${ref}`, label, () =>
+              vt.setUI({ reference: ref }),
+            ),
           )}
         </div>
         <label className="vt-lbl" htmlFor="vt-line-width">
