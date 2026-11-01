@@ -61,7 +61,11 @@ const STEP_PX = 2;
 /** shorter strokes are a click, not a trench */
 const MIN_STROKE_PX = 8;
 
-type Drag = { type: "tree"; id: string } | { type: "stroke"; pageId: string };
+type Drag =
+  | { type: "tree"; id: string }
+  | { type: "stroke"; pageId: string }
+  /** a stroke that cannot become a trench: says why once it is drawn */
+  | { type: "refused"; begin: Pt; message: string; told: boolean };
 
 type SettingsPatch = Partial<
   Pick<VrijTraceNetworkData, "redSide" | "workWidthM" | "workSide" | "treeMinM">
@@ -132,11 +136,22 @@ export class VrijTraceController {
     return isPdfPage(el) ? el : null;
   }
 
+  /** why nothing can be created at p (null: it can) */
+  private refusalAt(p: Pt, refusal: string) {
+    const page = this.app.getPdfPageAt(p.x, p.y);
+    return !page
+      ? refusal
+      : getPageFrame(page).cmPerPx
+      ? null
+      : STR.calibrateFirst;
+  }
+
   /** the page under p for creating things; toast + null when refused */
   private pageForCreate(p: Pt, refusal: string) {
     const page = this.app.getPdfPageAt(p.x, p.y);
-    if (!page || !getPageFrame(page).cmPerPx) {
-      this.app.setToast({ message: page ? STR.calibrateFirst : refusal });
+    const message = this.refusalAt(p, refusal);
+    if (!page || message) {
+      this.app.setToast({ message: message ?? refusal });
       return null;
     }
     if (page.id !== this.ui.pageId) {
@@ -213,6 +228,12 @@ export class VrijTraceController {
 
   /** v8.2 Teken, freehand: press on a calibrated page and draw */
   private startStroke(p: Pt) {
+    // a plain click off a calibrated page says nothing; a stroke there does
+    const message = this.refusalAt(p, STR.onlyOnPdf);
+    if (message) {
+      this.beginDrag({ type: "refused", begin: p, message, told: false });
+      return;
+    }
     const page = this.pageForCreate(p, STR.onlyOnPdf);
     if (!page) {
       return;
@@ -328,6 +349,17 @@ export class VrijTraceController {
       this.extendStroke(p);
       return;
     }
+    if (d?.type === "refused") {
+      if (
+        !d.told &&
+        Math.hypot(p.x - d.begin.x, p.y - d.begin.y) >=
+          MIN_STROKE_PX / this.zoom
+      ) {
+        d.told = true;
+        this.app.setToast({ message: d.message });
+      }
+      return;
+    }
     const el = d ? this.app.scene.getElement(d.id) : null;
     if (el && !el.isDeleted) {
       this.app.scene.mutateElement(el, { x: p.x - 0.5, y: p.y - 0.5 });
@@ -339,6 +371,8 @@ export class VrijTraceController {
     this.drag = null;
     if (d?.type === "stroke") {
       this.finishStroke(d.pageId, p);
+    } else if (d?.type === "refused") {
+      // nothing was drawn
     } else if (d) {
       this.app.scheduleCapture();
       this.hold([]);

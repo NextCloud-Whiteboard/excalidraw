@@ -1,13 +1,12 @@
 import React from "react";
 import { act, fireEvent, queryByTestId } from "@testing-library/react";
 
-import { KEYS } from "@excalidraw/common";
 
 import { Excalidraw } from "../index";
 import { getPageParts, pageState } from "../vrijtrace/model";
 
 import { API } from "./helpers/api";
-import { Keyboard, Pointer } from "./helpers/ui";
+import { Pointer } from "./helpers/ui";
 import { render } from "./test-utils";
 
 const { h } = window;
@@ -204,6 +203,21 @@ describe("Vrij Tracé UI", () => {
     expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
     API.setSelectedElements([]);
     expect(byId("vt-activate")).toBeNull();
+  });
+
+  it("draws again after moving a trench with the selection tool", () => {
+    drawLine([100, 100], [400, 100]);
+    fireEvent.click(byId("toolbar-selection"));
+    const line = getPageParts(h.elements, "pdf1").lines[0];
+    API.setSelectedElements([line]);
+    mouse.reset();
+    mouse.downAt(250, 100);
+    mouse.moveTo(250, 160);
+    mouse.upAt(250, 160);
+    expect(getPageParts(h.elements, "pdf1").lines[0].y).toBeCloseTo(160);
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    drawLine([100, 300], [400, 300]);
+    expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(2);
   });
 
   it("keeps the usual shape actions for other selections", () => {

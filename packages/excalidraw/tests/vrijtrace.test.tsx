@@ -80,6 +80,30 @@ describe("Vrij Tracé tool", () => {
     expect(h.elements.filter((e) => e.type === "line")).toHaveLength(0);
   });
 
+  it("says nothing for a plain click outside a page", () => {
+    API.setElements([pdfPage()]);
+    tool();
+    click(1200, 100);
+    expect(h.state.toast).toBeNull();
+  });
+
+  it("says nothing for a plain click on an uncalibrated page", () => {
+    API.setElements([pdfPage({ customData: { isPdf: true } })]);
+    tool();
+    click(100, 100);
+    expect(h.state.toast).toBeNull();
+  });
+
+  it("still says why when placing a tree is refused", () => {
+    API.setElements([pdfPage()]);
+    tool();
+    act(() => h.app.vrijTrace.setMode("boomToevoegen"));
+    click(1200, 100);
+    expect(h.state.toast?.message).toBe(
+      "Bomen plaats je alleen op een geïmporteerde PDF-pagina",
+    );
+  });
+
   it("asks for a calibration first", () => {
     API.setElements([pdfPage({ customData: { isPdf: true } })]);
     tool();

@@ -1,7 +1,6 @@
 import React from "react";
 import { act } from "@testing-library/react";
 
-
 import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
 import { networkIdForPage } from "../vrijtrace/model";
