@@ -250,6 +250,12 @@ const offsetPolyline = (pts: Pt[], d: number): Pt[] => {
   });
 };
 
+/** the closed band `half` either side of a polyline, mitred like the trench */
+export const outlinePolygon = (pts: Pt[], half: number): Pt[] => [
+  ...offsetPolyline(pts, half),
+  ...offsetPolyline(pts, -half).reverse(),
+];
+
 /** the plan direction each edge reference puts the trench towards (y down) */
 const EDGE_TOWARDS: Record<Exclude<TrenchReference, "midden">, Pt> = {
   boven: { x: 0, y: 1 }, // the top edge: the trench lies below

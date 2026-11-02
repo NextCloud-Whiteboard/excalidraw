@@ -14,7 +14,13 @@ import type {
   VrijTraceNetworkData,
 } from "@excalidraw/element/types";
 
-import { exampleNetwork, simplify, snapToTrench, straighten } from "./editing";
+import {
+  SMOOTH_PX,
+  exampleNetwork,
+  simplify,
+  snapToTrench,
+  straighten,
+} from "./editing";
 import { chainSegments, newTrenchLine } from "./lines";
 import {
   DEFAULT_SETTINGS,
@@ -58,8 +64,6 @@ export interface VrijTraceHost {
 
 // screen px, divided by zoom at use
 const SNAP_PX = 13;
-/** a hand's wobble: stroke points within this of a straight piece are dropped */
-const SMOOTH_PX = 3;
 /** pointer moves closer than this to the last stroke point are skipped */
 const STEP_PX = 2;
 /** shorter strokes are a click, not a trench */

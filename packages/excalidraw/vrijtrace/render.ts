@@ -6,12 +6,14 @@ import type {
 
 import { getClientColor } from "../clients";
 
+import { SMOOTH_PX, simplify } from "./editing";
 import { checkTree } from "./geometry";
 import {
   centreOf,
   displayLabels,
   getPageFrame,
   isPdfPage,
+  outlinePolygon,
   pageState,
   pageToScene,
   pxPerMetre,
@@ -31,8 +33,6 @@ import type {
 export const COLORS = {
   edge: "#343a40",
   edgeOn: "#315d97",
-  fill: "#ffffff",
-  fillOn: "#c7defa",
   centre: "#737b83",
   centreOn: "#6689ae",
   red: "rgba(218,54,65,0.41)",
@@ -261,9 +261,8 @@ const drawPage = (
     }
     ctx.restore();
   }
+  // only the outline: the plan stays readable through the trench
   tracePath(ctx, s.zones.trench, s);
-  ctx.fillStyle = s.active ? COLORS.fillOn : COLORS.fill;
-  ctx.fill("evenodd");
   ctx.strokeStyle = s.active ? COLORS.edgeOn : COLORS.edge;
   ctx.lineWidth = 1.2 / z;
   ctx.stroke();
@@ -333,7 +332,7 @@ export const renderVrijTraceSvg = (
   add(
     "trench",
     pathD(s.zones.trench, s, offsetX, offsetY),
-    s.active ? COLORS.fillOn : COLORS.fill,
+    "none",
     s.active ? COLORS.edgeOn : COLORS.edge,
     1.2,
   );
@@ -399,24 +398,24 @@ export const renderVrijTraceInteractive = (
   const ui = appState.vrijTrace;
   const page = ui.pageId ? elementsMap.get(ui.pageId) : null;
   if (ui.stroke && ui.stroke.length > 1 && isPdfPage(page)) {
-    // the stroke being drawn, as wide as the trench it becomes
+    // the stroke being drawn, outlined as wide as the trench it becomes
+    // (smoothed like the line it turns into, so the outline doesn't jitter)
     const frame = getPageFrame(page);
+    const drawn = simplify(ui.stroke, SMOOTH_PX / z);
     ctx.save();
-    ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    ui.stroke.forEach((p, i) =>
-      i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
-    );
-    if (frame.cmPerPx) {
-      ctx.strokeStyle = COLORS.fillOn;
-      ctx.globalAlpha = 0.7;
-      ctx.lineWidth = ui.widthM * pxPerMetre(frame);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
     ctx.strokeStyle = COLORS.edgeOn;
-    ctx.lineWidth = 2 / z;
+    if (frame.cmPerPx) {
+      const ring = outlinePolygon(drawn, (ui.widthM * pxPerMetre(frame)) / 2);
+      ctx.beginPath();
+      ring.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.lineWidth = 1.2 / z;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    drawn.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.lineWidth = 1.5 / z;
     ctx.stroke();
     ctx.restore();
   }

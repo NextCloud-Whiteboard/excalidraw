@@ -12,6 +12,7 @@ import {
   getPageFrame,
   getPageParts,
   nextTreeLabel,
+  outlinePolygon,
   pageState,
   pageToScene,
   sceneToPage,
@@ -460,5 +461,23 @@ describe("trench lines", () => {
     const moved = [page({ x: 600, y: 350 }), line("L1", 700, 500, pts)];
     expect(pageState(moved, moved[0])!.geometry.segments).toHaveLength(2);
     expect(fp(moved)).toBe(fp([page(), line("L1", 200, 200, pts)]));
+  });
+});
+
+describe("trench outline", () => {
+  it("closes a band half a width either side of the line", () => {
+    const ring = outlinePolygon(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+      2,
+    );
+    expect(ring).toEqual([
+      { x: 0, y: -2 },
+      { x: 10, y: -2 },
+      { x: 10, y: 2 },
+      { x: 0, y: 2 },
+    ]);
   });
 });

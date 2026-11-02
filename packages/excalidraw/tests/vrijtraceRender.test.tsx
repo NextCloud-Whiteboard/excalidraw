@@ -4,7 +4,10 @@ import { act } from "@testing-library/react";
 import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
 import { networkIdForPage } from "../vrijtrace/model";
-import { renderVrijTraceStatic } from "../vrijtrace/render";
+import {
+  renderVrijTraceInteractive,
+  renderVrijTraceStatic,
+} from "../vrijtrace/render";
 
 import { API } from "./helpers/api";
 import { Pointer } from "./helpers/ui";
@@ -63,6 +66,16 @@ describe("Vrij Tracé rendering", () => {
     expect(svg.querySelector("[data-vrijtrace='red']")).toBeNull();
   });
 
+  it("exports the trench body see-through, with zones off and on", async () => {
+    const trenchFill = async () =>
+      (await svgOf())
+        .querySelector("[data-vrijtrace='trench']")!
+        .getAttribute("fill");
+    expect(await trenchFill()).toBe("none");
+    act(() => h.app.vrijTrace.activate());
+    expect(await trenchFill()).toBe("none");
+  });
+
   it("renders the canvases without throwing", () => {
     act(() => h.app.vrijTrace.toggleHidePdf());
     act(() => h.app.vrijTrace.activate());
@@ -74,6 +87,7 @@ describe("Vrij Tracé rendering", () => {
 const countingContext = () => {
   const calls: Record<string, number> = {};
   const dashedPoints: number[][] = [];
+  const lineWidths: number[] = [];
   let dashed = false;
   const ctx = new Proxy(
     {},
@@ -90,14 +104,19 @@ const countingContext = () => {
           }
           return key === "measureText" ? { width: 10 } : undefined;
         },
-      set: () => true,
+      set: (_, key: string, value) => {
+        if (key === "lineWidth") {
+          lineWidths.push(value);
+        }
+        return true;
+      },
     },
   ) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls, dashedPoints };
+  return { ctx, calls, dashedPoints, lineWidths };
 };
 
 /** a calibrated page with one activated segment from (100,100) to (400,100) */
-const drawOnPage = async (width: number, height: number) => {
+const drawOnPage = async (width: number, height: number, activate = true) => {
   await render(
     <Excalidraw handleKeyboardGlobally={true} vrijTraceEnabled={true} />,
   );
@@ -117,7 +136,9 @@ const drawOnPage = async (width: number, height: number) => {
     },
   ]);
   drawLine();
-  act(() => h.app.vrijTrace.activate());
+  if (activate) {
+    act(() => h.app.vrijTrace.activate());
+  }
   return h.app.scene.getElement(networkIdForPage("pdf1")) as any;
 };
 
@@ -132,11 +153,53 @@ const renderStatic = (network: any) => {
   return recorded;
 };
 
+describe("Vrij Tracé see-through trenches", () => {
+  it("paints no trench body on the canvas, only its outline", async () => {
+    const network = await drawOnPage(1000, 700, false);
+    const { calls } = renderStatic(network);
+    expect(calls.fill ?? 0).toBe(0);
+    expect(calls.stroke).toBeGreaterThan(0);
+  });
+
+  it("previews a stroke as a thin outline, not a wide band", async () => {
+    await drawOnPage(1000, 700, false);
+    act(() =>
+      h.setState({
+        activeTool: {
+          ...h.state.activeTool,
+          type: "custom",
+          customType: "vrijtrace",
+        },
+        vrijTrace: {
+          ...h.state.vrijTrace,
+          pageId: "pdf1",
+          widthM: 2,
+          stroke: [
+            { x: 100, y: 300 },
+            { x: 200, y: 310 },
+            { x: 300, y: 300 },
+          ],
+        },
+      }),
+    );
+    const recorded = countingContext();
+    renderVrijTraceInteractive(
+      recorded.ctx,
+      h.state as any,
+      h.app.scene.getNonDeletedElementsMap(),
+    );
+    expect(recorded.calls.stroke).toBeGreaterThan(0);
+    // 2 m at 5 cm/px would be a 40 px band; only hairlines are drawn
+    expect(Math.max(...recorded.lineWidths)).toBeLessThan(5);
+    expect(recorded.calls.closePath).toBeGreaterThan(0);
+  });
+});
+
 describe("Vrij Tracé rendering cost", () => {
   it("hatching a huge shared page stays bounded by the screen", async () => {
     const network = await drawOnPage(1_000_000, 700_000);
     const { calls } = renderStatic(network);
-    expect(calls.fill).toBeGreaterThan(3); // zones were drawn
+    expect(calls.fill).toBeGreaterThanOrEqual(3); // zones were drawn
     expect(calls.stroke).toBeLessThan(2000);
   });
 

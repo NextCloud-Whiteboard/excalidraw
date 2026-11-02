@@ -120,7 +120,7 @@ export const VrijTraceSidebar = () => {
         <span>
           <i
             style={{
-              background: COLORS.fill,
+              background: "transparent",
               border: `2px solid ${COLORS.edge}`,
             }}
           />

@@ -39,6 +39,10 @@ export const constrain = (a: Pt, b: Pt, snap: Snap): Pt => {
 };
 
 /** Douglas–Peucker: drop points within `tol` of the line through their neighbours */
+/** a hand's wobble: stroke points within this many screen px of a straight
+ * piece are dropped (divided by zoom at use) */
+export const SMOOTH_PX = 3;
+
 export const simplify = (pts: readonly Pt[], tol: number): Pt[] => {
   if (pts.length < 3) {
     return [...pts];
