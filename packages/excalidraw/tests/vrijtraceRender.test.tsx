@@ -88,6 +88,8 @@ const countingContext = () => {
   const calls: Record<string, number> = {};
   const dashedPoints: number[][] = [];
   const lineWidths: number[] = [];
+  const alphas: number[] = [];
+  const texts: string[] = [];
   let dashed = false;
   const ctx = new Proxy(
     {},
@@ -99,6 +101,9 @@ const countingContext = () => {
           if (key === "setLineDash") {
             dashed = args[0].length > 0;
           }
+          if (key === "fillText") {
+            texts.push(args[0]);
+          }
           if (dashed && (key === "moveTo" || key === "lineTo")) {
             dashedPoints.push(args);
           }
@@ -108,11 +113,14 @@ const countingContext = () => {
         if (key === "lineWidth") {
           lineWidths.push(value);
         }
+        if (key === "globalAlpha") {
+          alphas.push(value);
+        }
         return true;
       },
     },
   ) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls, dashedPoints, lineWidths };
+  return { ctx, calls, dashedPoints, lineWidths, alphas, texts };
 };
 
 /** a calibrated page with one activated segment from (100,100) to (400,100) */
@@ -192,6 +200,54 @@ describe("Vrij Tracé see-through trenches", () => {
     // 2 m at 5 cm/px would be a 40 px band; only hairlines are drawn
     expect(Math.max(...recorded.lineWidths)).toBeLessThan(5);
     expect(recorded.calls.closePath).toBeGreaterThan(0);
+  });
+});
+
+describe("Vrij Tracé concept zones", () => {
+  it("shows zones that went stale after a change as a faded concept", async () => {
+    const network = await drawOnPage(1000, 700);
+    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    expect(h.app.vrijTrace.zonesActive()).toBe(false);
+    const { calls, alphas, texts } = renderStatic(
+      h.app.scene.getElement(network.id),
+    );
+    expect(calls.fill).toBeGreaterThanOrEqual(3); // the zones, faded
+    expect(alphas.some((a) => a > 0 && a < 1)).toBe(true);
+    expect(texts).toContain("CONCEPT · NIET GEACTIVEERD");
+    // no overlap hatching on a concept
+    expect(calls.clip ?? 0).toBe(0);
+  });
+
+  it("shows no concept on a never-activated page", async () => {
+    const network = await drawOnPage(1000, 700, false);
+    const { calls, texts } = renderStatic(network);
+    expect(calls.fill ?? 0).toBe(0);
+    expect(texts).not.toContain("CONCEPT · NIET GEACTIVEERD");
+  });
+
+  it("shows no concept once the zones are switched off on purpose", async () => {
+    const network = await drawOnPage(1000, 700);
+    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    act(() => h.app.vrijTrace.deactivate());
+    const { calls, texts } = renderStatic(h.app.scene.getElement(network.id));
+    expect(calls.fill ?? 0).toBe(0);
+    expect(texts).not.toContain("CONCEPT · NIET GEACTIVEERD");
+  });
+
+  it("draws activated zones at full strength with their hatching", async () => {
+    const network = await drawOnPage(1000, 700);
+    const { alphas, texts, calls } = renderStatic(network);
+    expect(alphas.filter((a) => a < 1)).toEqual([]);
+    expect(texts).not.toContain("CONCEPT · NIET GEACTIVEERD");
+    expect(calls.clip).toBeGreaterThan(0);
+  });
+
+  it("leaves a concept out of the export", async () => {
+    await drawOnPage(1000, 700);
+    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    const svg = await svgOf();
+    expect(svg.querySelector("[data-vrijtrace='work']")).toBeNull();
+    expect(svg.querySelector("[data-vrijtrace='trench']")).not.toBeNull();
   });
 });
 

@@ -193,6 +193,19 @@ describe("Vrij Tracé UI", () => {
     }
   });
 
+  it("says when the zones shown are a concept", () => {
+    drawLine([100, 100], [400, 100]);
+    fireEvent.click(byId("vt-activate"));
+    fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
+    expect(byId("vt-zone-state").textContent).toBe(
+      "Zones niet geactiveerd · concept",
+    );
+    fireEvent.click(byId("vt-activate"));
+    expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
+    fireEvent.click(byId("vt-activate")); // off on purpose: no concept
+    expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");
+  });
+
   it("shows the activation state and who activated", () => {
     drawLine([100, 100], [400, 100]);
     expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");

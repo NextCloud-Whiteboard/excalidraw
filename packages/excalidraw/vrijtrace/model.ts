@@ -413,6 +413,9 @@ export type PageState = {
   zones: Zones;
   fingerprint: string;
   active: boolean;
+  /** activated once, but the layout or zone settings changed since: the
+   * zones are shown as a concept until someone activates them again */
+  stale: boolean;
 };
 
 /** Everything the renderer and the sidebar need for one page; null if uncalibrated. */
@@ -449,6 +452,7 @@ export const pageState = (
     zones,
     fingerprint: fp,
     active: activation?.fingerprint === fp,
+    stale: !!activation && activation.fingerprint !== fp,
   };
 };
 

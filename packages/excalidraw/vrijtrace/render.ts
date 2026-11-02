@@ -224,6 +224,34 @@ export const renderVrijTraceStatic = (
   }
 };
 
+/** how strongly a concept's zones are drawn */
+const CONCEPT_ALPHA = 0.38;
+
+/** "CONCEPT · NIET GEACTIVEERD" at the page's top left, screen-sized */
+const drawConceptLabel = (
+  ctx: CanvasRenderingContext2D,
+  s: PageState,
+  z: number,
+) => {
+  const at = pageToScene(s.frame, { x: 0, y: 0 });
+  const x = at.x + 10 / z;
+  const y = at.y + 10 / z;
+  ctx.save();
+  ctx.font = `600 ${11 / z}px sans-serif`;
+  const w = ctx.measureText(STR.concept).width;
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#adb5bd";
+  ctx.lineWidth = 1 / z;
+  ctx.beginPath();
+  ctx.rect(x, y, w + 16 / z, 22 / z);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#495057";
+  ctx.textBaseline = "middle";
+  ctx.fillText(STR.concept, x + 8 / z, y + 11 / z);
+  ctx.restore();
+};
+
 const drawPage = (
   ctx: CanvasRenderingContext2D,
   appState: StaticCanvasAppState,
@@ -231,7 +259,9 @@ const drawPage = (
   z: number,
 ) => {
   ctx.translate(appState.scrollX, appState.scrollY);
-  if (s.active) {
+  if (s.active || s.stale) {
+    // a concept (zones gone stale after a change) is faded and unhatched
+    ctx.globalAlpha = s.active ? 1 : CONCEPT_ALPHA;
     tracePath(ctx, s.zones.work, s);
     ctx.fillStyle = COLORS.work;
     ctx.fill("evenodd");
@@ -241,6 +271,9 @@ const drawPage = (
     tracePath(ctx, s.zones.overlap, s);
     ctx.fillStyle = COLORS.overlap;
     ctx.fill("evenodd");
+    ctx.globalAlpha = 1;
+  }
+  if (s.active) {
     ctx.save();
     ctx.clip("evenodd");
     ctx.strokeStyle = COLORS.overlapLine;
@@ -266,6 +299,9 @@ const drawPage = (
   ctx.strokeStyle = s.active ? COLORS.edgeOn : COLORS.edge;
   ctx.lineWidth = 1.2 / z;
   ctx.stroke();
+  if (s.stale) {
+    drawConceptLabel(ctx, s, z);
+  }
   // the centre (or edge) line is the trench line element itself
   const labels = displayLabels(s.parts.trees);
   for (const t of s.parts.trees) {

@@ -58,6 +58,8 @@ export const VrijTraceSidebar = () => {
         >
           {s.active && activation
             ? STR.activatedBy(activation.by.name, time)
+            : s.stale
+            ? STR.conceptZones
             : STR.notActivated}
         </span>
         <span data-testid="vt-count">
