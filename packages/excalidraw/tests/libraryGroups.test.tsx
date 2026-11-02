@@ -64,6 +64,13 @@ describe("groupLibraryItems", () => {
     expect(groups[0].items).toHaveLength(2);
   });
 
+  it("treats a group or name that is not text as missing", () => {
+    // an imported library file can hold anything in these fields
+    const odd = item("odd", { group: 42, name: { x: 1 } } as never);
+    expect(groupLibraryItems([odd], "boom")).toEqual([]);
+    expect(groupLibraryItems([odd])).toEqual([{ title: null, items: [odd] }]);
+  });
+
   it("ignores surrounding spaces in the query", () => {
     const groups = groupLibraryItems(
       [item("t", { group: "Bomen", name: "Boom" })],

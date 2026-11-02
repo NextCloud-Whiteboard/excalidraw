@@ -17,13 +17,16 @@ export const groupLibraryItems = (
   query = "",
 ): LibraryGroup[] => {
   const q = query.trim().toLowerCase();
-  const matches = (text: string | null | undefined) =>
-    !!text && text.toLowerCase().includes(q);
+  // a library file can hold anything in these fields, so only text counts
+  const text = (value: unknown) =>
+    typeof value === "string" && value ? value : null;
+  const matches = (value: string | null) =>
+    !!value && value.toLowerCase().includes(q);
 
   const byTitle = new Map<string | null, LibraryItem[]>();
   for (const item of items) {
-    const title = item.group || null;
-    if (q && !matches(title) && !matches(item.name)) {
+    const title = text(item.group);
+    if (q && !matches(title) && !matches(text(item.name))) {
       continue;
     }
     const list = byTitle.get(title);
