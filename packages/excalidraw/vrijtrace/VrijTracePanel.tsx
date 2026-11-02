@@ -249,8 +249,9 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           step="0.25"
           value={settings.treeMinM}
           onChange={(e) =>
-            vt.updateSettings({ treeMinM: Number(e.target.value) }, true)
+            vt.updateSettings({ treeMinM: Number(e.target.value) }, false)
           }
+          onPointerUp={() => vt.updateSettings({}, true)}
         />
         <div className="vt-grid2">
           {(parts?.trees ?? []).map((t) =>

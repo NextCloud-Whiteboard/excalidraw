@@ -495,6 +495,9 @@ export class VrijTraceController {
     if (commit) {
       this.app.scheduleCapture();
     }
+    // the panel's sliders show the page settings: redraw it, or a dragged
+    // slider snaps back to the old value until something else repaints
+    this.setUI({});
   }
 
   activate() {

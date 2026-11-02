@@ -167,6 +167,32 @@ describe("Vrij Tracé UI", () => {
     expect(after).not.toEqual(before);
   });
 
+  it("the Werkruimte and Minimale afstand sliders follow the drag at once", () => {
+    drawLine([100, 100], [400, 100]);
+    const work = () => byId("vt-work-width") as HTMLInputElement;
+    const treeMin = () => byId("vt-tree-min") as HTMLInputElement;
+    fireEvent.change(work(), { target: { value: "3" } });
+    expect(work().value).toBe("3");
+    expect(container.textContent).toContain("3,00 m");
+    fireEvent.change(treeMin(), { target: { value: "7.5" } });
+    expect(treeMin().value).toBe("7.5");
+    expect(container.textContent).toContain("7,50 m");
+  });
+
+  it("a slider drag is one undo step", async () => {
+    drawLine([100, 100], [400, 100]);
+    for (const id of ["vt-work-width", "vt-tree-min"]) {
+      const before = API.getUndoStack().length;
+      for (const v of ["1", "2", "3", "4"]) {
+        fireEvent.change(byId(id), { target: { value: v } });
+        await act(() => new Promise((r) => setTimeout(r, 0)));
+      }
+      fireEvent.pointerUp(byId(id));
+      await act(() => new Promise((r) => setTimeout(r, 0)));
+      expect(API.getUndoStack().length).toBe(before + 1);
+    }
+  });
+
   it("shows the activation state and who activated", () => {
     drawLine([100, 100], [400, 100]);
     expect(byId("vt-zone-state").textContent).toBe("Zones niet geactiveerd");
