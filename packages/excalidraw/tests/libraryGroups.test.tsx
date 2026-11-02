@@ -150,6 +150,15 @@ describe("library sidebar groups", () => {
     await waitFor(() => expect(headers(lib)).toHaveLength(3));
   });
 
+  it("typing in the search box does not trigger canvas shortcuts", async () => {
+    const lib = await openLibrary();
+    const search = queryByTestId(lib, "library-search") as HTMLInputElement;
+    search.focus();
+    // "r" is the rectangle tool's shortcut
+    fireEvent.keyDown(search, { key: "r", code: "KeyR" });
+    expect(h.state.activeTool.type).toBe("selection");
+  });
+
   it("clicking a grouped item places it on the canvas", async () => {
     const lib = await openLibrary();
     await waitFor(() => expect(tilesIn(lib, "Mantelbuizen")).toBe(1));

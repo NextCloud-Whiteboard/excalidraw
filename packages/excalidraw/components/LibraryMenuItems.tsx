@@ -324,7 +324,9 @@ export default function LibraryMenuItems({
           {publishedItems.length > 0 ? (
             <>
               <input
-                type="search"
+                // "text", not "search": the canvas ignores keys typed in text
+                // inputs, but would take a search input's keys as shortcuts
+                type="text"
                 className="library-search"
                 data-testid="library-search"
                 placeholder={t("library.search")}
