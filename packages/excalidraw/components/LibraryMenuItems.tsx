@@ -16,6 +16,7 @@ import { useScrollPosition } from "../hooks/useScrollPosition";
 import { t } from "../i18n";
 
 import { LibraryMenuControlButtons } from "./LibraryMenuControlButtons";
+import { groupLibraryItems } from "./libraryGroups";
 import { LibraryDropdownMenu } from "./LibraryMenuHeaderContent";
 import {
   LibraryMenuSection,
@@ -33,6 +34,10 @@ import type {
   LibraryItems,
   UIAppState,
 } from "../types";
+
+// folded groups, kept while the board is open so they stay folded when the
+// sidebar is closed and opened again
+const foldedGroups = new Set<string>();
 
 // using an odd number of items per batch so the rendering creates an irregular
 // pattern which looks more organic
@@ -84,6 +89,19 @@ export default function LibraryMenuItems({
     () => libraryItems.filter((item) => item.status === "published"),
     [libraryItems],
   );
+
+  const [query, setQuery] = useState("");
+  const [, setFoldVersion] = useState(0);
+  const publishedGroups = useMemo(
+    () => groupLibraryItems(publishedItems, query),
+    [publishedItems, query],
+  );
+  const toggleGroup = useCallback((title: string) => {
+    if (!foldedGroups.delete(title)) {
+      foldedGroups.add(title);
+    }
+    setFoldVersion((v) => v + 1);
+  }, []);
 
   const showBtn = !libraryItems.length && !pendingElements.length;
 
@@ -304,17 +322,70 @@ export default function LibraryMenuItems({
             </div>
           )}
           {publishedItems.length > 0 ? (
-            <LibraryMenuSectionGrid>
-              <LibraryMenuSection
-                itemsRenderedPerBatch={itemsRenderedPerBatch}
-                items={publishedItems}
-                onItemSelectToggle={onItemSelectToggle}
-                onItemDrag={onItemDrag}
-                onClick={onItemClick}
-                isItemSelected={isItemSelected}
-                svgCache={svgCache}
+            <>
+              <input
+                type="search"
+                className="library-search"
+                data-testid="library-search"
+                placeholder={t("library.search")}
+                aria-label={t("library.search")}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
               />
-            </LibraryMenuSectionGrid>
+              {publishedGroups.length === 0 && (
+                <div className="library-group__none">
+                  {t("library.noSearchResults")}
+                </div>
+              )}
+              {publishedGroups.map(({ title, items }) => {
+                const section = (
+                  <LibraryMenuSectionGrid>
+                    <LibraryMenuSection
+                      itemsRenderedPerBatch={itemsRenderedPerBatch}
+                      items={items}
+                      onItemSelectToggle={onItemSelectToggle}
+                      onItemDrag={onItemDrag}
+                      onClick={onItemClick}
+                      isItemSelected={isItemSelected}
+                      svgCache={svgCache}
+                    />
+                  </LibraryMenuSectionGrid>
+                );
+                if (title === null) {
+                  return <React.Fragment key="">{section}</React.Fragment>;
+                }
+                // a search shows every group that has a match
+                const open = !!query.trim() || !foldedGroups.has(title);
+                return (
+                  <div className="library-group" key={title}>
+                    <button
+                      type="button"
+                      className="library-group__header"
+                      aria-expanded={open}
+                      onClick={() => toggleGroup(title)}
+                    >
+                      <svg
+                        className="library-group__chevron"
+                        viewBox="0 0 10 10"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M2 3.5L5 6.5L8 3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        />
+                      </svg>
+                      <span className="library-group__title">{title}</span>
+                      <span className="library-group__count">
+                        {items.length}
+                      </span>
+                    </button>
+                    {open && section}
+                  </div>
+                );
+              })}
+            </>
           ) : unpublishedItems.length > 0 ? (
             <div
               style={{

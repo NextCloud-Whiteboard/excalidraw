@@ -157,7 +157,9 @@
   "library": {
     "noItems": "Nog geen items toegevoegd...",
     "hint_emptyLibrary": "Selecteer een item op het canvas om het hier toe te voegen.",
-    "hint_emptyPrivateLibrary": "Selecteer een item op het canvas om het hier toe te voegen."
+    "hint_emptyPrivateLibrary": "Selecteer een item op het canvas om het hier toe te voegen.",
+    "search": "Zoeken in bibliotheek",
+    "noSearchResults": "Niets gevonden"
   },
   "search": {
     "title": "Zoeken op canvas",

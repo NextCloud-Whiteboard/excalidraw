@@ -583,6 +583,8 @@ export type LibraryItem = {
   /** timestamp in epoch (ms) */
   created: number;
   name?: string;
+  /** the library sidebar shows items with the same group together */
+  group?: string;
   error?: string;
 };
 export type LibraryItems = readonly LibraryItem[];

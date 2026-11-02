@@ -186,7 +186,9 @@
   "library": {
     "noItems": "No items added yet...",
     "hint_emptyLibrary": "Select an item on canvas to add it here.",
-    "hint_emptyPrivateLibrary": "Select an item on canvas to add it here."
+    "hint_emptyPrivateLibrary": "Select an item on canvas to add it here.",
+    "search": "Search library",
+    "noSearchResults": "Nothing found"
   },
   "search": {
     "title": "Find on canvas",
