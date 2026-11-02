@@ -227,18 +227,22 @@ export const renderVrijTraceStatic = (
 /** how strongly a concept's zones are drawn */
 const CONCEPT_ALPHA = 0.38;
 
-/** "CONCEPT · NIET GEACTIVEERD" at the page's top left, screen-sized */
+/** "CONCEPT · NIET GEACTIVEERD" at the page's top centre (the tool panel
+ * covers its left corner), screen-sized */
 const drawConceptLabel = (
   ctx: CanvasRenderingContext2D,
   s: PageState,
   z: number,
 ) => {
-  const at = pageToScene(s.frame, { x: 0, y: 0 });
-  const x = at.x + 10 / z;
-  const y = at.y + 10 / z;
+  const at = pageToScene(s.frame, {
+    x: s.frame.width / pxPerMetre(s.frame) / 2,
+    y: 0,
+  });
   ctx.save();
   ctx.font = `600 ${11 / z}px sans-serif`;
   const w = ctx.measureText(STR.concept).width;
+  const x = at.x - (w + 16 / z) / 2;
+  const y = at.y + 10 / z;
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "#adb5bd";
   ctx.lineWidth = 1 / z;
