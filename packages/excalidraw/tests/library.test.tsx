@@ -99,13 +99,16 @@ describe("library", () => {
       customData: { isPdf: true, ...customData },
     });
 
-    const dropRectangle = async () => {
-      const rectangle = API.createElement({
-        id: "rect1",
-        type: "rectangle",
-        width: 200,
-        height: 100,
-      });
+    const dropRectangle = async (customData?: Record<string, unknown>) => {
+      const rectangle = {
+        ...API.createElement({
+          id: "rect1",
+          type: "rectangle",
+          width: 200,
+          height: 100,
+        }),
+        ...(customData ? { customData } : {}),
+      };
       await API.drop(
         new Blob(
           [
@@ -151,6 +154,31 @@ describe("library", () => {
 
       expect(dropped.width).toBeCloseTo(400);
       expect(dropped.height).toBeCloseTo(200);
+    });
+
+    it("keeps the scale a real-size item is drawn at", async () => {
+      API.setElements([createPdfPage({ pdfCmPerPx: 2 })]);
+      API.setAppState({ cmPerPx: 1 });
+
+      // drawn at 4 cm per px, e.g. a tree whose test ring is true to size
+      const dropped = await dropRectangle({ libraryCmPerPx: 4 });
+
+      expect(dropped.width).toBeCloseTo(400);
+      expect(dropped.height).toBeCloseTo(200);
+      expect(dropped.customData?.libraryCmPerPx).toBe(2);
+    });
+
+    it("never resizes a symbol", async () => {
+      API.setElements([createPdfPage({ pdfCmPerPx: 2 })]);
+      API.setAppState({ cmPerPx: 1 });
+
+      const dropped = await dropRectangle({ librarySymbol: true });
+
+      expect(dropped.width).toBe(200);
+      expect(dropped.height).toBe(100);
+      expect(dropped.customData?.pdfParentId).toBe("pdf1");
+      // no scale, so a later recalibration leaves it alone too
+      expect(dropped.customData?.libraryCmPerPx).toBeUndefined();
     });
 
     it("attaches without resizing on an uncalibrated PDF", async () => {

@@ -3602,13 +3602,20 @@ class App extends React.Component<AppProps, AppState> {
       const elementsMap = this.scene.getNonDeletedElementsMap();
       for (const { id } of duplicatedElements) {
         const element = elementsMap.get(id);
-        if (element) {
-          this.scene.mutateElement(element, {
-            customData: {
-              ...element.customData,
-              libraryCmPerPx: this.state.cmPerPx,
-            },
-          });
+        // a symbol keeps its size; a real-size item keeps the scale it is
+        // drawn at; anything else counts as drawn at the board's scale
+        if (element && element.customData?.librarySymbol !== true) {
+          if (!isValidCmPerPx(element.customData?.libraryCmPerPx)) {
+            this.scene.mutateElement(element, {
+              customData: {
+                ...element.customData,
+                libraryCmPerPx: this.state.cmPerPx,
+              },
+            });
+          }
+        } else if (element?.customData?.libraryCmPerPx !== undefined) {
+          const { libraryCmPerPx, ...customData } = element.customData;
+          this.scene.mutateElement(element, { customData });
         }
       }
       this.attachElementsToPdfAt(duplicatedElements, x, y);
