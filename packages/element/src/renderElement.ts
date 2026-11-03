@@ -63,6 +63,7 @@ import type {
   ExcalidrawTextElement,
   NonDeletedExcalidrawElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawLinearElement,
   ExcalidrawImageElement,
   ExcalidrawTextElementWithContainer,
   ExcalidrawFrameLikeElement,
@@ -394,6 +395,39 @@ const drawImagePlaceholder = (
   );
 };
 
+/** a Vrij Tracé trench line drawn on its centre (vrijtrace/lines.ts) */
+const isDashedTrenchLine = (element: NonDeletedExcalidrawElement) =>
+  element.type === "line" &&
+  element.customData?.tool === "trench" &&
+  element.strokeStyle === "dashed";
+
+/** on-screen px of a trench centre line's dash and gap */
+const TRENCH_DASH_PX = [8, 5];
+
+/**
+ * A trench centre line, drawn like a CAD line style instead of by rough.js:
+ * exactly Lijndikte wide (rough adds 0.5 to dashed lines) but at least one
+ * screen pixel, with one dash pattern along the whole line (rough restarts
+ * it at every point, so a freehand line of short pieces looks solid) and
+ * dashes that keep their size on screen at any zoom.
+ */
+const drawTrenchCentreLine = (
+  element: ExcalidrawLinearElement,
+  context: CanvasRenderingContext2D,
+  zoom: number,
+) => {
+  context.save();
+  context.strokeStyle = element.strokeColor;
+  context.lineWidth = Math.max(element.strokeWidth, 1 / zoom);
+  context.setLineDash(TRENCH_DASH_PX.map((px) => px / zoom));
+  context.beginPath();
+  element.points.forEach(([x, y], i) =>
+    i ? context.lineTo(x, y) : context.moveTo(x, y),
+  );
+  context.stroke();
+  context.restore();
+};
+
 const drawElementOnCanvas = (
   element: NonDeletedExcalidrawElement,
   rc: RoughCanvas,
@@ -417,6 +451,11 @@ const drawElementOnCanvas = (
     case "line": {
       context.lineJoin = "round";
       context.lineCap = "round";
+
+      if (isDashedTrenchLine(element)) {
+        drawTrenchCentreLine(element, context, appState.zoom.value);
+        break;
+      }
 
       ShapeCache.get(element)!.forEach((shape) => {
         rc.draw(shape);
