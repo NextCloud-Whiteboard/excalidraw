@@ -175,24 +175,25 @@ describe("Vrij Tracé UI", () => {
         libraryTree("t2", 250, 120, 20, { klasse: "C3", scherm: true }),
       ],
     });
+    // the verdict right after the name: a narrow sidebar scrolls the rest
     expect(rows()).toEqual([
       [
         "1",
         "C1 groot, zonder scherm",
-        "Nee",
         "1,50 m",
-        "0,00 m",
         "Voldoet",
+        "0,00 m",
+        "Nee",
         "—",
         "—",
       ],
       [
         "2",
         "C3 klein, met scherm",
-        "Nee",
         "−0,50 m",
-        "0,00 m",
         "Conflict",
+        "0,00 m",
+        "Nee",
         "—",
         "—",
       ],
@@ -205,9 +206,9 @@ describe("Vrij Tracé UI", () => {
       elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
     });
     fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
-    expect(rows()[0].slice(3, 6)).toEqual(["1,50 m", "2,00 m", "Conflict"]);
+    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Conflict", "2,00 m"]);
     fireEvent.change(byId("vt-tree-min"), { target: { value: "1.5" } });
-    expect(rows()[0].slice(3, 6)).toEqual(["1,50 m", "1,50 m", "Voldoet"]);
+    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Voldoet", "1,50 m"]);
   });
 
   it("pointing at a row outlines that tree", () => {

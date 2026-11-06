@@ -207,6 +207,9 @@
     th {
       font-size: 11px;
       color: var(--color-gray-60);
+      // "Afstand vanaf ring" wraps instead of widening its column
+      white-space: normal;
+      vertical-align: bottom;
     }
 
     // a row outlines its tree on the plan while pointed at or tapped
@@ -216,6 +219,13 @@
 
     tr.vt-hot td {
       background: var(--color-surface-primary-container);
+    }
+
+    // "C1 groot, zonder scherm" wraps, so the distance and verdict stay in view
+    // (they come right after it; the rest scrolls)
+    td.vt-tree-name {
+      white-space: normal;
+      min-width: 6.5em;
     }
   }
 

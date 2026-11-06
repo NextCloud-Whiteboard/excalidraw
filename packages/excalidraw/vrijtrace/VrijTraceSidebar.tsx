@@ -80,10 +80,10 @@ export const VrijTraceSidebar = () => {
             <tr>
               <th>{STR.table.number}</th>
               <th>{STR.table.tree}</th>
-              <th>{STR.table.inTrench}</th>
               <th>{STR.table.distance}</th>
-              <th>{STR.table.min}</th>
               <th>{STR.table.verdict}</th>
+              <th>{STR.table.min}</th>
+              <th>{STR.table.inTrench}</th>
               <th>{STR.table.red}</th>
               <th>{STR.table.work}</th>
             </tr>
@@ -112,12 +112,10 @@ export const VrijTraceSidebar = () => {
                   <td>
                     <b>{i + 1}</b>
                   </td>
-                  <td>{treeName(t)}</td>
-                  <td>{yesNo(r.inside)}</td>
+                  <td className="vt-tree-name">{treeName(t)}</td>
                   <td>
                     {r.distanceM === null ? "—" : `${fmt(r.distanceM)} m`}
                   </td>
-                  <td>{fmt(s.settings.treeMinM)} m</td>
                   <td
                     className={
                       r.pass === null ? "" : r.pass ? "vt-ok" : "vt-bad"
@@ -129,6 +127,8 @@ export const VrijTraceSidebar = () => {
                       ? STR.table.ok
                       : STR.table.conflict}
                   </td>
+                  <td>{fmt(s.settings.treeMinM)} m</td>
+                  <td>{yesNo(r.inside)}</td>
                   <td>{yesNo(r.red)}</td>
                   <td>{yesNo(r.work)}</td>
                 </tr>
