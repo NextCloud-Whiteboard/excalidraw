@@ -230,7 +230,8 @@
   }
 
   .vt-ok {
-    color: var(--color-success);
+    // --color-success is a pale background green; this is its text colour
+    color: var(--color-success-text);
     font-weight: 600;
   }
 
