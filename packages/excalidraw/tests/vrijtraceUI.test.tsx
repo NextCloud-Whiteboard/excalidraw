@@ -24,6 +24,25 @@ const pdfPage = () => ({
   }),
   customData: { isPdf: true, pdfCmPerPx: 5 },
 });
+/** a library tree's ring (5 cm/px: 20 px = 1 m), as placed on pdf1 */
+const libraryTree = (
+  id: string,
+  cx: number,
+  cy: number,
+  ringPx: number,
+  treeRing: object = { klasse: "C1", scherm: false },
+) => ({
+  ...API.createElement({
+    type: "ellipse",
+    id,
+    x: cx - ringPx,
+    y: cy - ringPx,
+    width: 2 * ringPx,
+    height: 2 * ringPx,
+    strokeStyle: "dashed",
+  }),
+  customData: { treeRing, pdfParentId: "pdf1" },
+});
 
 describe("Vrij Tracé UI", () => {
   let container: HTMLElement;
@@ -83,8 +102,6 @@ describe("Vrij Tracé UI", () => {
       "vt-work-width",
       "vt-work-side",
       "vt-tree-min",
-      "vt-tree-add",
-      "vt-stop",
       "vt-activate",
     ]) {
       expect(byId(id)).not.toBeNull();
@@ -103,6 +120,10 @@ describe("Vrij Tracé UI", () => {
       "vt-example",
       "vt-clear",
       "vt-pdf",
+      // trees come from the library: no B-markers to add or move
+      "vt-tree-add",
+      "vt-stop",
+      "vt-tree-B1",
     ]) {
       expect(byId(id)).toBeNull();
     }
@@ -126,45 +147,82 @@ describe("Vrij Tracé UI", () => {
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(1);
   });
 
-  it("Esc leaves tree placing, back to drawing", () => {
-    openOnPage();
-    fireEvent.click(byId("vt-tree-add"));
-    expect(h.state.vrijTrace.mode).toBe("boomToevoegen");
-    act(() => {
-      h.app.vrijTrace.onKeyDown({ key: "Escape" });
-    });
-    expect(h.state.vrijTrace.mode).toBe("teken");
-  });
-
-  it("the example network has three trees, and clearing keeps the trees", () => {
+  it("the example network has no trees", () => {
     openOnPage();
     act(() => h.app.vrijTrace.example());
     // eight segments, joined into lines where they run on
     const page = h.elements.find((e) => e.id === "pdf1") as any;
     expect(pageState(h.elements, page)!.geometry.segments).toHaveLength(8);
     expect(getPageParts(h.elements, "pdf1").lines.length).toBeLessThan(8);
-    expect(
-      getPageParts(h.elements, "pdf1")
-        .trees.map((t: any) => t.trench.label)
-        .sort(),
-    ).toEqual(["B1", "B2", "B3"]);
-    expect(byId("vt-rows").querySelectorAll("tr")).toHaveLength(3);
-    expect(byId("vt-tree-B2")).not.toBeNull();
+    expect(getPageParts(h.elements, "pdf1").trees).toHaveLength(0);
     act(() => h.app.vrijTrace.clear());
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(0);
-    expect(getPageParts(h.elements, "pdf1").trees).toHaveLength(3);
   });
 
-  it("changing the minimum distance changes only the verdict", () => {
-    openOnPage();
-    act(() => h.app.vrijTrace.example());
-    const distances = (t: string | null) =>
-      (t ?? "").match(/\d+,\d+ m/g)!.filter((_, i) => i % 2 === 0);
-    const before = byId("vt-rows").textContent;
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "0" } });
-    const after = byId("vt-rows").textContent;
-    expect(distances(after)).toEqual(distances(before));
-    expect(after).not.toEqual(before);
+  const rows = () =>
+    [...byId("vt-rows").querySelectorAll("tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => td.textContent),
+    );
+
+  it("lists the library trees on the page, numbered, measured from their ring", () => {
+    drawLine([100, 100], [400, 100]);
+    // centre 5 m from the trench centre line: 4,50 m from its edge;
+    // a ring of 3 m leaves 1,50 m
+    API.updateScene({
+      elements: [
+        ...h.elements,
+        libraryTree("t1", 250, 200, 60),
+        libraryTree("t2", 250, 120, 20, { klasse: "C3", scherm: true }),
+      ],
+    });
+    expect(rows()).toEqual([
+      [
+        "1",
+        "C1 groot, zonder scherm",
+        "Nee",
+        "1,50 m",
+        "0,00 m",
+        "Voldoet",
+        "—",
+        "—",
+      ],
+      [
+        "2",
+        "C3 klein, met scherm",
+        "Nee",
+        "−0,50 m",
+        "0,00 m",
+        "Conflict",
+        "—",
+        "—",
+      ],
+    ]);
+  });
+
+  it("counts the minimum distance beyond the ring", () => {
+    drawLine([100, 100], [400, 100]);
+    API.updateScene({
+      elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
+    });
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
+    expect(rows()[0].slice(3, 6)).toEqual(["1,50 m", "2,00 m", "Conflict"]);
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "1.5" } });
+    expect(rows()[0].slice(3, 6)).toEqual(["1,50 m", "1,50 m", "Voldoet"]);
+  });
+
+  it("pointing at a row outlines that tree", () => {
+    drawLine([100, 100], [400, 100]);
+    API.updateScene({
+      elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
+    });
+    const [row] = byId("vt-rows").querySelectorAll("tr");
+    fireEvent.pointerEnter(row);
+    expect(h.state.vrijTrace.hotTreeId).toBe("t1");
+    fireEvent.pointerLeave(row);
+    expect(h.state.vrijTrace.hotTreeId).toBeNull();
+    // a tap on a phone, which has no pointer to leave with
+    fireEvent.click(row);
+    expect(h.state.vrijTrace.hotTreeId).toBe("t1");
   });
 
   it("the Werkruimte and Minimale afstand sliders follow the drag at once", () => {
@@ -336,22 +394,6 @@ describe("Vrij Tracé UI", () => {
     ]);
     API.setSelectedElements([h.elements[1]]);
     expect(byId("vt-width")).toBeNull();
-  });
-
-  it("the tree buttons switch to the tool from a selected trench line", () => {
-    drawLine([100, 100], [400, 100]);
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
-    expect(h.state.activeTool.type).toBe("selection");
-    fireEvent.click(byId("vt-tree-add"));
-    expect(h.state.activeTool).toMatchObject({
-      type: "custom",
-      customType: "vrijtrace",
-    });
-    expect(h.state.vrijTrace.mode).toBe("boomToevoegen");
-    mouse.reset();
-    mouse.clickAt(300, 300);
-    expect(getPageParts(h.elements, "pdf1").trees).toHaveLength(1);
   });
 
   it("lifts toasts above the action row while the tool is open", () => {

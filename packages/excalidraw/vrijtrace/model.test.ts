@@ -1,4 +1,5 @@
 import {
+  newElement,
   newImageElement,
   newLinearElement,
   newTrenchElement,
@@ -8,15 +9,16 @@ import { pointFrom } from "@excalidraw/math";
 import type { LocalPoint } from "@excalidraw/math";
 
 import {
-  displayLabels,
   getPageFrame,
   getPageParts,
-  nextTreeLabel,
   outlinePolygon,
   pageState,
   pageToScene,
   sceneToPage,
+  settingsOf,
   toGeometry,
+  treeName,
+  treeRingM,
 } from "./model";
 
 const page = (over: any = {}) =>
@@ -67,15 +69,6 @@ const line = (
   id,
   ...over,
 });
-const tree = (id: string, label: string) =>
-  newTrenchElement({
-    id,
-    trench: { kind: "tree", label },
-    pdfParentId: "pdf1",
-    x: 0,
-    y: 0,
-  });
-
 describe("page frame", () => {
   it("round-trips scene ⇄ metres, also when rotated", () => {
     const f = getPageFrame(page({ angle: 0.4 }));
@@ -177,19 +170,63 @@ describe("fingerprint follows the page", () => {
   });
 });
 
-describe("tree labels", () => {
-  it("fills the lowest free number and marks duplicates", () => {
-    expect(nextTreeLabel([tree("t1", "B1"), tree("t3", "B3")])).toBe("B2");
-    const labels = displayLabels([
-      tree("b", "B4"),
-      tree("a", "B4"),
-      tree("c", "B1"),
-    ]);
-    expect([labels.get("a"), labels.get("b"), labels.get("c")]).toEqual([
-      "B4",
-      "B4b",
-      "B1",
-    ]);
+/** a library tree's dashed ring (whiteboard tools/default-library) */
+const ring = (id: string, customData: any, over: any = {}) => ({
+  ...newElement({
+    type: "ellipse",
+    x: 300,
+    y: 300,
+    width: 60,
+    height: 60,
+    strokeStyle: "dashed",
+  }),
+  id,
+  customData,
+  ...over,
+});
+const C1 = { klasse: "C1", scherm: false };
+
+describe("library trees", () => {
+  it("are found on their page by their ring", () => {
+    const els = [
+      page(),
+      ring("r1", { treeRing: C1, pdfParentId: "pdf1" }),
+      // the crown of the same tree, other trees elsewhere or deleted
+      ring("crown", { pdfParentId: "pdf1" }),
+      ring("r2", { treeRing: C1, pdfParentId: "pdf2" }),
+      ring("r3", { treeRing: C1, pdfParentId: "pdf1" }, { isDeleted: true }),
+      ring("r4", { treeRing: C1 }),
+    ];
+    expect(getPageParts(els, "pdf1").trees.map((t) => t.id)).toEqual(["r1"]);
+  });
+  it("keep old B-markers apart, to be removed", () => {
+    const marker = newTrenchElement({
+      id: "b1",
+      trench: { kind: "tree", label: "B1" },
+      pdfParentId: "pdf1",
+      x: 0,
+      y: 0,
+    });
+    const parts = getPageParts([page(), marker], "pdf1");
+    expect(parts.trees).toEqual([]);
+    expect(parts.legacyTrees.map((t) => t.id)).toEqual(["b1"]);
+  });
+  it("measure their ring in metres on the page", () => {
+    // 30 px at 5 cm/px
+    const r = ring("r1", { treeRing: C1, pdfParentId: "pdf1" });
+    expect(treeRingM(r, getPageFrame(page()))).toBeCloseTo(1.5, 9);
+  });
+  it("need no distance beyond their ring on a new page", () => {
+    expect(settingsOf(null).treeMinM).toBe(0);
+  });
+  it("are named by class and root screen", () => {
+    const name = (treeRing: any) => treeName(ring("r", { treeRing }));
+    expect(name(C1)).toBe("C1 groot, zonder scherm");
+    expect(name({ klasse: "C2", scherm: true })).toBe("C2 middel, met scherm");
+    expect(name({ klasse: "C3", scherm: false })).toBe(
+      "C3 klein, zonder scherm",
+    );
+    expect(name({})).toBe("Boom");
   });
 });
 

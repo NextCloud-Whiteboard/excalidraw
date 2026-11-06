@@ -33,19 +33,13 @@ import {
   isTrenchLine,
   lineWidthOf,
   networkIdForPage,
-  nextTreeLabel,
   pageState,
   trenchLinePoints,
   trenchLineWidth,
 } from "./model";
 import { STR } from "./strings";
 
-import type {
-  AppState,
-  ExcalidrawProps,
-  VrijTraceMode,
-  VrijTraceUIState,
-} from "../types";
+import type { AppState, ExcalidrawProps, VrijTraceUIState } from "../types";
 import type { Pt } from "./geometry";
 
 /** the slice of App the controller needs (kept small for testing) */
@@ -58,7 +52,7 @@ export interface VrijTraceHost {
   getPdfPageAt: (x: number, y: number) => ExcalidrawImageElement | null;
   scheduleCapture: () => void;
   setCursor: (cursor: string) => void;
-  /** switch to the Vrij Tracé tool (tree buttons work from a selection too) */
+  /** switch to the Vrij Tracé tool */
   activateTool: () => void;
 }
 
@@ -70,7 +64,6 @@ const STEP_PX = 2;
 const MIN_STROKE_PX = 8;
 
 type Drag =
-  | { type: "tree"; id: string }
   | { type: "stroke"; pageId: string }
   /** a stroke that cannot become a trench: says why once it is drawn */
   | { type: "refused"; begin: Pt; message: string; told: boolean };
@@ -163,8 +156,7 @@ export class VrijTraceController {
       return null;
     }
     if (page.id !== this.ui.pageId) {
-      // the active tree belongs to the previous page
-      this.setUI({ pageId: page.id, activeTreeId: null });
+      this.setUI({ pageId: page.id, hotTreeId: null });
     }
     return page;
   }
@@ -211,20 +203,6 @@ export class VrijTraceController {
     return this.app.scene
       .getSelectedElements(this.app.state)
       .filter(isTrenchLine);
-  }
-
-  private refuseHeld(id: string) {
-    const name = this.isHeldByOther(id);
-    if (name) {
-      this.app.setToast({ message: STR.heldBy(name) });
-    }
-    return !!name;
-  }
-
-  /** tree placing takes the pointer; else the tool draws trenches */
-  placesTrees() {
-    const mode = this.ui.mode;
-    return mode === "boom" || mode === "boomToevoegen";
   }
 
   /** a stroke point near another trench line of the page lands on it */
@@ -295,47 +273,7 @@ export class VrijTraceController {
   }
 
   pointerDown(p: Pt) {
-    const mode = this.ui.mode;
-    if (mode !== "boom" && mode !== "boomToevoegen") {
-      this.startStroke(p);
-      return;
-    }
-    const page = this.pageForCreate(p, STR.treesOnlyOnPdf);
-    if (!page) {
-      return;
-    }
-    let treeId = this.ui.activeTreeId;
-    if (mode === "boomToevoegen") {
-      const trees = getPageParts(
-        this.app.scene.getNonDeletedElements(),
-        page.id,
-      ).trees;
-      const network = this.ensureNetwork(page);
-      const tree = newTrenchElement({
-        trench: { kind: "tree", label: nextTreeLabel(trees) },
-        pdfParentId: page.id,
-        x: p.x - 0.5,
-        y: p.y - 0.5,
-      });
-      this.app.scene.insertElementAtIndex(
-        tree,
-        this.app.scene.getElementIndex(network.id) + 1,
-      );
-      treeId = tree.id;
-      this.setUI({ mode: "boom", activeTreeId: tree.id });
-    }
-    const tree = treeId ? this.app.scene.getElement(treeId) : null;
-    if (
-      !tree ||
-      tree.isDeleted ||
-      tree.customData?.pdfParentId !== page.id ||
-      this.refuseHeld(tree.id)
-    ) {
-      return;
-    }
-    this.app.scene.mutateElement(tree, { x: p.x - 0.5, y: p.y - 0.5 });
-    this.hold([tree.id]);
-    this.beginDrag({ type: "tree", id: tree.id });
+    this.startStroke(p);
   }
 
   private beginDrag(drag: Drag) {
@@ -358,20 +296,13 @@ export class VrijTraceController {
       this.extendStroke(p);
       return;
     }
-    if (d?.type === "refused") {
-      if (
-        !d.told &&
-        Math.hypot(p.x - d.begin.x, p.y - d.begin.y) >=
-          MIN_STROKE_PX / this.zoom
-      ) {
-        d.told = true;
-        this.app.setToast({ message: d.message });
-      }
-      return;
-    }
-    const el = d ? this.app.scene.getElement(d.id) : null;
-    if (el && !el.isDeleted) {
-      this.app.scene.mutateElement(el, { x: p.x - 0.5, y: p.y - 0.5 });
+    if (
+      d?.type === "refused" &&
+      !d.told &&
+      Math.hypot(p.x - d.begin.x, p.y - d.begin.y) >= MIN_STROKE_PX / this.zoom
+    ) {
+      d.told = true;
+      this.app.setToast({ message: d.message });
     }
   }
 
@@ -380,12 +311,8 @@ export class VrijTraceController {
     this.drag = null;
     if (d?.type === "stroke") {
       this.finishStroke(d.pageId, p);
-    } else if (d?.type === "refused") {
-      // nothing was drawn
-    } else if (d) {
-      this.app.scheduleCapture();
-      this.hold([]);
     }
+    // a refused stroke drew nothing
   }
 
   hover(p: Pt) {
@@ -394,22 +321,11 @@ export class VrijTraceController {
     );
   }
 
-  setMode(mode: VrijTraceMode) {
-    this.setUI({ mode, activeTreeId: null });
-    this.hold([]);
-    if (mode !== "teken") {
-      this.app.activateTool();
+  /** outline a tree while its table row is pointed at (null: none) */
+  setHotTree(treeId: string | null) {
+    if (treeId !== this.ui.hotTreeId) {
+      this.setUI({ hotTreeId: treeId });
     }
-  }
-
-  moveTree(treeId: string) {
-    this.setUI({ mode: "boom", activeTreeId: treeId });
-    this.app.activateTool();
-  }
-
-  /** v8.2 Stop: done with trees, back to drawing */
-  stop() {
-    this.setMode("teken");
   }
 
   /** the width of the selected trench lines, else of the next one drawn */
@@ -438,7 +354,7 @@ export class VrijTraceController {
       lines.every((l) => l.customData?.pdfParentId === pageId) &&
       this.page(pageId)
     ) {
-      this.setUI({ pageId, activeTreeId: null });
+      this.setUI({ pageId, hotTreeId: null });
     }
   }
 
@@ -554,16 +470,16 @@ export class VrijTraceController {
     this.app.scheduleCapture();
   }
 
-  /** v8.2 Voorbeeld: replace this page's network and trees with the example */
+  /** v8.2 Voorbeeld: replace this page's trench with the example */
   example() {
     const page = this.page();
     if (!page || !getPageFrame(page).cmPerPx) {
       return;
     }
-    const { working, trees } = exampleNetwork(getPageFrame(page), randomId);
-    const network = this.ensureNetwork(page);
+    const { working } = exampleNetwork(getPageFrame(page), randomId);
+    this.ensureNetwork(page);
     const old = getPageParts(this.app.scene.getNonDeletedElements(), page.id);
-    for (const el of [...old.lines, ...old.trees]) {
+    for (const el of old.lines) {
       this.app.scene.mutateElement(el, { isDeleted: true });
     }
     this.app.scene.insertElements(
@@ -575,18 +491,6 @@ export class VrijTraceController {
         }),
       ),
     );
-    this.app.scene.insertElementsAtIndex(
-      trees.map((t) =>
-        newTrenchElement({
-          trench: { kind: "tree", label: t.label },
-          pdfParentId: page.id,
-          x: t.x - 0.5,
-          y: t.y - 0.5,
-        }),
-      ),
-      this.app.scene.getElementIndex(network.id) + 1,
-    );
-    this.setUI({ activeTreeId: null });
     this.app.scheduleCapture();
   }
 
@@ -613,14 +517,10 @@ export class VrijTraceController {
     if (e.key !== "Escape") {
       return false;
     }
-    // Esc drops a stroke being drawn, or leaves tree placing
+    // Esc drops a stroke being drawn
     if (this.ui.stroke) {
       this.drag = null;
       this.setUI({ stroke: null });
-      return true;
-    }
-    if (this.placesTrees()) {
-      this.stop();
       return true;
     }
     return false;
@@ -629,7 +529,7 @@ export class VrijTraceController {
   /** leaving the tool (or a pinch): drop strokes, drags and holds; show the PDF */
   reset() {
     this.drag = null;
-    this.setUI({ activeTreeId: null, hidePdf: false, stroke: null });
+    this.setUI({ hotTreeId: null, hidePdf: false, stroke: null });
     this.hold([]);
   }
 }

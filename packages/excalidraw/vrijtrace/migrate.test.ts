@@ -88,6 +88,26 @@ describe("migrating trenches of older boards", () => {
     expect(migrateLegacyTrench([page(), network()])).toBeNull();
   });
 
+  it("removes the old B-markers: trees now come from the library", () => {
+    const marker = (id: string, pdf = "pdf1") =>
+      newTrenchElement({
+        id,
+        trench: { kind: "tree", label: id },
+        pdfParentId: pdf,
+        x: 200,
+        y: 200,
+      });
+    const m = migrateLegacyTrench([
+      page(),
+      page("pdf2"),
+      network(),
+      marker("B1"),
+      marker("B2", "pdf2"),
+    ])!;
+    expect(m.deleted.map((el) => el.id).sort()).toEqual(["B1", "B2"]);
+    expect(m.created).toEqual([]);
+  });
+
   it("turns nodes and segments into trench lines on the same page", () => {
     const { m, after } = applied(board());
     expect(m.deleted.map((el) => el.id).sort()).toEqual(

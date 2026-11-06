@@ -9,7 +9,6 @@ import {
   TRENCH_WIDTH_MIN_M,
   LINE_WIDTH_MAX_PX,
   LINE_WIDTH_MIN_PX,
-  displayLabels,
   getPageParts,
   lineWidthOf,
   isPdfPage,
@@ -99,7 +98,6 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const page = ui.pageId ? elements.find((e) => e.id === ui.pageId) : null;
   const parts = isPdfPage(page) ? getPageParts(elements, page.id) : null;
   const settings = settingsOf(parts?.network ?? null);
-  const labels = parts ? displayLabels(parts.trees) : new Map<string, string>();
   // a selected trench line's width, else the width of the next one
   const width = vt.shownWidth();
   const lineWidth = lineWidthOf(parts?.network ?? null);
@@ -253,23 +251,6 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           }
           onPointerUp={() => vt.updateSettings({}, true)}
         />
-        <div className="vt-grid2">
-          {(parts?.trees ?? []).map((t) =>
-            opt(
-              ui.mode === "boom" && ui.activeTreeId === t.id,
-              `vt-tree-${labels.get(t.id)}`,
-              STR.labels.moveTree(labels.get(t.id) ?? ""),
-              () => vt.moveTree(t.id),
-            ),
-          )}
-          {opt(
-            ui.mode === "boomToevoegen",
-            "vt-tree-add",
-            STR.labels.addTree,
-            () => vt.setMode("boomToevoegen"),
-          )}
-          {opt(false, "vt-stop", STR.labels.stop, () => vt.stop())}
-        </div>
         <p className="vt-help">{STR.help.trees}</p>
       </div>
     </div>

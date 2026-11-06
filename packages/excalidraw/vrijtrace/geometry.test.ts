@@ -90,32 +90,54 @@ describe("computeZones", () => {
 });
 
 describe("checkTree", () => {
+  // the trench runs along y = 0, 1 m wide: its edge is at y = 0.5; the red
+  // zone reaches 2 m beyond the edge (y = 2.5), the work zone 1.5 m (y = 2)
   const z = computeZones(line, both);
-  it("measures to the trench edge from outside and inside", () => {
+  it("measures from the tree's ring to the trench edge", () => {
     expect(distanceToPolygons({ x: 5, y: 4 }, z.trench)).toBeCloseTo(3.5, 1);
-    const inside = checkTree({ x: 5, y: 0.2 }, z, true, 5);
-    expect(inside).toMatchObject({ inside: true, pass: false });
-    expect(inside.distanceM).toBeCloseTo(0.3, 1);
+    const r = checkTree({ x: 5, y: 4 }, 1, z, true, 0);
+    expect(r).toMatchObject({ inside: false, pass: true });
+    expect(r.distanceM).toBeCloseTo(2.5, 1);
   });
-  it("changing the minimum changes only the verdict", () => {
-    const a = checkTree({ x: 5, y: 4 }, z, true, 5);
-    const b = checkTree({ x: 5, y: 4 }, z, true, 3);
+  it("is a conflict as soon as the trench reaches the ring", () => {
+    const r = checkTree({ x: 5, y: 1.2 }, 1, z, true, 0);
+    expect(r.inside).toBe(false);
+    expect(r.distanceM).toBeCloseTo(-0.3, 1);
+    expect(r.pass).toBe(false);
+  });
+  it("counts the minimum distance beyond the ring", () => {
+    const a = checkTree({ x: 5, y: 4 }, 1, z, true, 2);
+    const b = checkTree({ x: 5, y: 4 }, 1, z, true, 3);
     expect(a.distanceM).toBe(b.distanceM);
-    expect([a.pass, b.pass]).toEqual([false, true]);
+    expect([a.pass, b.pass]).toEqual([true, false]);
   });
-  it("reports zones only while active", () => {
-    expect(checkTree({ x: 5, y: 2 }, z, false, 5)).toMatchObject({
+  it("goes further below zero for a trunk inside the trench", () => {
+    const r = checkTree({ x: 5, y: 0.2 }, 1, z, true, 0);
+    expect(r.inside).toBe(true);
+    expect(r.distanceM).toBeCloseTo(-1.3, 1);
+    expect(r.pass).toBe(false);
+  });
+  it("reports a zone the ring reaches, only while the zones are active", () => {
+    expect(checkTree({ x: 5, y: 4 }, 2, z, false, 0)).toMatchObject({
       red: null,
       work: null,
     });
-    expect(checkTree({ x: 5, y: 2 }, z, true, 5)).toMatchObject({
+    expect(checkTree({ x: 5, y: 4 }, 2, z, true, 0)).toMatchObject({
       red: true,
+      work: true,
+    });
+    expect(checkTree({ x: 5, y: 4.3 }, 2, z, true, 0)).toMatchObject({
+      red: true,
+      work: false,
+    });
+    expect(checkTree({ x: 5, y: 8 }, 1, z, true, 0)).toMatchObject({
+      red: false,
       work: false,
     });
   });
   it("has no answer without a trench", () => {
     const empty = computeZones({ nodes: [], segments: [] }, both);
-    expect(checkTree({ x: 1, y: 1 }, empty, true, 5)).toEqual({
+    expect(checkTree({ x: 1, y: 1 }, 1, empty, true, 0)).toEqual({
       inside: false,
       distanceM: null,
       pass: null,

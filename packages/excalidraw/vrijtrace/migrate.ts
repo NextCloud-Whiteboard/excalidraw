@@ -18,8 +18,8 @@ export type LegacyMigration = {
 /**
  * Boards from before trenches were lines keep their trench as node and
  * segment elements. Turn each page's into trench lines (joined through
- * corners), and keep zones that were activated activated. Null when there
- * is nothing to convert.
+ * corners), and keep zones that were activated activated. Old B-markers go:
+ * trees now come from the library. Null when there is nothing to convert.
  */
 export const migrateLegacyTrench = (
   elements: readonly ExcalidrawElement[],
@@ -40,6 +40,11 @@ export const migrateLegacyTrench = (
     deleted: [],
     activations: new Map(),
   };
+  for (const el of elements) {
+    if (el.type === "trench" && !el.isDeleted && el.trench.kind === "tree") {
+      out.deleted.push(el);
+    }
+  }
   for (const pageId of pageIds) {
     const page = elements.find((el) => el.id === pageId);
     if (!isPdfPage(page)) {

@@ -136,9 +136,8 @@ export const getDefaultAppState = (): Omit<
     cmPerPxCalibrated: false,
     rulerCalibration: null,
     vrijTrace: {
-      mode: "teken",
       pageId: null,
-      activeTreeId: null,
+      hotTreeId: null,
       snap: "vrij",
       reference: "midden",
       widthM: 1,

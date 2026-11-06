@@ -94,16 +94,6 @@ describe("Vrij Tracé tool", () => {
     expect(h.state.toast).toBeNull();
   });
 
-  it("still says why when placing a tree is refused", () => {
-    API.setElements([pdfPage()]);
-    tool();
-    act(() => h.app.vrijTrace.setMode("boomToevoegen"));
-    click(1200, 100);
-    expect(h.state.toast?.message).toBe(
-      "Bomen plaats je alleen op een geïmporteerde PDF-pagina",
-    );
-  });
-
   it("asks for a calibration first", () => {
     API.setElements([pdfPage({ customData: { isPdf: true } })]);
     tool();
@@ -248,23 +238,6 @@ describe("Vrij Tracé tool", () => {
         (e) => e.type === "trench" && (e as any).trench.kind === "network",
       ),
     ).toHaveLength(1);
-  });
-
-  it("never moves a tree onto another page", () => {
-    API.setElements([pdfPage(), pdfPage({ id: "pdf2", x: 1200 })]);
-    tool();
-    act(() => h.app.vrijTrace.setMode("boomToevoegen"));
-    click(300, 300);
-    const tree = parts().trees[0];
-    expect(tree).toBeDefined();
-    // elements are mutated in place: keep the numbers, not the object
-    const treeX = tree.x;
-    // still in "Verplaats B1" mode: a click on the other page must not take B1 along
-    click(1500, 300);
-    const after = h.elements.find((e) => e.id === tree.id)!;
-    expect(after.x).toBeCloseTo(treeX);
-    expect(after.customData?.pdfParentId).toBe("pdf1");
-    expect(h.state.vrijTrace.activeTreeId).toBeNull();
   });
 
   it("shows the PDF again when the tool is left", () => {

@@ -116,12 +116,43 @@ export const trenchLineReference = (
     : "midden";
 };
 
+/**
+ * A library tree is its whole drawing; its dashed outer ring (the CINH
+ * toetsstraal) carries customData.treeRing and stands for the tree.
+ */
+export const isTreeRing = (el: ExcalidrawElement | null | undefined) =>
+  !!el &&
+  el.type === "ellipse" &&
+  !el.isDeleted &&
+  typeof el.customData?.treeRing === "object" &&
+  el.customData.treeRing !== null;
+
+/** a tree's ring radius in metres, as drawn on its page */
+export const treeRingM = (ring: ExcalidrawElement, frame: PageFrame) =>
+  ((ring.width + ring.height) / 4) * (frame.cmPerPx! / 100);
+
+const TREE_CLASS: Record<string, string> = {
+  C1: "C1 groot",
+  C2: "C2 middel",
+  C3: "C3 klein",
+};
+
+/** "C1 groot, zonder scherm": the tree's class and root screen */
+export const treeName = (ring: ExcalidrawElement) => {
+  const { klasse, scherm } = ring.customData?.treeRing ?? {};
+  const cls = TREE_CLASS[klasse];
+  return cls ? `${cls}, ${scherm ? "met" : "zonder"} scherm` : "Boom";
+};
+
 export type PageParts = {
   network: ExcalidrawTrenchElement | null;
   /** legacy parts, from before trenches were lines (migrated on load) */
   nodes: ExcalidrawTrenchElement[];
   segments: ExcalidrawTrenchElement[];
-  trees: ExcalidrawTrenchElement[];
+  /** the rings of the library trees on the page, in drawing order */
+  trees: ExcalidrawElement[];
+  /** old B-markers, from before trees came from the library (removed on load) */
+  legacyTrees: ExcalidrawTrenchElement[];
   lines: ExcalidrawLinearElement[];
 };
 
@@ -134,11 +165,16 @@ export const getPageParts = (
     nodes: [],
     segments: [],
     trees: [],
+    legacyTrees: [],
     lines: [],
   };
   for (const el of elements) {
     if (isTrenchLine(el) && el.customData?.pdfParentId === pdfId) {
       parts.lines.push(el);
+      continue;
+    }
+    if (isTreeRing(el) && el.customData?.pdfParentId === pdfId) {
+      parts.trees.push(el);
       continue;
     }
     if (
@@ -159,7 +195,7 @@ export const getPageParts = (
         parts.segments.push(el);
         break;
       case "tree":
-        parts.trees.push(el);
+        parts.legacyTrees.push(el);
         break;
     }
   }
@@ -170,7 +206,7 @@ export const DEFAULT_SETTINGS = {
   redSide: "beide",
   workWidthM: 1.5,
   workSide: "beide",
-  treeMinM: 5,
+  treeMinM: 0,
 } as const;
 
 export const settingsOf = (
@@ -372,35 +408,6 @@ export const toGeometry = (
     lineGeometry(line, frame, geometry);
   }
   return geometry;
-};
-
-const labelOf = (t: ExcalidrawTrenchElement) =>
-  t.trench.kind === "tree" ? t.trench.label : "B?";
-
-/** v8.2 labels; simultaneous duplicates show as "B4", "B4b" in id order */
-export const displayLabels = (trees: ExcalidrawTrenchElement[]) => {
-  const out = new Map<string, string>();
-  const byLabel = new Map<string, ExcalidrawTrenchElement[]>();
-  for (const t of trees) {
-    byLabel.set(labelOf(t), [...(byLabel.get(labelOf(t)) ?? []), t]);
-  }
-  for (const [label, group] of byLabel) {
-    group
-      .sort((x, y) => (x.id < y.id ? -1 : 1))
-      .forEach((t, i) => {
-        out.set(t.id, i === 0 ? label : label + String.fromCharCode(97 + i));
-      });
-  }
-  return out;
-};
-
-export const nextTreeLabel = (trees: ExcalidrawTrenchElement[]) => {
-  const used = new Set(trees.map(labelOf));
-  for (let i = 1; ; i++) {
-    if (!used.has(`B${i}`)) {
-      return `B${i}`;
-    }
-  }
 };
 
 const zoneCache = new Map<string, Zones>();

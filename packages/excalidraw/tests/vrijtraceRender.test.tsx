@@ -90,6 +90,8 @@ const countingContext = () => {
   const lineWidths: number[] = [];
   const alphas: number[] = [];
   const texts: string[] = [];
+  const arcs: { x: number; y: number; r: number; stroke: string }[] = [];
+  let stroke = "";
   let dashed = false;
   const ctx = new Proxy(
     {},
@@ -104,6 +106,9 @@ const countingContext = () => {
           if (key === "fillText") {
             texts.push(args[0]);
           }
+          if (key === "arc") {
+            arcs.push({ x: args[0], y: args[1], r: args[2], stroke });
+          }
           if (dashed && (key === "moveTo" || key === "lineTo")) {
             dashedPoints.push(args);
           }
@@ -116,11 +121,14 @@ const countingContext = () => {
         if (key === "globalAlpha") {
           alphas.push(value);
         }
+        if (key === "strokeStyle") {
+          stroke = value;
+        }
         return true;
       },
     },
   ) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls, dashedPoints, lineWidths, alphas, texts };
+  return { ctx, calls, dashedPoints, lineWidths, alphas, texts, arcs };
 };
 
 /** a calibrated page with one activated segment from (100,100) to (400,100) */
@@ -200,6 +208,58 @@ describe("Vrij Tracé see-through trenches", () => {
     // 2 m at 5 cm/px would be a 40 px band; only hairlines are drawn
     expect(Math.max(...recorded.lineWidths)).toBeLessThan(5);
     expect(recorded.calls.closePath).toBeGreaterThan(0);
+  });
+});
+
+/** a library tree's ring of r px around (cx, cy) on pdf1 */
+const libraryTree = (id: string, cx: number, cy: number, r: number) => ({
+  ...API.createElement({
+    type: "ellipse",
+    id,
+    x: cx - r,
+    y: cy - r,
+    width: 2 * r,
+    height: 2 * r,
+  }),
+  customData: {
+    treeRing: { klasse: "C3", scherm: false },
+    pdfParentId: "pdf1",
+  },
+});
+
+describe("Vrij Tracé trees", () => {
+  const addTrees = () =>
+    API.updateScene({
+      elements: [
+        ...h.elements,
+        // the trench (y = 100, 1 m = 20 px wide) reaches this ring
+        libraryTree("near", 250, 120, 20),
+        libraryTree("far", 250, 300, 20),
+      ],
+    });
+
+  it("traces the ring in red of a tree the trench reaches", async () => {
+    const network = await drawOnPage(1000, 700, false);
+    addTrees();
+    const { arcs } = renderStatic(network);
+    expect(arcs).toEqual([{ x: 250, y: 120, r: 20, stroke: "#c92a2a" }]);
+  });
+
+  it("outlines the tree whose table row is pointed at, with any tool", async () => {
+    await drawOnPage(1000, 700, false);
+    addTrees();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    act(() => h.app.vrijTrace.setHotTree("far"));
+    const recorded = countingContext();
+    renderVrijTraceInteractive(
+      recorded.ctx,
+      h.state as any,
+      h.app.scene.getNonDeletedElementsMap(),
+    );
+    const z = h.state.zoom.value;
+    expect(recorded.arcs).toEqual([
+      { x: 250, y: 300, r: 20 + 6 / z, stroke: "#315d97" },
+    ]);
   });
 });
 

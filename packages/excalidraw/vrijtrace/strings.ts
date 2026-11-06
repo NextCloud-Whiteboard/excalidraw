@@ -2,7 +2,6 @@
 export const STR = {
   tool: "Vrij Tracé",
   onlyOnPdf: "Sleuven teken je alleen op een geïmporteerde PDF-pagina",
-  treesOnlyOnPdf: "Bomen plaats je alleen op een geïmporteerde PDF-pagina",
   calibrateFirst: "Kalibreer eerst de liniaal op deze pagina",
   notActivated: "Zones niet geactiveerd",
   conceptZones: "Zones niet geactiveerd · concept",
@@ -10,12 +9,6 @@ export const STR = {
   heldBy: (name: string) => `${name} bewerkt dit punt`,
   editing: (name: string) => `${name} bewerkt`,
   unknownUser: "Onbekend",
-  ops: {
-    tekenStart: "Tekenmodus · klik een beginpunt",
-    tekenNext: "Tekenmodus · klik volgend punt, Esc rondt af",
-    boom: (label: string) => `Boom verplaatsen · ${label} · klik of sleep`,
-    boomToevoegen: "Boom toevoegen · klik op de pagina",
-  },
   sections: {
     snap: "1. Magnetisch uitlijnen",
     trench: "2. Sleufinstellingen",
@@ -29,7 +22,7 @@ export const STR = {
       "Van 0,30 tot 10,00 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
     red: "Onafhankelijke rode zone vanaf de buitenzijde van de sleuf.",
     trees:
-      "Selecteer een boom en klik of sleep op de tekening om deze te verplaatsen.",
+      "Plaats bomen uit de bibliotheek (groep Bomen) op de PDF-pagina. De afstand wordt gemeten vanaf de buitenste ring van de boom.",
   },
   labels: {
     width: "Sleufbreedte",
@@ -43,13 +36,10 @@ export const STR = {
     redDistance: "Afstand buiten sleufrand",
     side: "Zijde",
     workWidth: "Breedte buiten sleufrand",
-    treeMin: "Minimale afstand",
+    treeMin: "Minimale afstand vanaf ring",
     both: "Links en rechts",
     sideLeft: "Links",
     sideRight: "Rechts",
-    moveTree: (label: string) => `Verplaats ${label}`,
-    addTree: "Boom toevoegen",
-    stop: "Stop",
   },
   actions: {
     activate: "Activeer zones",
@@ -57,9 +47,10 @@ export const STR = {
   },
   table: {
     title: "Boomcontrole",
+    number: "#",
     tree: "Boom",
     inTrench: "In sleuf",
-    distance: "Afstand buitenrand",
+    distance: "Afstand vanaf ring",
     min: "Min. eis",
     verdict: "Toets",
     red: "Rode zone",

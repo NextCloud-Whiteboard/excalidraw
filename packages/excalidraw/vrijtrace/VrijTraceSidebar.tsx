@@ -1,6 +1,7 @@
 import React from "react";
 
 import {
+  useApp,
   useExcalidrawAppState,
   useExcalidrawElements,
 } from "../components/App";
@@ -8,21 +9,27 @@ import {
 import { checkTree } from "./geometry";
 import {
   centreOf,
-  displayLabels,
   isPdfPage,
   pageState,
   pxPerMetre,
   sceneToPage,
+  treeName,
+  treeRingM,
 } from "./model";
 import { COLORS } from "./render";
 import { STR } from "./strings";
 
-const fmt = (n: number) => n.toFixed(2).replace(".", ",");
+/** "1,50", and "−0,30" with a real minus once the trench reaches the ring */
+const fmt = (n: number) => {
+  const t = Math.abs(n).toFixed(2).replace(".", ",");
+  return n < 0 && t !== "0,00" ? `−${t}` : t;
+};
 const yesNo = (v: boolean | null) =>
   v === null ? "—" : v ? STR.table.yes : STR.table.no;
 
 /** tab content: activation state, scale and v8.2's tree check table */
 export const VrijTraceSidebar = () => {
+  const app = useApp();
   const appState = useExcalidrawAppState();
   const elements = useExcalidrawElements();
   const page = elements.find((e) => e.id === appState.vrijTrace.pageId);
@@ -34,7 +41,6 @@ export const VrijTraceSidebar = () => {
       </div>
     );
   }
-  const labels = displayLabels(s.parts.trees);
   const activation =
     s.parts.network?.trench.kind === "network"
       ? s.parts.network.trench.activation
@@ -72,6 +78,7 @@ export const VrijTraceSidebar = () => {
         <table className="vt-table">
           <thead>
             <tr>
+              <th>{STR.table.number}</th>
               <th>{STR.table.tree}</th>
               <th>{STR.table.inTrench}</th>
               <th>{STR.table.distance}</th>
@@ -82,18 +89,30 @@ export const VrijTraceSidebar = () => {
             </tr>
           </thead>
           <tbody data-testid="vt-rows">
-            {s.parts.trees.map((t) => {
+            {s.parts.trees.map((t, i) => {
               const r = checkTree(
                 sceneToPage(s.frame, centreOf(t)),
+                treeRingM(t, s.frame),
                 s.zones,
                 s.active,
                 s.settings.treeMinM,
               );
+              // point at a row (or tap it) to outline its tree on the plan
+              const outline = () => app.vrijTrace.setHotTree(t.id);
               return (
-                <tr key={t.id}>
+                <tr
+                  key={t.id}
+                  className={
+                    appState.vrijTrace.hotTreeId === t.id ? "vt-hot" : ""
+                  }
+                  onPointerEnter={outline}
+                  onPointerLeave={() => app.vrijTrace.setHotTree(null)}
+                  onClick={outline}
+                >
                   <td>
-                    <b>{labels.get(t.id)}</b>
+                    <b>{i + 1}</b>
                   </td>
+                  <td>{treeName(t)}</td>
                   <td>{yesNo(r.inside)}</td>
                   <td>
                     {r.distanceM === null ? "—" : `${fmt(r.distanceM)} m`}

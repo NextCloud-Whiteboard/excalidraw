@@ -489,12 +489,10 @@ export interface AppState {
   pdfImport: PdfImportState | null;
 }
 
-export type VrijTraceMode = "teken" | "boom" | "boomToevoegen";
-
 export type VrijTraceUIState = {
-  mode: VrijTraceMode;
   pageId: string | null;
-  activeTreeId: string | null;
+  /** the tree (its ring's id) outlined while its table row is pointed at */
+  hotTreeId: string | null;
   snap: "90" | "45" | "vrij";
   reference: "midden" | "links" | "rechts" | "boven" | "onder";
   widthM: number;

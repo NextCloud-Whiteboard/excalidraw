@@ -10,7 +10,6 @@ import { SMOOTH_PX, simplify } from "./editing";
 import { checkTree } from "./geometry";
 import {
   centreOf,
-  displayLabels,
   getPageFrame,
   isPdfPage,
   outlinePolygon,
@@ -18,6 +17,7 @@ import {
   pageToScene,
   pxPerMetre,
   sceneToPage,
+  treeRingM,
 } from "./model";
 import { STR } from "./strings";
 
@@ -68,41 +68,23 @@ const tracePath = (
   }
 };
 
-const drawTree = (
+/** a tree's ring radius in scene px */
+const ringPx = (ring: { width: number; height: number }) =>
+  (ring.width + ring.height) / 4;
+
+/** a tree in conflict: its ring traced in red (the tree draws itself) */
+const drawTreeConflict = (
   ctx: CanvasRenderingContext2D,
-  c: { x: number; y: number },
-  label: string,
+  c: Pt,
+  r: number,
   z: number,
-  conflict: boolean,
 ) => {
   ctx.save();
-  ctx.lineWidth = (conflict ? 2.5 : 1.5) / z;
-  ctx.strokeStyle = conflict ? "#c92a2a" : "#343a40";
-  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#c92a2a";
+  ctx.lineWidth = 2.5 / z;
   ctx.beginPath();
-  ctx.arc(c.x, c.y, 12 / z, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.strokeStyle = "#343a40";
-  ctx.lineWidth = 1.2 / z;
-  ctx.fillStyle = "#e1e3e5";
-  ctx.beginPath();
-  ctx.arc(c.x, c.y, 7.4 / z, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.font = `bold ${11 / z}px sans-serif`;
-  const w = ctx.measureText(label).width + 10 / z;
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#8a9197";
-  ctx.lineWidth = 1 / z;
-  ctx.beginPath();
-  ctx.rect(c.x + 13 / z, c.y - 12 / z, w, 18 / z);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#252d36";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, c.x + 18 / z, c.y - 3 / z);
   ctx.restore();
 };
 
@@ -307,16 +289,18 @@ const drawPage = (
     drawConceptLabel(ctx, s, z);
   }
   // the centre (or edge) line is the trench line element itself
-  const labels = displayLabels(s.parts.trees);
   for (const t of s.parts.trees) {
     const c = centreOf(t);
     const check = checkTree(
       sceneToPage(s.frame, c),
+      treeRingM(t, s.frame),
       s.zones,
       s.active,
       s.settings.treeMinM,
     );
-    drawTree(ctx, c, labels.get(t.id)!, z, check.pass === false);
+    if (check.pass === false) {
+      drawTreeConflict(ctx, c, ringPx(t), z);
+    }
   }
 };
 
@@ -376,33 +360,9 @@ export const renderVrijTraceSvg = (
     s.active ? COLORS.edgeOn : COLORS.edge,
     1.2,
   );
-  const labels = displayLabels(s.parts.trees);
-  for (const t of s.parts.trees) {
-    const c = centreOf(t);
-    const g = doc.createElementNS(SVG_NS, "g");
-    g.setAttribute("data-vrijtrace", "tree");
-    const circle = doc.createElementNS(SVG_NS, "circle");
-    circle.setAttribute("cx", String(c.x + offsetX));
-    circle.setAttribute("cy", String(c.y + offsetY));
-    circle.setAttribute("r", "12");
-    circle.setAttribute("fill", "#ffffff");
-    circle.setAttribute("stroke", COLORS.edge);
-    circle.setAttribute("stroke-width", "1.5");
-    const text = doc.createElementNS(SVG_NS, "text");
-    text.setAttribute("x", String(c.x + offsetX + 16));
-    text.setAttribute("y", String(c.y + offsetY + 4));
-    text.setAttribute("font-size", "11");
-    text.setAttribute("font-weight", "bold");
-    text.setAttribute("fill", "#252d36");
-    // textContent, not innerHTML: labels come from shared board data
-    text.textContent = labels.get(t.id) ?? "";
-    g.appendChild(circle);
-    g.appendChild(text);
-    svgRoot.appendChild(g);
-  }
 };
 
-/** editing layer: colleagues' holds, and the tree being placed */
+/** editing layer: colleagues' holds, the stroke being drawn and the tree pointed at */
 export const renderVrijTraceInteractive = (
   ctx: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -429,13 +389,25 @@ export const renderVrijTraceInteractive = (
     ctx.fillText(STR.editing(hold.name), c.x + 20 / z, c.y - 14 / z);
     ctx.restore();
   }
+  const ui = appState.vrijTrace;
+  // the tree whose row in the Boomcontrole table is pointed at
+  const hot = ui.hotTreeId ? elementsMap.get(ui.hotTreeId) : null;
+  if (hot && !hot.isDeleted) {
+    const c = centreOf(hot);
+    ctx.save();
+    ctx.strokeStyle = COLORS.edgeOn;
+    ctx.lineWidth = 3 / z;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, ringPx(hot) + 6 / z, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (
     appState.activeTool.type !== "custom" ||
     appState.activeTool.customType !== "vrijtrace"
   ) {
     return;
   }
-  const ui = appState.vrijTrace;
   const page = ui.pageId ? elementsMap.get(ui.pageId) : null;
   if (ui.stroke && ui.stroke.length > 1 && isPdfPage(page)) {
     // the stroke being drawn, outlined as wide as the trench it becomes
@@ -456,18 +428,6 @@ export const renderVrijTraceInteractive = (
     ctx.beginPath();
     drawn.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
     ctx.lineWidth = 1.5 / z;
-    ctx.stroke();
-    ctx.restore();
-  }
-  const tree = ui.activeTreeId ? elementsMap.get(ui.activeTreeId) : null;
-  if (tree && !tree.isDeleted && ui.mode === "boom") {
-    const c = centreOf(tree);
-    ctx.save();
-    ctx.setLineDash([3 / z, 2 / z]);
-    ctx.strokeStyle = COLORS.edge;
-    ctx.lineWidth = 2.5 / z;
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 15 / z, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }

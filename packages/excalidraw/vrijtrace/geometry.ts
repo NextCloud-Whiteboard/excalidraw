@@ -220,12 +220,20 @@ export const distanceToPolygons = (p: Pt, polys: Polygons): number => {
   return best;
 };
 
+/** the ring around p (radius r) reaches polygons: overlaps or touches them */
+const ringReaches = (p: Pt, r: number, polys: Polygons) =>
+  pointInPolygons(p, polys) || distanceToPolygons(p, polys) <= r;
+
 /**
- * v8.2 tree check. The measured distance never depends on the minimum
- * (req. 11); zones are reported only while they are active.
+ * Tree check, measured from the tree's outer ring (its CINH toetsstraal,
+ * ringM): the distance runs from the ring to the trench edge and is below
+ * zero once the trench reaches the ring. The minimum counts beyond the ring
+ * and never changes the measured distance; zones are reported only while
+ * they are active.
  */
 export const checkTree = (
   p: Pt,
+  ringM: number,
   zones: Zones,
   active: boolean,
   treeMinM: number,
@@ -240,13 +248,14 @@ export const checkTree = (
     };
   }
   const inside = pointInPolygons(p, zones.trench);
-  const distanceM = distanceToPolygons(p, zones.trench);
+  const toEdge = distanceToPolygons(p, zones.trench);
+  const distanceM = (inside ? -toEdge : toEdge) - ringM;
   return {
     inside,
     distanceM,
-    pass: !inside && distanceM + 1e-9 >= treeMinM,
-    red: active ? pointInPolygons(p, zones.red) : null,
-    work: active ? pointInPolygons(p, zones.work) : null,
+    pass: distanceM + 1e-9 >= treeMinM && distanceM > 0,
+    red: active ? ringReaches(p, ringM, zones.red) : null,
+    work: active ? ringReaches(p, ringM, zones.work) : null,
   };
 };
 

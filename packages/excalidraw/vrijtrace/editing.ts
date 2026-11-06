@@ -164,11 +164,6 @@ const EXAMPLE_SEGMENTS: [number, number][] = [
   [6, 7],
   [5, 8],
 ];
-const EXAMPLE_TREES: [string, number, number][] = [
-  ["B1", 427, 320],
-  ["B2", 672, 289],
-  ["B3", 900, 445],
-];
 
 export const exampleNetwork = (frame: PageFrame, newId: () => string) => {
   const cx = (frame.width * frame.cmPerPx!) / 200;
@@ -187,6 +182,5 @@ export const exampleNetwork = (frame: PageFrame, newId: () => string) => {
   };
   return {
     working,
-    trees: EXAMPLE_TREES.map(([label, x, y]) => ({ label, ...at(x, y) })),
   };
 };

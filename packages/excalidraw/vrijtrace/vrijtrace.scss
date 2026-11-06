@@ -208,6 +208,15 @@
       font-size: 11px;
       color: var(--color-gray-60);
     }
+
+    // a row outlines its tree on the plan while pointed at or tapped
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tr.vt-hot td {
+      background: var(--color-surface-primary-container);
+    }
   }
 
   .vt-ok {
