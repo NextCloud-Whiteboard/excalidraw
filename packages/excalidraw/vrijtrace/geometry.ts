@@ -7,13 +7,19 @@ export type Pt = { x: number; y: number };
 export type Polygons = Pt[][];
 /** metres, in the PDF page's own frame */
 export type GeoNode = { id: string; x: number; y: number };
-export type GeoSegment = { id: string; a: string; b: string; widthM: number };
-export type NetworkGeometry = { nodes: GeoNode[]; segments: GeoSegment[] };
 export type ZoneSettings = {
   redSide: VrijTraceSide;
   workWidthM: number;
   workSide: VrijTraceSide;
 };
+/** a segment's own zone settings win over the page's (lines carry them) */
+export type GeoSegment = {
+  id: string;
+  a: string;
+  b: string;
+  widthM: number;
+} & Partial<ZoneSettings>;
+export type NetworkGeometry = { nodes: GeoNode[]; segments: GeoSegment[] };
 export type Zones = {
   trench: Polygons;
   red: Polygons;
@@ -121,12 +127,13 @@ const ends = (g: NetworkGeometry) => {
 
 const buffered = (
   g: NetworkGeometry,
-  extraM: number,
-  side: VrijTraceSide,
+  extraM: (s: GeoSegment) => number,
+  sideOf: (s: GeoSegment) => VrijTraceSide,
 ): CPath[] => {
   const parts: CPath[] = [];
   for (const { s, a, b } of ends(g)) {
-    const r = s.widthM / 2 + extraM;
+    const r = s.widthM / 2 + extraM(s);
+    const side = sideOf(s);
     const cap = capsule(a, b, r);
     parts.push(
       ...(side === "beide"
@@ -157,14 +164,26 @@ export const computeZones = (g: NetworkGeometry, s: ZoneSettings): Zones => {
 };
 
 const zonesOf = (g: NetworkGeometry, s: ZoneSettings): Zones => {
-  const trench = buffered(g, 0, "beide");
+  const trench = buffered(
+    g,
+    () => 0,
+    () => "beide",
+  );
   const red = clip(
-    buffered(g, RED_ZONE_M, s.redSide),
+    buffered(
+      g,
+      () => RED_ZONE_M,
+      (seg) => seg.redSide ?? s.redSide,
+    ),
     trench,
     ClipperLib.ClipType.ctDifference,
   );
   const work = clip(
-    buffered(g, s.workWidthM, s.workSide),
+    buffered(
+      g,
+      (seg) => seg.workWidthM ?? s.workWidthM,
+      (seg) => seg.workSide ?? s.workSide,
+    ),
     trench,
     ClipperLib.ClipType.ctDifference,
   );
@@ -267,9 +286,21 @@ const hash = (text: string) => {
   return h.toString(36);
 };
 
-/** Geometry + zone settings, in centimetres in the page frame. */
+/**
+ * Geometry + zone settings, in centimetres in the page frame. A segment's own
+ * zone settings count only where they differ from the page's, so zones
+ * activated before lines had their own settings stay activated.
+ */
 export const fingerprint = (g: NetworkGeometry, s: ZoneSettings): string => {
   const cm = (n: number) => Math.round(n * 100);
+  const own = (x: GeoSegment) => {
+    const red = x.redSide ?? s.redSide;
+    const work = cm(x.workWidthM ?? s.workWidthM);
+    const side = x.workSide ?? s.workSide;
+    return red === s.redSide && work === cm(s.workWidthM) && side === s.workSide
+      ? ""
+      : `:${red}/${work}/${side}`;
+  };
   const byId = <T extends { id: string }>(x: T, y: T) =>
     x.id < y.id ? -1 : x.id > y.id ? 1 : 0;
   const nodes = [...g.nodes]
@@ -278,7 +309,7 @@ export const fingerprint = (g: NetworkGeometry, s: ZoneSettings): string => {
     .join(";");
   const segs = [...g.segments]
     .sort(byId)
-    .map((x) => `${x.id}:${x.a}-${x.b}:${cm(x.widthM)}`)
+    .map((x) => `${x.id}:${x.a}-${x.b}:${cm(x.widthM)}${own(x)}`)
     .join(";");
   return hash(
     `${nodes}|${segs}|${s.redSide}|${cm(s.workWidthM)}|${s.workSide}`,

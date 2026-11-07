@@ -264,6 +264,43 @@ describe("trench lines", () => {
     near(g.nodes[2], 15, 12.5);
   });
 
+  it("gives segments the line's own zone settings, ignoring nonsense", () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [200, 0],
+    ];
+    const els = [
+      page(),
+      line("L1", 200, 200, pts, {
+        tool: "trench",
+        widthM: 1,
+        pdfParentId: "pdf1",
+        redSide: "links",
+        workWidthM: 3,
+        workSide: "rechts",
+      }),
+      line("L2", 200, 400, pts, {
+        tool: "trench",
+        widthM: 1,
+        pdfParentId: "pdf1",
+        redSide: "boven",
+        workWidthM: "veel",
+        workSide: null,
+      }),
+    ];
+    const [s1, s2] = geometry(els).segments;
+    expect(s1).toEqual({
+      id: "L1:0",
+      a: "L1:0",
+      b: "L1:1",
+      widthM: 1,
+      redSide: "links",
+      workWidthM: 3,
+      workSide: "rechts",
+    });
+    expect(s2).toEqual({ id: "L2:0", a: "L2:0", b: "L2:1", widthM: 1 });
+  });
+
   it("ignores ordinary, ruler, deleted and other pages' lines", () => {
     const pts: [number, number][] = [
       [0, 0],

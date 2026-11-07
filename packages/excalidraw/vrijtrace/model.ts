@@ -5,6 +5,7 @@ import type {
   ExcalidrawImageElement,
   ExcalidrawLinearElement,
   ExcalidrawTrenchElement,
+  VrijTraceSide,
 } from "@excalidraw/element/types";
 
 import { isValidCmPerPx } from "../data/library";
@@ -114,6 +115,34 @@ export const trenchLineReference = (
   return r === "links" || r === "rechts" || r === "boven" || r === "onder"
     ? r
     : "midden";
+};
+
+const isSide = (v: unknown): v is VrijTraceSide =>
+  v === "beide" || v === "links" || v === "rechts";
+
+/** the Werkruimte slider's range, in metres beyond the trench edge */
+export const WORK_WIDTH_MIN_M = 0.5;
+export const WORK_WIDTH_MAX_M = 4;
+
+/**
+ * The zone settings a trench line carries itself; lines drawn before lines
+ * had their own settings carry none and follow their page's.
+ */
+export const trenchLineZone = (
+  line: ExcalidrawLinearElement,
+): Partial<ZoneSettings> => {
+  const { redSide, workWidthM, workSide } = line.customData ?? {};
+  return {
+    ...(isSide(redSide) && { redSide }),
+    ...(typeof workWidthM === "number" &&
+      Number.isFinite(workWidthM) && {
+        workWidthM: Math.min(
+          WORK_WIDTH_MAX_M,
+          Math.max(WORK_WIDTH_MIN_M, workWidthM),
+        ),
+      }),
+    ...(isSide(workSide) && { workSide }),
+  };
 };
 
 /**
@@ -344,6 +373,7 @@ const lineGeometry = (
 ) => {
   const scene = trenchLinePoints(line);
   const widthM = trenchLineWidth(line);
+  const zone = trenchLineZone(line);
   const ref = trenchLineReference(line);
   const metres = scene.map((p) => sceneToPage(frame, p));
   const centre =
@@ -362,6 +392,7 @@ const lineGeometry = (
       a: `${line.id}:${i}`,
       b: `${line.id}:${i + 1}`,
       widthM,
+      ...zone,
     });
     used.add(i);
     used.add(i + 1);

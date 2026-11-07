@@ -9,7 +9,7 @@ import { DEFAULT_LINE_WIDTH_PX } from "./model";
 
 import type { TrenchReference } from "./model";
 import type { WNode, WSegment } from "./editing";
-import type { Pt } from "./geometry";
+import type { Pt, ZoneSettings } from "./geometry";
 
 /** v8.2 centreline grey: the line element itself draws the centre (or edge) */
 export const TRENCH_LINE_COLOR = "#737b83";
@@ -35,7 +35,8 @@ export const trenchLineData = (
   widthM: number,
   reference: TrenchReference,
   pdfParentId: string,
-) => ({ tool: "trench", widthM, reference, pdfParentId });
+  zone?: ZoneSettings,
+) => ({ tool: "trench", widthM, reference, pdfParentId, ...zone });
 
 /** a new trench line through scene points */
 export const newTrenchLine = (opts: {
@@ -45,6 +46,8 @@ export const newTrenchLine = (opts: {
   reference?: TrenchReference;
   pdfParentId: string;
   strokeWidth?: number;
+  /** the line's own Rode zone and Werkruimte (else it follows its page) */
+  zone?: ZoneSettings;
 }): ExcalidrawLinearElement => {
   const reference = opts.reference ?? "midden";
   const [first] = opts.points;
@@ -60,7 +63,12 @@ export const newTrenchLine = (opts: {
     points,
     ...trenchLineStyle(reference, opts.strokeWidth),
     locked: false,
-    customData: trenchLineData(opts.widthM, reference, opts.pdfParentId),
+    customData: trenchLineData(
+      opts.widthM,
+      reference,
+      opts.pdfParentId,
+      opts.zone,
+    ),
   });
   return opts.id ? { ...line, id: opts.id } : line;
 };

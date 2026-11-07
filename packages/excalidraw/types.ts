@@ -496,6 +496,11 @@ export type VrijTraceUIState = {
   snap: "90" | "45" | "vrij";
   reference: "midden" | "links" | "rechts" | "boven" | "onder";
   widthM: number;
+  /** the next line's Lijndikte, Rode zone and Werkruimte; null: its page's */
+  lineWidthPx: number | null;
+  redSide: "beide" | "links" | "rechts" | null;
+  workWidthM: number | null;
+  workSide: "beide" | "links" | "rechts" | null;
   hidePdf: boolean;
   /** the freehand stroke being drawn, in scene px */
   stroke: { x: number; y: number }[] | null;

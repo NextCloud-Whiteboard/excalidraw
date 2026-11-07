@@ -3,7 +3,7 @@ import { act } from "@testing-library/react";
 
 import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
-import { networkIdForPage } from "../vrijtrace/model";
+import { isTrenchLine, networkIdForPage } from "../vrijtrace/model";
 import {
   renderVrijTraceInteractive,
   renderVrijTraceStatic,
@@ -37,6 +37,12 @@ const drawLine = () => {
   }
   mouse.upAt(400, 100);
 };
+/** an edit that changes the zones: the drawn lines get a wider Werkruimte */
+const widenWork = () => {
+  API.setSelectedElements(h.elements.filter(isTrenchLine));
+  act(() => h.app.vrijTrace.setLineZone({ workWidthM: 3 }, true));
+};
+
 const svgOf = () =>
   exportToSvg(h.elements, { ...h.state, exportBackground: false }, {});
 
@@ -61,7 +67,7 @@ describe("Vrij Tracé rendering", () => {
 
   it("hides zones again after any edit", async () => {
     act(() => h.app.vrijTrace.activate());
-    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    widenWork();
     const svg = await svgOf();
     expect(svg.querySelector("[data-vrijtrace='red']")).toBeNull();
   });
@@ -266,7 +272,7 @@ describe("Vrij Tracé trees", () => {
 describe("Vrij Tracé concept zones", () => {
   it("shows zones that went stale after a change as a faded concept", async () => {
     const network = await drawOnPage(1000, 700);
-    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    widenWork();
     expect(h.app.vrijTrace.zonesActive()).toBe(false);
     const { calls, alphas, texts } = renderStatic(
       h.app.scene.getElement(network.id),
@@ -287,7 +293,7 @@ describe("Vrij Tracé concept zones", () => {
 
   it("shows no concept once the zones are switched off on purpose", async () => {
     const network = await drawOnPage(1000, 700);
-    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    widenWork();
     act(() => h.app.vrijTrace.deactivate());
     const { calls, texts } = renderStatic(h.app.scene.getElement(network.id));
     expect(calls.fill ?? 0).toBe(0);
@@ -304,7 +310,7 @@ describe("Vrij Tracé concept zones", () => {
 
   it("leaves a concept out of the export", async () => {
     await drawOnPage(1000, 700);
-    act(() => h.app.vrijTrace.updateSettings({ workWidthM: 3 }, true));
+    widenWork();
     const svg = await svgOf();
     expect(svg.querySelector("[data-vrijtrace='work']")).toBeNull();
     expect(svg.querySelector("[data-vrijtrace='trench']")).not.toBeNull();

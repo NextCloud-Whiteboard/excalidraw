@@ -18,8 +18,7 @@ export const STR = {
   },
   help: {
     draw: "Teken een sleuf uit de vrije hand. Bij 90° of 45° wordt de lijn bij het loslaten rechtgetrokken.",
-    width:
-      "Van 0,30 tot 10,00 m. Selecteer een sleuf om de breedte daarvan te wijzigen.",
+    width: "Van 0,30 tot 10,00 m.",
     red: "Onafhankelijke rode zone vanaf de buitenzijde van de sleuf.",
     trees:
       "Plaats bomen uit de bibliotheek (groep Bomen) op de PDF-pagina. De afstand wordt gemeten vanaf de buitenste ring van de boom.",
@@ -40,6 +39,13 @@ export const STR = {
     both: "Links en rechts",
     sideLeft: "Links",
     sideRight: "Rechts",
+  },
+  applies: {
+    next: "Geen sleuf geselecteerd: instellingen voor de volgende sleuf.",
+    selected: (n: number) =>
+      n === 1
+        ? "Wijzigingen gelden voor de geselecteerde sleuf."
+        : `Wijzigingen gelden voor de ${n} geselecteerde sleuven.`,
   },
   actions: {
     activate: "Activeer zones",

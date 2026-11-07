@@ -240,6 +240,8 @@ describe("Vrij Tracé UI", () => {
 
   it("a slider drag is one undo step", async () => {
     drawLine([100, 100], [400, 100]);
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     for (const id of ["vt-work-width", "vt-tree-min"]) {
       const before = API.getUndoStack().length;
       for (const v of ["1", "2", "3", "4"]) {
@@ -255,6 +257,8 @@ describe("Vrij Tracé UI", () => {
   it("says when the zones shown are a concept", () => {
     drawLine([100, 100], [400, 100]);
     fireEvent.click(byId("vt-activate"));
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
     expect(byId("vt-zone-state").textContent).toBe(
       "Zones niet geactiveerd · concept",
@@ -356,36 +360,157 @@ describe("Vrij Tracé UI", () => {
     expect(field.value).toBe("10,00");
   });
 
-  it("draws thin trench lines; the Lijndikte slider restyles a page's trench lines", () => {
+  it("draws thin trench lines; Lijndikte restyles the selected line only", () => {
     drawLine([100, 100], [400, 100]);
+    drawLine([100, 300], [400, 300]);
     const widths = () =>
       getPageParts(h.elements, "pdf1").lines.map((l) => l.strokeWidth);
     const slider = () => byId("vt-line-width") as HTMLInputElement;
-    expect(widths()).toEqual([0.5]);
+    expect(widths()).toEqual([0.5, 0.5]);
     expect(slider().value).toBe("0.5");
     expect([slider().min, slider().max]).toEqual(["0.1", "4"]);
     act(() => h.app.vrijTrace.activate());
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     fireEvent.change(slider(), { target: { value: "2" } });
-    expect(widths()).toEqual([2]);
+    expect(widths()).toEqual([2, 0.5]);
     expect(slider().value).toBe("2");
     expect(container.textContent).toContain("2,00 px");
     // only the look changes: the zones stay on
     expect(h.app.vrijTrace.zonesActive()).toBe(true);
-    drawLine([100, 300], [400, 300]);
-    expect(widths()).toEqual([2, 2]);
-    fireEvent.change(slider(), { target: { value: "0.1" } });
-    expect(widths()).toEqual([0.1, 0.1]);
-    expect(container.textContent).toContain("0,10 px");
+    // the slider shows the selected line's own width
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[1]]);
+    expect(slider().value).toBe("0.5");
   });
 
-  it("redraws trench lines when Lijndikte changes", () => {
+  it("redraws a trench line when its Lijndikte changes", () => {
     drawLine([100, 100], [400, 100]);
     const [line] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([line]);
     ShapeCache.generateElementShape(line, null);
     expect(ShapeCache.get(line)).toBeDefined();
     fireEvent.change(byId("vt-line-width"), { target: { value: "3" } });
     // the cached drawing had the old width baked in
     expect(ShapeCache.get(line)).toBeUndefined();
+  });
+
+  it("Rode zone and Werkruimte change the selected line only", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([100, 300], [400, 300]);
+    const [first, second] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([first]);
+    fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
+    fireEvent.change(byId("vt-red-side"), { target: { value: "links" } });
+    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    const data = (id: string) =>
+      (h.elements.find((e) => e.id === id) as any).customData;
+    expect(data(first.id)).toMatchObject({
+      workWidthM: 3,
+      redSide: "links",
+      workSide: "rechts",
+    });
+    expect(data(second.id)).toMatchObject({
+      workWidthM: 1.5,
+      redSide: "beide",
+      workSide: "beide",
+    });
+    // the zones follow each line's own settings
+    const state = pageState(h.elements, h.elements[0] as any)!;
+    const bySeg = (id: string) =>
+      state.geometry.segments.find((g) => g.id.startsWith(id))!;
+    expect(bySeg(first.id).workWidthM).toBe(3);
+    expect(bySeg(second.id).workWidthM).toBe(1.5);
+    // the panel shows the selected line's settings
+    expect((byId("vt-work-width") as HTMLInputElement).value).toBe("3");
+    API.setSelectedElements([second]);
+    expect((byId("vt-work-width") as HTMLInputElement).value).toBe("1.5");
+    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
+  });
+
+  it("Tekenreferentie changes the selected line only", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([100, 300], [400, 300]);
+    const [first, second] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([first]);
+    fireEvent.click(byId("vt-ref-boven"));
+    const el = (id: string) => h.elements.find((e) => e.id === id) as any;
+    expect(el(first.id).customData.reference).toBe("boven");
+    expect(el(first.id).strokeStyle).toBe("solid");
+    expect(el(second.id).customData.reference).toBe("midden");
+    expect(el(second.id).strokeStyle).toBe("dashed");
+    expect(byId("vt-ref-boven").getAttribute("aria-pressed")).toBe("true");
+    API.setSelectedElements([second]);
+    expect(byId("vt-ref-midden").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("with no line selected, the settings are for the next line", () => {
+    drawLine([100, 100], [400, 100]);
+    expect(container.textContent).toContain(
+      "Geen sleuf geselecteerd: instellingen voor de volgende sleuf.",
+    );
+    fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
+    fireEvent.change(byId("vt-line-width"), { target: { value: "2" } });
+    fireEvent.change(byId("vt-red-side"), { target: { value: "rechts" } });
+    const [first] = getPageParts(h.elements, "pdf1").lines;
+    expect(first.strokeWidth).toBe(0.5);
+    expect(first.customData).toMatchObject({
+      workWidthM: 1.5,
+      redSide: "beide",
+    });
+    drawLine([100, 300], [400, 300]);
+    const second = getPageParts(h.elements, "pdf1").lines[1];
+    expect(second.strokeWidth).toBe(2);
+    expect(second.customData).toMatchObject({
+      workWidthM: 3,
+      redSide: "rechts",
+      workSide: "beide",
+    });
+  });
+
+  it("says that changes apply to the selected line", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([100, 300], [400, 300]);
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    const lines = getPageParts(h.elements, "pdf1").lines;
+    API.setSelectedElements([lines[0]]);
+    expect(byId("vt-applies").textContent).toBe(
+      "Wijzigingen gelden voor de geselecteerde sleuf.",
+    );
+    API.setSelectedElements(lines);
+    expect(byId("vt-applies").textContent).toBe(
+      "Wijzigingen gelden voor de 2 geselecteerde sleuven.",
+    );
+  });
+
+  it("a line from before keeps its page's zone settings until it is changed", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    const network = getPageParts(h.elements, "pdf1").network!;
+    act(() => {
+      // as saved before lines had their own settings
+      h.app.scene.mutateElement(line, {
+        customData: { tool: "trench", widthM: 1, pdfParentId: "pdf1" },
+      });
+      h.app.scene.mutateElement(network, {
+        trench: {
+          ...(network.trench as any),
+          workWidthM: 2.5,
+          redSide: "links",
+        },
+      });
+    });
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
+    expect((byId("vt-work-width") as HTMLInputElement).value).toBe("2.5");
+    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
+      workWidthM: 2.5,
+      redSide: "links",
+      workSide: "rechts",
+    });
   });
 
   it("keeps the usual shape actions for other selections", () => {

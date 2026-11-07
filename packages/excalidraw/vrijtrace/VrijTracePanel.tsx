@@ -9,8 +9,9 @@ import {
   TRENCH_WIDTH_MIN_M,
   LINE_WIDTH_MAX_PX,
   LINE_WIDTH_MIN_PX,
+  WORK_WIDTH_MAX_M,
+  WORK_WIDTH_MIN_M,
   getPageParts,
-  lineWidthOf,
   isPdfPage,
   settingsOf,
 } from "./model";
@@ -97,10 +98,12 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const vt = app.vrijTrace;
   const page = ui.pageId ? elements.find((e) => e.id === ui.pageId) : null;
   const parts = isPdfPage(page) ? getPageParts(elements, page.id) : null;
-  const settings = settingsOf(parts?.network ?? null);
-  // a selected trench line's width, else the width of the next one
+  // Minimale afstand is the page's; everything else is the selected line's,
+  // else the next line's
+  const { treeMinM } = settingsOf(parts?.network ?? null);
   const width = vt.shownWidth();
-  const lineWidth = lineWidthOf(parts?.network ?? null);
+  const line = vt.shownLineSettings();
+  const selected = vt.selectedLines().length;
   const opt = (
     pressed: boolean,
     testId: string,
@@ -134,6 +137,9 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         </div>
         <p className="vt-help">{STR.help.draw}</p>
       </div>
+      <p className="vt-applies" data-testid="vt-applies">
+        {selected ? STR.applies.selected(selected) : STR.applies.next}
+      </p>
       <div className="vt-sec">
         <div className="vt-h">{STR.sections.trench}</div>
         <div className="vt-lbl">
@@ -165,14 +171,14 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
               ["rechts", STR.labels.right],
             ] as const
           ).map(([ref, label]) =>
-            opt(ui.reference === ref, `vt-ref-${ref}`, label, () =>
-              vt.setUI({ reference: ref }),
+            opt(line.reference === ref, `vt-ref-${ref}`, label, () =>
+              vt.setReference(ref),
             ),
           )}
         </div>
         <label className="vt-lbl" htmlFor="vt-line-width">
           <span>{STR.labels.lineWidth}</span>
-          <span>{fmt(lineWidth)} px</span>
+          <span>{fmt(line.lineWidthPx)} px</span>
         </label>
         <input
           id="vt-line-width"
@@ -181,7 +187,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           min={LINE_WIDTH_MIN_PX}
           max={LINE_WIDTH_MAX_PX}
           step="0.05"
-          value={lineWidth}
+          value={line.lineWidthPx}
           onChange={(e) => vt.setLineWidth(Number(e.target.value), false)}
           onPointerUp={(e) =>
             vt.setLineWidth(Number((e.target as HTMLInputElement).value), true)
@@ -199,8 +205,8 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         </label>
         <SideSelect
           id="vt-red-side"
-          value={settings.redSide}
-          onChange={(redSide) => vt.updateSettings({ redSide }, true)}
+          value={line.redSide}
+          onChange={(redSide) => vt.setLineZone({ redSide }, true)}
         />
         <p className="vt-help">{STR.help.red}</p>
       </div>
@@ -208,35 +214,35 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         <div className="vt-h">{STR.sections.work}</div>
         <label className="vt-lbl" htmlFor="vt-work-width">
           <span>{STR.labels.workWidth}</span>
-          <span>{fmt(settings.workWidthM)} m</span>
+          <span>{fmt(line.workWidthM)} m</span>
         </label>
         <input
           id="vt-work-width"
           data-testid="vt-work-width"
           type="range"
-          min="0.5"
-          max="4"
+          min={WORK_WIDTH_MIN_M}
+          max={WORK_WIDTH_MAX_M}
           step="0.1"
-          value={settings.workWidthM}
+          value={line.workWidthM}
           onChange={(e) =>
-            vt.updateSettings({ workWidthM: Number(e.target.value) }, false)
+            vt.setLineZone({ workWidthM: Number(e.target.value) }, false)
           }
-          onPointerUp={() => vt.updateSettings({}, true)}
+          onPointerUp={() => vt.setLineZone({}, true)}
         />
         <label className="vt-lbl" htmlFor="vt-work-side">
           {STR.labels.side}
         </label>
         <SideSelect
           id="vt-work-side"
-          value={settings.workSide}
-          onChange={(workSide) => vt.updateSettings({ workSide }, true)}
+          value={line.workSide}
+          onChange={(workSide) => vt.setLineZone({ workSide }, true)}
         />
       </div>
       <div className="vt-sec">
         <div className="vt-h">{STR.sections.trees}</div>
         <label className="vt-lbl" htmlFor="vt-tree-min">
           <span>{STR.labels.treeMin}</span>
-          <span>{fmt(settings.treeMinM)} m</span>
+          <span>{fmt(treeMinM)} m</span>
         </label>
         <input
           id="vt-tree-min"
@@ -245,7 +251,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
           min="0"
           max="15"
           step="0.25"
-          value={settings.treeMinM}
+          value={treeMinM}
           onChange={(e) =>
             vt.updateSettings({ treeMinM: Number(e.target.value) }, false)
           }

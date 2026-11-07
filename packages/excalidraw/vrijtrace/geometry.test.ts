@@ -87,6 +87,39 @@ describe("computeZones", () => {
     };
     expect(computeZones(t, both).trench).toHaveLength(1);
   });
+
+  it("gives each segment its own Werkruimte and sides", () => {
+    const two: NetworkGeometry = {
+      nodes: [
+        ...line.nodes,
+        { id: "c", x: 0, y: 20 },
+        { id: "d", x: 10, y: 20 },
+      ],
+      segments: [
+        {
+          id: "s",
+          a: "a",
+          b: "b",
+          widthM: 1,
+          workWidthM: 4,
+          redSide: "links",
+          workSide: "rechts",
+        },
+        { id: "t", a: "c", b: "d", widthM: 1 },
+      ],
+    };
+    const z = computeZones(two, both);
+    // s: 4 m work zone on its right (+y), red zone on its left (-y) only
+    expect(pointInPolygons({ x: 5, y: 3.5 }, z.work)).toBe(true);
+    expect(pointInPolygons({ x: 5, y: -1 }, z.work)).toBe(false);
+    expect(pointInPolygons({ x: 5, y: -1.5 }, z.red)).toBe(true);
+    expect(pointInPolygons({ x: 5, y: 1.5 }, z.red)).toBe(false);
+    // t keeps the page's: 1.5 m on both sides, red on both sides
+    expect(pointInPolygons({ x: 5, y: 21.8 }, z.work)).toBe(true);
+    expect(pointInPolygons({ x: 5, y: 22.2 }, z.work)).toBe(false);
+    expect(pointInPolygons({ x: 5, y: 18.5 }, z.red)).toBe(true);
+    expect(pointInPolygons({ x: 5, y: 21.5 }, z.red)).toBe(true);
+  });
 });
 
 describe("checkTree", () => {
@@ -158,6 +191,26 @@ describe("fingerprint", () => {
       ),
     ).not.toBe(f);
     expect(fingerprint(line, { ...both, workSide: "rechts" })).not.toBe(f);
+  });
+  it("changes with a segment's own zone settings", () => {
+    const own = (o: object) => ({
+      ...line,
+      segments: [{ ...line.segments[0], ...o }],
+    });
+    const f = fingerprint(line, both);
+    expect(fingerprint(own({ workWidthM: 3 }), both)).not.toBe(f);
+    expect(fingerprint(own({ redSide: "links" }), both)).not.toBe(f);
+    expect(fingerprint(own({ workSide: "rechts" }), both)).not.toBe(f);
+  });
+  it("stays the same when a segment's own settings equal the page's", () => {
+    // zones activated before lines had their own settings stay activated
+    const own = {
+      ...line,
+      segments: [
+        { ...line.segments[0], workWidthM: 1.5, redSide: "beide" as const },
+      ],
+    };
+    expect(fingerprint(own, both)).toBe(fingerprint(line, both));
   });
   it("ignores segment and node order", () => {
     const shuffled = {

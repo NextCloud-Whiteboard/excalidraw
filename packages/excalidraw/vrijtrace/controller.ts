@@ -21,7 +21,7 @@ import {
   snapToTrench,
   straighten,
 } from "./editing";
-import { chainSegments, newTrenchLine } from "./lines";
+import { chainSegments, newTrenchLine, trenchLineStyle } from "./lines";
 import {
   DEFAULT_SETTINGS,
   clampTrenchWidth,
@@ -34,13 +34,17 @@ import {
   lineWidthOf,
   networkIdForPage,
   pageState,
+  settingsOf,
   trenchLinePoints,
+  trenchLineReference,
   trenchLineWidth,
+  trenchLineZone,
 } from "./model";
 import { STR } from "./strings";
 
 import type { AppState, ExcalidrawProps, VrijTraceUIState } from "../types";
-import type { Pt } from "./geometry";
+import type { Pt, ZoneSettings } from "./geometry";
+import type { TrenchReference } from "./model";
 
 /** the slice of App the controller needs (kept small for testing) */
 export interface VrijTraceHost {
@@ -68,9 +72,13 @@ type Drag =
   /** a stroke that cannot become a trench: says why once it is drawn */
   | { type: "refused"; begin: Pt; message: string; told: boolean };
 
-type SettingsPatch = Partial<
-  Pick<VrijTraceNetworkData, "redSide" | "workWidthM" | "workSide" | "treeMinM">
->;
+type SettingsPatch = Partial<Pick<VrijTraceNetworkData, "treeMinM">>;
+
+/** what each trench line has of its own, besides its width */
+export type LineSettings = ZoneSettings & {
+  lineWidthPx: number;
+  reference: TrenchReference;
+};
 
 export class VrijTraceController {
   private drag: Drag | null = null;
@@ -259,14 +267,16 @@ export class VrijTraceController {
       pageId,
       points[points.length - 1],
     );
-    const network = this.ensureNetwork(page);
+    this.ensureNetwork(page);
+    const { lineWidthPx, reference, ...zone } = this.nextLineSettings(pageId);
     this.app.scene.insertElement(
       newTrenchLine({
         points,
         widthM: this.ui.widthM,
-        reference: this.ui.reference,
+        reference,
         pdfParentId: pageId,
-        strokeWidth: lineWidthOf(network),
+        strokeWidth: lineWidthPx,
+        zone,
       }),
     );
     this.app.scheduleCapture();
@@ -358,37 +368,105 @@ export class VrijTraceController {
     }
   }
 
+  /** a page's zone settings: what lines without their own follow */
+  private pageZone(
+    pageId: string | null,
+  ): ZoneSettings & { lineWidthPx: number } {
+    const network = pageId
+      ? getPageParts(this.app.scene.getNonDeletedElements(), pageId).network
+      : null;
+    const { redSide, workWidthM, workSide } = settingsOf(network);
+    return { redSide, workWidthM, workSide, lineWidthPx: lineWidthOf(network) };
+  }
+
+  /** what the next line drawn on a page gets */
+  nextLineSettings(pageId: string | null = this.ui.pageId): LineSettings {
+    const page = this.pageZone(pageId);
+    return {
+      lineWidthPx: this.ui.lineWidthPx ?? page.lineWidthPx,
+      redSide: this.ui.redSide ?? page.redSide,
+      workWidthM: this.ui.workWidthM ?? page.workWidthM,
+      workSide: this.ui.workSide ?? page.workSide,
+      reference: this.ui.reference,
+    };
+  }
+
+  /** a line's own settings, completed with its page's where it has none */
+  private lineSettings(line: ExcalidrawLinearElement): LineSettings {
+    const { lineWidthPx, ...page } = this.pageZone(
+      line.customData?.pdfParentId ?? null,
+    );
+    return {
+      ...page,
+      ...trenchLineZone(line),
+      lineWidthPx: line.strokeWidth,
+      reference: trenchLineReference(line),
+    };
+  }
+
+  /** what the panel shows: the selected line's settings, else the next line's */
+  shownLineSettings(): LineSettings {
+    const [line] = this.selectedLines();
+    return line ? this.lineSettings(line) : this.nextLineSettings();
+  }
+
   /**
-   * Lijndikte: how thick this page's trench lines are drawn (all of them).
+   * Lijndikte of the selected trench lines, and of the next one drawn.
    * `commit` ends a slider drag as one undo step.
    */
   setLineWidth(px: number, commit: boolean) {
-    const page = this.page();
-    if (!page) {
-      return;
-    }
     const v = Math.min(LINE_WIDTH_MAX_PX, Math.max(LINE_WIDTH_MIN_PX, px));
-    const network = this.ensureNetwork(page);
-    if (network.trench.kind === "network") {
-      this.app.scene.mutateElement(network, {
-        trench: { ...network.trench, lineWidthPx: v },
-      });
-    }
-    for (const line of getPageParts(
-      this.app.scene.getNonDeletedElements(),
-      page.id,
-    ).lines) {
+    const lines = this.selectedLines();
+    for (const line of lines) {
       if (line.strokeWidth !== v) {
         this.app.scene.mutateElement(line, { strokeWidth: v });
         // the cached drawing has the old width baked in
         ShapeCache.delete(line);
       }
     }
-    if (commit) {
+    if (lines.length && commit) {
       this.app.scheduleCapture();
     }
-    // the panel shows the page setting: redraw it
-    this.setUI({});
+    // also the next line's; and it redraws the panel
+    this.setUI({ lineWidthPx: v });
+  }
+
+  /**
+   * Rode zone and Werkruimte of the selected trench lines, and of the next
+   * one drawn. A line from before lines had their own settings takes its
+   * page's for the rest, so only what was changed changes.
+   */
+  setLineZone(patch: Partial<ZoneSettings>, commit: boolean) {
+    const lines = this.selectedLines();
+    for (const line of lines) {
+      const { lineWidthPx, reference, ...zone } = this.lineSettings(line);
+      this.app.scene.mutateElement(line, {
+        customData: { ...line.customData, ...zone, ...patch },
+      });
+    }
+    if (lines.length && commit) {
+      this.app.scheduleCapture();
+    }
+    // also the next line's; and it redraws the panel, or a dragged slider
+    // snaps back to the old value until something else repaints
+    this.setUI(patch);
+  }
+
+  /** Tekenreferentie of the selected trench lines, and of the next one drawn */
+  setReference(reference: TrenchReference) {
+    const lines = this.selectedLines();
+    for (const line of lines) {
+      this.app.scene.mutateElement(line, {
+        customData: { ...line.customData, reference },
+        // the centre is dashed, an edge solid
+        strokeStyle: trenchLineStyle(reference).strokeStyle,
+      });
+      ShapeCache.delete(line);
+    }
+    if (lines.length) {
+      this.app.scheduleCapture();
+    }
+    this.setUI({ reference });
   }
 
   /** the width the slider shows */
@@ -397,6 +475,7 @@ export class VrijTraceController {
     return line ? trenchLineWidth(line) : this.ui.widthM;
   }
 
+  /** Minimale afstand: a rule for the page's trees, not a line's */
   updateSettings(patch: SettingsPatch, commit: boolean) {
     const page = this.page();
     if (!page) {
@@ -411,8 +490,8 @@ export class VrijTraceController {
     if (commit) {
       this.app.scheduleCapture();
     }
-    // the panel's sliders show the page settings: redraw it, or a dragged
-    // slider snaps back to the old value until something else repaints
+    // the slider shows the page setting: redraw it, or a dragged slider
+    // snaps back to the old value until something else repaints
     this.setUI({});
   }
 

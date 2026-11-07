@@ -23,6 +23,16 @@
     color: var(--color-on-surface);
   }
 
+  .vt-applies {
+    margin: 0;
+    padding: 0.4rem 0.5rem;
+    border-radius: var(--border-radius-md, 6px);
+    font-size: 11.5px;
+    line-height: 1.4;
+    background: var(--color-surface-low);
+    color: var(--color-on-surface);
+  }
+
   .vt-help {
     margin: 0;
     font-size: 11.5px;
