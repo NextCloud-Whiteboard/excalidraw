@@ -34,6 +34,7 @@ import type {
   ExcalidrawIframeLikeElement,
   OrderedExcalidrawElement,
   ExcalidrawNonSelectionElement,
+  VrijTraceSide,
 } from "@excalidraw/element/types";
 
 import type {
@@ -498,9 +499,9 @@ export type VrijTraceUIState = {
   widthM: number;
   /** the next line's Lijndikte, Rode zone and Werkruimte; null: its page's */
   lineWidthPx: number | null;
-  redSide: "beide" | "links" | "rechts" | null;
+  redSide: VrijTraceSide | null;
   workWidthM: number | null;
-  workSide: "beide" | "links" | "rechts" | null;
+  workSide: VrijTraceSide | null;
   hidePdf: boolean;
   /** the freehand stroke being drawn, in scene px */
   stroke: { x: number; y: number }[] | null;

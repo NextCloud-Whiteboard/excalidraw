@@ -255,10 +255,13 @@ describe("trench lines", () => {
     ];
     expect(getPageParts(els, "pdf1").lines.map((l) => l.id)).toEqual(["L1"]);
     const g = geometry(els);
-    expect(g.segments).toEqual([
+    expect(g.segments).toMatchObject([
       { id: "L1:0", a: "L1:0", b: "L1:1", widthM: 0.8 },
       { id: "L1:1", a: "L1:1", b: "L1:2", widthM: 0.8 },
     ]);
+    // the line's overall direction decides its zone sides (page metres)
+    near(g.segments[0].dir!, 10, 5);
+    near(g.segments[1].dir!, 10, 5);
     // page at (100, 50), 5 cm/px
     near(g.nodes[0], 5, 7.5);
     near(g.nodes[2], 15, 12.5);
@@ -275,30 +278,28 @@ describe("trench lines", () => {
         tool: "trench",
         widthM: 1,
         pdfParentId: "pdf1",
-        redSide: "links",
+        redSide: "boven",
         workWidthM: 3,
-        workSide: "rechts",
+        workSide: "links",
       }),
       line("L2", 200, 400, pts, {
         tool: "trench",
         widthM: 1,
         pdfParentId: "pdf1",
-        redSide: "boven",
+        redSide: "midden",
         workWidthM: "veel",
         workSide: null,
       }),
     ];
     const [s1, s2] = geometry(els).segments;
-    expect(s1).toEqual({
-      id: "L1:0",
-      a: "L1:0",
-      b: "L1:1",
-      widthM: 1,
-      redSide: "links",
+    expect(s1).toMatchObject({
+      redSide: "boven",
       workWidthM: 3,
-      workSide: "rechts",
+      workSide: "links",
     });
-    expect(s2).toEqual({ id: "L2:0", a: "L2:0", b: "L2:1", widthM: 1 });
+    expect(s2).not.toHaveProperty("redSide");
+    expect(s2).not.toHaveProperty("workWidthM");
+    expect(s2).not.toHaveProperty("workSide");
   });
 
   it("ignores ordinary, ruler, deleted and other pages' lines", () => {

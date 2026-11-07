@@ -67,10 +67,61 @@ describe("computeZones", () => {
     expect(pointInPolygons({ x: 5, y: 2.6 }, z.red)).toBe(false);
   });
 
-  it("keeps one side only — left is n = (uy, -ux), i.e. negative y for a→b eastwards", () => {
-    const z = computeZones(line, { ...both, redSide: "links" });
+  it("keeps one side of the plan only, whichever way the line was drawn", () => {
+    const reversed: NetworkGeometry = {
+      ...line,
+      segments: [{ id: "s", a: "b", b: "a", widthM: 1 }],
+    };
+    for (const g of [line, reversed]) {
+      const top = computeZones(g, { ...both, redSide: "boven" });
+      expect(pointInPolygons({ x: 5, y: -1.5 }, top.red)).toBe(true);
+      expect(pointInPolygons({ x: 5, y: 1.5 }, top.red)).toBe(false);
+      const bottom = computeZones(g, { ...both, redSide: "onder" });
+      expect(pointInPolygons({ x: 5, y: 1.5 }, bottom.red)).toBe(true);
+      expect(pointInPolygons({ x: 5, y: -1.5 }, bottom.red)).toBe(false);
+    }
+    const down: NetworkGeometry = {
+      nodes: [
+        { id: "a", x: 0, y: 0 },
+        { id: "b", x: 0, y: 10 },
+      ],
+      segments: [{ id: "s", a: "a", b: "b", widthM: 1 }],
+    };
+    const west = computeZones(down, { ...both, workSide: "links" });
+    expect(pointInPolygons({ x: -1, y: 5 }, west.work)).toBe(true);
+    expect(pointInPolygons({ x: 1, y: 5 }, west.work)).toBe(false);
+    const east = computeZones(down, { ...both, workSide: "rechts" });
+    expect(pointInPolygons({ x: 1, y: 5 }, east.work)).toBe(true);
+    expect(pointInPolygons({ x: -1, y: 5 }, east.work)).toBe(false);
+  });
+
+  it("puts a side the line runs along on a fixed side, as the edges do", () => {
+    // links = onder, rechts = boven, boven = rechts, onder = links
+    const left = computeZones(line, { ...both, redSide: "links" });
+    expect(pointInPolygons({ x: 5, y: 1.5 }, left.red)).toBe(true);
+    expect(pointInPolygons({ x: 5, y: -1.5 }, left.red)).toBe(false);
+    const right = computeZones(line, { ...both, redSide: "rechts" });
+    expect(pointInPolygons({ x: 5, y: -1.5 }, right.red)).toBe(true);
+  });
+
+  it("keeps a bent line's zone on one side all along", () => {
+    // east, then south: overall south-east, so its top side is its left
+    const bent: NetworkGeometry = {
+      nodes: [
+        { id: "a", x: 0, y: 0 },
+        { id: "b", x: 10, y: 0 },
+        { id: "c", x: 10, y: 10 },
+      ],
+      segments: [
+        { id: "s", a: "a", b: "b", widthM: 1, dir: { x: 10, y: 10 } },
+        { id: "t", a: "b", b: "c", widthM: 1, dir: { x: 10, y: 10 } },
+      ],
+    };
+    const z = computeZones(bent, { ...both, redSide: "boven" });
     expect(pointInPolygons({ x: 5, y: -1.5 }, z.red)).toBe(true);
+    expect(pointInPolygons({ x: 11.5, y: 5 }, z.red)).toBe(true);
     expect(pointInPolygons({ x: 5, y: 1.5 }, z.red)).toBe(false);
+    expect(pointInPolygons({ x: 8.5, y: 5 }, z.red)).toBe(false);
   });
 
   it("shows overlap without adding widths", () => {
@@ -102,14 +153,14 @@ describe("computeZones", () => {
           b: "b",
           widthM: 1,
           workWidthM: 4,
-          redSide: "links",
-          workSide: "rechts",
+          redSide: "boven",
+          workSide: "onder",
         },
         { id: "t", a: "c", b: "d", widthM: 1 },
       ],
     };
     const z = computeZones(two, both);
-    // s: 4 m work zone on its right (+y), red zone on its left (-y) only
+    // s: 4 m work zone below it (+y), red zone above it (-y) only
     expect(pointInPolygons({ x: 5, y: 3.5 }, z.work)).toBe(true);
     expect(pointInPolygons({ x: 5, y: -1 }, z.work)).toBe(false);
     expect(pointInPolygons({ x: 5, y: -1.5 }, z.red)).toBe(true);

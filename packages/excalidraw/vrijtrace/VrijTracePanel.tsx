@@ -40,6 +40,8 @@ const SideSelect = ({
     onChange={(e) => onChange(e.target.value as VrijTraceSide)}
   >
     <option value="beide">{STR.labels.both}</option>
+    <option value="boven">{STR.labels.sideTop}</option>
+    <option value="onder">{STR.labels.sideBottom}</option>
     <option value="links">{STR.labels.sideLeft}</option>
     <option value="rechts">{STR.labels.sideRight}</option>
   </select>

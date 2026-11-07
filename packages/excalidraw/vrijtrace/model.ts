@@ -10,9 +10,15 @@ import type {
 
 import { isValidCmPerPx } from "../data/library";
 
-import { computeZones, fingerprint } from "./geometry";
+import { computeZones, fingerprint, leftFaces } from "./geometry";
 
-import type { NetworkGeometry, Pt, ZoneSettings, Zones } from "./geometry";
+import type {
+  NetworkGeometry,
+  PlanSide,
+  Pt,
+  ZoneSettings,
+  Zones,
+} from "./geometry";
 
 export const networkIdForPage = (pdfId: string) => `vrijtrace-${pdfId}`;
 
@@ -118,7 +124,11 @@ export const trenchLineReference = (
 };
 
 const isSide = (v: unknown): v is VrijTraceSide =>
-  v === "beide" || v === "links" || v === "rechts";
+  v === "beide" ||
+  v === "boven" ||
+  v === "onder" ||
+  v === "links" ||
+  v === "rechts";
 
 /** the Werkruimte slider's range, in metres beyond the trench edge */
 export const WORK_WIDTH_MIN_M = 0.5;
@@ -321,23 +331,12 @@ export const outlinePolygon = (pts: Pt[], half: number): Pt[] => [
   ...offsetPolyline(pts, -half).reverse(),
 ];
 
-/** the plan direction each edge reference puts the trench towards (y down) */
-const EDGE_TOWARDS: Record<Exclude<TrenchReference, "midden">, Pt> = {
-  boven: { x: 0, y: 1 }, // the top edge: the trench lies below
-  onder: { x: 0, y: -1 }, // the bottom edge: the trench lies above
-  links: { x: 1, y: 0 }, // the left edge: the trench lies to the right
-  rechts: { x: -1, y: 0 }, // the right edge: the trench lies to the left
-};
-
-/** a line within this angle of an edge's own direction keeps a fixed side */
-const EDGE_DEAD_ZONE = Math.sin((10 * Math.PI) / 180);
-
-/** the fixed side there: links = onder, rechts = boven, boven = rechts, onder = links */
-const EDGE_FALLBACK: Record<Exclude<TrenchReference, "midden">, Pt> = {
-  links: EDGE_TOWARDS.onder,
-  rechts: EDGE_TOWARDS.boven,
-  boven: EDGE_TOWARDS.rechts,
-  onder: EDGE_TOWARDS.links,
+/** the side of the plan each edge reference puts the trench on */
+const TRENCH_SIDE: Record<Exclude<TrenchReference, "midden">, PlanSide> = {
+  boven: "onder", // the top edge: the trench lies below
+  onder: "boven", // the bottom edge: the trench lies above
+  links: "rechts", // the left edge: the trench lies to the right
+  rechts: "links", // the right edge: the trench lies to the left
 };
 
 /**
@@ -355,14 +354,8 @@ const edgeOffset = (
 ) => {
   const first = metres[0];
   const last = metres[metres.length - 1];
-  const len = Math.hypot(last.x - first.x, last.y - first.y) || 1;
-  const n = { x: (last.y - first.y) / len, y: -(last.x - first.x) / len };
-  const facing = (t: Pt) => n.x * t.x + n.y * t.y;
-  const towards =
-    Math.abs(facing(EDGE_TOWARDS[ref])) < EDGE_DEAD_ZONE
-      ? EDGE_FALLBACK[ref]
-      : EDGE_TOWARDS[ref];
-  return facing(towards) >= 0 ? widthM / 2 : -widthM / 2;
+  const dir = { x: last.x - first.x, y: last.y - first.y };
+  return leftFaces(dir, TRENCH_SIDE[ref]) ? widthM / 2 : -widthM / 2;
 };
 
 /** a trench line as nodes and segments in page metres (ids `line:i`) */
@@ -380,6 +373,11 @@ const lineGeometry = (
     ref === "midden"
       ? metres
       : offsetPolyline(metres, edgeOffset(metres, ref, widthM));
+  // one-sided zones keep to one side of the whole line, as its edges do
+  const dir = {
+    x: metres[metres.length - 1].x - metres[0].x,
+    y: metres[metres.length - 1].y - metres[0].y,
+  };
   const used = new Set<number>();
   for (let i = 0; i + 1 < scene.length; i++) {
     const a = scene[i];
@@ -392,6 +390,7 @@ const lineGeometry = (
       a: `${line.id}:${i}`,
       b: `${line.id}:${i + 1}`,
       widthM,
+      dir,
       ...zone,
     });
     used.add(i);

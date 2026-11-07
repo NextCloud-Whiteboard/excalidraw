@@ -12,12 +12,17 @@ export type ZoneSettings = {
   workWidthM: number;
   workSide: VrijTraceSide;
 };
-/** a segment's own zone settings win over the page's (lines carry them) */
+/**
+ * A segment's own zone settings win over the page's (lines carry them). `dir`
+ * is its line's overall direction: one-sided zones keep to one side of the
+ * whole line, as its edges do; without it the segment's own direction counts.
+ */
 export type GeoSegment = {
   id: string;
   a: string;
   b: string;
   widthM: number;
+  dir?: Pt;
 } & Partial<ZoneSettings>;
 export type NetworkGeometry = { nodes: GeoNode[]; segments: GeoSegment[] };
 export type Zones = {
@@ -32,6 +37,44 @@ export type TreeCheck = {
   pass: boolean | null;
   red: boolean | null;
   work: boolean | null;
+};
+
+/** a side of the plan */
+export type PlanSide = Exclude<VrijTraceSide, "beide">;
+
+/** the plan direction each side names (y down) */
+const PLAN_DIRECTION: Record<PlanSide, Pt> = {
+  boven: { x: 0, y: -1 },
+  onder: { x: 0, y: 1 },
+  links: { x: -1, y: 0 },
+  rechts: { x: 1, y: 0 },
+};
+
+/** within 10° of parallel to a side's direction, a line has no such side */
+const DEAD_ZONE = Math.sin((10 * Math.PI) / 180);
+
+/** the fixed side such a line takes: links = onder, rechts = boven, boven = rechts, onder = links */
+const FALLBACK: Record<PlanSide, PlanSide> = {
+  links: "onder",
+  rechts: "boven",
+  boven: "rechts",
+  onder: "links",
+};
+
+/**
+ * Whether the left-hand side of a line running along `dir` (normal
+ * n = (dy, -dx), y down) faces the given side of the plan, for any slope and
+ * either drawing direction. A line (nearly) parallel to that side's direction
+ * takes a fixed side, so neither the drawing direction nor a wobble picks it.
+ */
+export const leftFaces = (dir: Pt, side: PlanSide): boolean => {
+  const len = Math.hypot(dir.x, dir.y) || 1;
+  const n = { x: dir.y / len, y: -dir.x / len };
+  const facing = (s: PlanSide) =>
+    n.x * PLAN_DIRECTION[s].x + n.y * PLAN_DIRECTION[s].y;
+  return (
+    facing(Math.abs(facing(side)) < DEAD_ZONE ? FALLBACK[side] : side) >= 0
+  );
 };
 
 /** v8.2: the damage-prevention zone is always 2.00 m beyond the trench edge */
@@ -90,17 +133,11 @@ const capsule = (a: Pt, b: Pt, r: number): CPath[] => {
   return out;
 };
 
-/** The side of a→b to keep: "links" is +n with n = (uy, -ux) (y-down frame). */
-const sideStrip = (
-  a: Pt,
-  b: Pt,
-  r: number,
-  side: "links" | "rechts",
-): CPath[] => {
+/** The side of a→b to keep: 1 is its left-hand side, +n with n = (uy, -ux) (y down). */
+const sideStrip = (a: Pt, b: Pt, r: number, s: 1 | -1): CPath[] => {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
   const ux = (b.x - a.x) / len;
   const uy = (b.y - a.y) / len;
-  const s = side === "links" ? 1 : -1;
   const nx = uy * s;
   const ny = -ux * s;
   const e = 2 * r;
@@ -140,7 +177,12 @@ const buffered = (
         ? cap
         : clip(
             cap,
-            sideStrip(a, b, r, side),
+            sideStrip(
+              a,
+              b,
+              r,
+              leftFaces(s.dir ?? { x: b.x - a.x, y: b.y - a.y }, side) ? 1 : -1,
+            ),
             ClipperLib.ClipType.ctIntersection,
           )),
     );

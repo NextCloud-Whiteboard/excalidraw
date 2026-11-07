@@ -106,7 +106,8 @@ export type ExcalidrawTextBubbleElement = _ExcalidrawElementBase & {
   relativeAnchor?: { x: number; y: number } | null;
 };
 
-export type VrijTraceSide = "beide" | "links" | "rechts";
+/** where a zone lies: on both sides of the trench, or on one side of the plan */
+export type VrijTraceSide = "beide" | "boven" | "onder" | "links" | "rechts";
 
 export type VrijTraceActivation = {
   by: { uid: string; name: string };

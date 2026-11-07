@@ -395,6 +395,20 @@ describe("Vrij Tracé UI", () => {
     expect(ShapeCache.get(line)).toBeUndefined();
   });
 
+  it("offers the sides of the plan for both zones", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    for (const id of ["vt-red-side", "vt-work-side"]) {
+      const options = [...(byId(id) as HTMLSelectElement).options];
+      expect(options.map((o) => [o.value, o.textContent])).toEqual([
+        ["beide", "Beide zijden"],
+        ["boven", "Boven"],
+        ["onder", "Onder"],
+        ["links", "Links"],
+        ["rechts", "Rechts"],
+      ]);
+    }
+  });
+
   it("Rode zone and Werkruimte change the selected line only", () => {
     drawLine([100, 100], [400, 100]);
     drawLine([100, 300], [400, 300]);
@@ -402,14 +416,14 @@ describe("Vrij Tracé UI", () => {
     act(() => h.app.setActiveTool({ type: "selection" }));
     API.setSelectedElements([first]);
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
-    fireEvent.change(byId("vt-red-side"), { target: { value: "links" } });
-    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    fireEvent.change(byId("vt-red-side"), { target: { value: "boven" } });
+    fireEvent.change(byId("vt-work-side"), { target: { value: "onder" } });
     const data = (id: string) =>
       (h.elements.find((e) => e.id === id) as any).customData;
     expect(data(first.id)).toMatchObject({
       workWidthM: 3,
-      redSide: "links",
-      workSide: "rechts",
+      redSide: "boven",
+      workSide: "onder",
     });
     expect(data(second.id)).toMatchObject({
       workWidthM: 1.5,
