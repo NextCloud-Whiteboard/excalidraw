@@ -12,22 +12,35 @@ import {
   WORK_WIDTH_MAX_M,
   WORK_WIDTH_MIN_M,
   TREE_MIN_MAX_M,
+  sidesForReference,
 } from "./model";
 import { STR } from "./strings";
 
 import "./vrijtrace.scss";
 
+import type { TrenchReference } from "./model";
 import type { UIAppState } from "../types";
 
 const fmt = (n: number) => n.toFixed(2).replace(".", ",");
 
+const SIDE_LABELS: Record<VrijTraceSide, string> = {
+  beide: STR.labels.both,
+  boven: STR.labels.sideTop,
+  onder: STR.labels.sideBottom,
+  links: STR.labels.sideLeft,
+  rechts: STR.labels.sideRight,
+};
+
+/** the Zijde choices the line's Tekenreferentie offers */
 const SideSelect = ({
   id,
   value,
+  reference,
   onChange,
 }: {
   id: string;
   value: VrijTraceSide;
+  reference: TrenchReference;
   onChange: (side: VrijTraceSide) => void;
 }) => (
   <select
@@ -37,11 +50,11 @@ const SideSelect = ({
     value={value}
     onChange={(e) => onChange(e.target.value as VrijTraceSide)}
   >
-    <option value="beide">{STR.labels.both}</option>
-    <option value="boven">{STR.labels.sideTop}</option>
-    <option value="onder">{STR.labels.sideBottom}</option>
-    <option value="links">{STR.labels.sideLeft}</option>
-    <option value="rechts">{STR.labels.sideRight}</option>
+    {sidesForReference(reference).map((side) => (
+      <option key={side} value={side}>
+        {SIDE_LABELS[side]}
+      </option>
+    ))}
   </select>
 );
 
@@ -203,6 +216,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         <SideSelect
           id="vt-red-side"
           value={line.redSide}
+          reference={line.reference}
           onChange={(redSide) => vt.setLineZone({ redSide }, true)}
         />
         <p className="vt-help">{STR.help.red}</p>
@@ -232,6 +246,7 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         <SideSelect
           id="vt-work-side"
           value={line.workSide}
+          reference={line.reference}
           onChange={(workSide) => vt.setLineZone({ workSide }, true)}
         />
       </div>

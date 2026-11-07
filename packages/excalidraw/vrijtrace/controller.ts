@@ -35,6 +35,7 @@ import {
   networkIdForPage,
   pageState,
   settingsOf,
+  sideForReference,
   trenchLinePoints,
   TREE_MIN_MAX_M,
   trenchLineReference,
@@ -494,8 +495,23 @@ export class VrijTraceController {
   setReference(reference: TrenchReference) {
     const lines = this.selectedLines();
     for (const line of lines) {
+      // a Zijde the new reference doesn't offer goes back to both sides
+      const {
+        lineWidthPx,
+        treeMinM,
+        reference: _,
+        ...zone
+      } = this.lineSettings(line);
+      const redSide = sideForReference(zone.redSide, reference);
+      const workSide = sideForReference(zone.workSide, reference);
+      const sidesChanged =
+        redSide !== zone.redSide || workSide !== zone.workSide;
       this.app.scene.mutateElement(line, {
-        customData: { ...line.customData, reference },
+        customData: {
+          ...line.customData,
+          ...(sidesChanged && { ...zone, redSide, workSide }),
+          reference,
+        },
         // the centre is dashed, an edge solid
         strokeStyle: trenchLineStyle(reference).strokeStyle,
       });
@@ -504,7 +520,16 @@ export class VrijTraceController {
     if (lines.length) {
       this.app.scheduleCapture();
     }
-    this.setUI({ reference });
+    const next = this.nextLineSettings();
+    this.setUI({
+      reference,
+      ...(next.redSide !== sideForReference(next.redSide, reference) && {
+        redSide: "beide",
+      }),
+      ...(next.workSide !== sideForReference(next.workSide, reference) && {
+        workSide: "beide",
+      }),
+    });
   }
 
   /** the width the slider shows */

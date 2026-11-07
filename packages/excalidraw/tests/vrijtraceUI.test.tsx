@@ -411,6 +411,53 @@ describe("Vrij Tracé UI", () => {
     }
   });
 
+  it("an edge reference offers only the sides across that edge", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    const sides = (id: string) =>
+      [...(byId(id) as HTMLSelectElement).options].map((o) => o.value);
+    const expected = {
+      midden: ["beide", "boven", "onder", "links", "rechts"],
+      boven: ["beide", "boven", "onder"],
+      onder: ["beide", "boven", "onder"],
+      links: ["beide", "links", "rechts"],
+      rechts: ["beide", "links", "rechts"],
+    };
+    for (const [ref, values] of Object.entries(expected)) {
+      fireEvent.click(byId(`vt-ref-${ref}`));
+      expect(sides("vt-red-side")).toEqual(values);
+      expect(sides("vt-work-side")).toEqual(values);
+    }
+  });
+
+  it("an edge reference puts a side it does not offer back to both sides", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([line]);
+    fireEvent.change(byId("vt-red-side"), { target: { value: "boven" } });
+    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    fireEvent.click(byId("vt-ref-links"));
+    expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
+      reference: "links",
+      redSide: "beide",
+      workSide: "rechts",
+    });
+    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
+    expect((byId("vt-work-side") as HTMLSelectElement).value).toBe("rechts");
+  });
+
+  it("the next line's sides follow its reference too", () => {
+    openOnPage();
+    fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
+    fireEvent.click(byId("vt-ref-rechts"));
+    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
+    drawLine([100, 300], [400, 300]);
+    expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
+      reference: "rechts",
+      redSide: "beide",
+    });
+  });
+
   it("Rode zone and Werkruimte change the selected line only", () => {
     drawLine([100, 100], [400, 100]);
     drawLine([100, 300], [400, 300]);

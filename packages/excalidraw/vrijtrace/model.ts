@@ -123,6 +123,27 @@ export const trenchLineReference = (
     : "midden";
 };
 
+/**
+ * The Zijde choices a reference offers for the zones: an edge along the top
+ * or bottom only boven/onder, an edge along the left or right only
+ * links/rechts, the centre line all of them.
+ */
+export const sidesForReference = (
+  reference: TrenchReference,
+): readonly VrijTraceSide[] =>
+  reference === "boven" || reference === "onder"
+    ? ["beide", "boven", "onder"]
+    : reference === "links" || reference === "rechts"
+    ? ["beide", "links", "rechts"]
+    : ["beide", "boven", "onder", "links", "rechts"];
+
+/** a side the reference offers, else both sides */
+export const sideForReference = (
+  side: VrijTraceSide,
+  reference: TrenchReference,
+): VrijTraceSide =>
+  sidesForReference(reference).includes(side) ? side : "beide";
+
 const isSide = (v: unknown): v is VrijTraceSide =>
   v === "beide" ||
   v === "boven" ||
