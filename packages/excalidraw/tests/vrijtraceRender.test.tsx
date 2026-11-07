@@ -5,6 +5,7 @@ import { exportToSvg } from "../scene/export";
 import { Excalidraw } from "../index";
 import { isTrenchLine, networkIdForPage } from "../vrijtrace/model";
 import {
+  COLORS,
   renderVrijTraceInteractive,
   renderVrijTraceStatic,
 } from "../vrijtrace/render";
@@ -97,7 +98,10 @@ const countingContext = () => {
   const alphas: number[] = [];
   const texts: string[] = [];
   const arcs: { x: number; y: number; r: number; stroke: string }[] = [];
+  const fills: string[] = [];
+  const points: number[][] = [];
   let stroke = "";
+  let fill = "";
   let dashed = false;
   const ctx = new Proxy(
     {},
@@ -115,6 +119,12 @@ const countingContext = () => {
           if (key === "arc") {
             arcs.push({ x: args[0], y: args[1], r: args[2], stroke });
           }
+          if (key === "fill") {
+            fills.push(fill);
+          }
+          if (key === "moveTo" || key === "lineTo") {
+            points.push(args);
+          }
           if (dashed && (key === "moveTo" || key === "lineTo")) {
             dashedPoints.push(args);
           }
@@ -130,11 +140,24 @@ const countingContext = () => {
         if (key === "strokeStyle") {
           stroke = value;
         }
+        if (key === "fillStyle") {
+          fill = value;
+        }
         return true;
       },
     },
   ) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls, dashedPoints, lineWidths, alphas, texts, arcs };
+  return {
+    ctx,
+    calls,
+    dashedPoints,
+    lineWidths,
+    alphas,
+    texts,
+    arcs,
+    fills,
+    points,
+  };
 };
 
 /** a calibrated page with one activated segment from (100,100) to (400,100) */
@@ -339,5 +362,54 @@ describe("Vrij Tracé rendering cost", () => {
     expect(() => renderStatic(network)).not.toThrow();
     expect(alert).not.toHaveBeenCalled();
     alert.mockRestore();
+  });
+});
+
+describe("Vrij Tracé selected line preview", () => {
+  const renderInteractive = () => {
+    const recorded = countingContext();
+    renderVrijTraceInteractive(
+      recorded.ctx,
+      h.state as any,
+      h.app.scene.getNonDeletedElementsMap(),
+    );
+    return recorded;
+  };
+  const selectTheLine = () => {
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements(h.elements.filter(isTrenchLine));
+  };
+
+  it("shows a selected line's zones, faded, while its page shows none", async () => {
+    await drawOnPage(1000, 700, false);
+    expect(renderInteractive().fills).toEqual([]);
+    selectTheLine();
+    const { fills, alphas } = renderInteractive();
+    expect(fills).toContain(COLORS.red);
+    expect(fills).toContain(COLORS.work);
+    expect(alphas).toContain(0.38);
+  });
+
+  it("follows a change in the panel at once", async () => {
+    await drawOnPage(1000, 700, false);
+    selectTheLine();
+    // the line runs along y = 100 at 5 cm/px (20 px = 1 m)
+    const reach = () =>
+      Math.max(...renderInteractive().points.map(([, y]) => y - 100));
+    act(() => h.app.vrijTrace.setLineZone({ workWidthM: 0.5 }, true));
+    // the red zone reaches furthest: 0.5 m half trench + 2 m = 50 px
+    expect(reach()).toBeCloseTo(50, 0);
+    act(() => h.app.vrijTrace.setLineZone({ workWidthM: 4 }, true));
+    // now the Werkruimte: 0.5 + 4 m = 90 px
+    expect(reach()).toBeCloseTo(90, 0);
+    act(() => h.app.vrijTrace.setLineZone({ workSide: "boven" }, true));
+    // below the line only the red zone is left
+    expect(reach()).toBeCloseTo(50, 0);
+  });
+
+  it("leaves it to the page once its zones are shown", async () => {
+    await drawOnPage(1000, 700, true);
+    selectTheLine();
+    expect(renderInteractive().fills).toEqual([]);
   });
 });

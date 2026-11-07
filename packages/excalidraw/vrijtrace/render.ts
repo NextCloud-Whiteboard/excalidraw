@@ -7,11 +7,12 @@ import type {
 import { getClientColor } from "../clients";
 
 import { SMOOTH_PX, simplify } from "./editing";
-import { checkTree } from "./geometry";
+import { checkTree, computeZones, fingerprint } from "./geometry";
 import {
   centreOf,
   getPageFrame,
   isPdfPage,
+  isTrenchLine,
   outlinePolygon,
   pageState,
   pageToScene,
@@ -21,7 +22,7 @@ import {
 } from "./model";
 import { STR } from "./strings";
 
-import type { Polygons, Pt } from "./geometry";
+import type { NetworkGeometry, Polygons, Pt, Zones } from "./geometry";
 import type { PageState } from "./model";
 import type {
   InteractiveCanvasAppState,
@@ -363,6 +364,70 @@ export const renderVrijTraceSvg = (
 };
 
 /** editing layer: colleagues' holds, the stroke being drawn and the tree pointed at */
+const previewCache = new Map<string, Zones>();
+
+/**
+ * While trench lines are selected on a page that shows no zones (never
+ * activated, or switched off on purpose), their own zones faded like a
+ * concept, so a change in the panel shows at once. A page whose zones are
+ * shown (activated, or a concept) already draws every line's zones itself.
+ */
+const drawSelectedPreview = (
+  ctx: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  elementsMap: ElementsMap,
+) => {
+  const byPage = new Map<string, Set<string>>();
+  for (const id of Object.keys(appState.selectedElementIds)) {
+    const el = elementsMap.get(id);
+    if (isTrenchLine(el)) {
+      const pageId = el.customData.pdfParentId;
+      byPage.set(pageId, (byPage.get(pageId) ?? new Set()).add(el.id));
+    }
+  }
+  if (!byPage.size) {
+    return;
+  }
+  const elements = [...elementsMap.values()];
+  // node and segment ids are `${line.id}:${i}`
+  const lineOf = (id: string) => id.slice(0, id.lastIndexOf(":"));
+  for (const [pageId, lineIds] of byPage) {
+    const page = elementsMap.get(pageId);
+    const s = isPdfPage(page) ? pageState(elements, page) : null;
+    if (!s || s.active || s.stale) {
+      continue;
+    }
+    const geometry: NetworkGeometry = {
+      nodes: s.geometry.nodes.filter((n) => lineIds.has(lineOf(n.id))),
+      segments: s.geometry.segments.filter((g) => lineIds.has(lineOf(g.id))),
+    };
+    if (!geometry.segments.length) {
+      continue;
+    }
+    const key = `${pageId}|${fingerprint(geometry, s.settings)}`;
+    let zones = previewCache.get(key);
+    if (!zones) {
+      zones = computeZones(geometry, s.settings);
+      previewCache.set(key, zones);
+      if (previewCache.size > 32) {
+        previewCache.delete(previewCache.keys().next().value!);
+      }
+    }
+    ctx.save();
+    ctx.globalAlpha = CONCEPT_ALPHA;
+    for (const [polys, color] of [
+      [zones.work, COLORS.work],
+      [zones.red, COLORS.red],
+      [zones.overlap, COLORS.overlap],
+    ] as const) {
+      tracePath(ctx, polys, s);
+      ctx.fillStyle = color;
+      ctx.fill("evenodd");
+    }
+    ctx.restore();
+  }
+};
+
 export const renderVrijTraceInteractive = (
   ctx: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -389,6 +454,7 @@ export const renderVrijTraceInteractive = (
     ctx.fillText(STR.editing(hold.name), c.x + 20 / z, c.y - 14 / z);
     ctx.restore();
   }
+  drawSelectedPreview(ctx, appState, elementsMap);
   const ui = appState.vrijTrace;
   // the tree whose row in the Boomcontrole table is pointed at
   const hot = ui.hotTreeId ? elementsMap.get(ui.hotTreeId) : null;
