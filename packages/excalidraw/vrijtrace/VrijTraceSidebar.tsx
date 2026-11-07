@@ -96,6 +96,7 @@ export const VrijTraceSidebar = () => {
                 s.zones,
                 s.active,
                 s.settings.treeMinM,
+                s.geometry,
               );
               // point at a row (or tap it) to outline its tree on the plan
               const outline = () => app.vrijTrace.setHotTree(t.id);
@@ -127,7 +128,7 @@ export const VrijTraceSidebar = () => {
                       ? STR.table.ok
                       : STR.table.conflict}
                   </td>
-                  <td>{fmt(s.settings.treeMinM)} m</td>
+                  <td>{r.minM === null ? "—" : `${fmt(r.minM)} m`}</td>
                   <td>{yesNo(r.inside)}</td>
                   <td>{yesNo(r.red)}</td>
                   <td>{yesNo(r.work)}</td>

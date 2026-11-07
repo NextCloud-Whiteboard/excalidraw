@@ -36,7 +36,15 @@ export const trenchLineData = (
   reference: TrenchReference,
   pdfParentId: string,
   zone?: ZoneSettings,
-) => ({ tool: "trench", widthM, reference, pdfParentId, ...zone });
+  treeMinM?: number,
+) => ({
+  tool: "trench",
+  widthM,
+  reference,
+  pdfParentId,
+  ...zone,
+  ...(treeMinM !== undefined && { treeMinM }),
+});
 
 /** a new trench line through scene points */
 export const newTrenchLine = (opts: {
@@ -48,6 +56,8 @@ export const newTrenchLine = (opts: {
   strokeWidth?: number;
   /** the line's own Rode zone and Werkruimte (else it follows its page) */
   zone?: ZoneSettings;
+  /** the line's own Minimale afstand for trees (else its page's) */
+  treeMinM?: number;
 }): ExcalidrawLinearElement => {
   const reference = opts.reference ?? "midden";
   const [first] = opts.points;
@@ -68,6 +78,7 @@ export const newTrenchLine = (opts: {
       reference,
       opts.pdfParentId,
       opts.zone,
+      opts.treeMinM,
     ),
   });
   return opts.id ? { ...line, id: opts.id } : line;

@@ -305,6 +305,7 @@ const drawPage = (
       s.zones,
       s.active,
       s.settings.treeMinM,
+      s.geometry,
     );
     if (check.pass === false) {
       drawTreeConflict(ctx, c, ringPx(t), z);
@@ -470,7 +471,7 @@ const drawLabel = (
 /**
  * Selected trees (and the one pointed at in the Boomcontrole table): a
  * measuring line from the ring to each trench line within 15 m, with the
- * distance; red below the page's minimum. A tree the trench already reaches
+ * distance; red below that line's own minimum. A tree the trench already reaches
  * is labelled instead. Drawn on the editing layer, so never exported.
  */
 const drawTreeDistances = (
@@ -505,7 +506,14 @@ const drawTreeDistances = (
       const c = centreOf(t);
       const p = sceneToPage(s.frame, c);
       const ringM = treeRingM(t, s.frame);
-      const check = checkTree(p, ringM, s.zones, s.active, s.settings.treeMinM);
+      const check = checkTree(
+        p,
+        ringM,
+        s.zones,
+        s.active,
+        s.settings.treeMinM,
+        s.geometry,
+      );
       if (check.distanceM === null) {
         continue;
       }
@@ -524,11 +532,11 @@ const drawTreeDistances = (
         ringM,
         s.geometry,
         TREE_DISTANCE_MAX_M,
+        s.settings.treeMinM,
       )) {
         const a = pageToScene(s.frame, d.from);
         const b = pageToScene(s.frame, d.to);
-        const color =
-          d.distanceM + 1e-9 < s.settings.treeMinM ? DISTANCE_BAD : DISTANCE_OK;
+        const color = d.distanceM + 1e-9 < d.minM ? DISTANCE_BAD : DISTANCE_OK;
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
         ctx.lineWidth = 1.5 / z;

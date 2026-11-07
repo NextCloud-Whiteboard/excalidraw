@@ -145,6 +145,7 @@ export const getDefaultAppState = (): Omit<
       redSide: null,
       workWidthM: null,
       workSide: null,
+      treeMinM: null,
       hidePdf: false,
       stroke: null,
     },

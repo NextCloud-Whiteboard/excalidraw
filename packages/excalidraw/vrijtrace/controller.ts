@@ -36,7 +36,9 @@ import {
   pageState,
   settingsOf,
   trenchLinePoints,
+  TREE_MIN_MAX_M,
   trenchLineReference,
+  trenchLineTreeMin,
   trenchLineWidth,
   trenchLineZone,
 } from "./model";
@@ -78,6 +80,8 @@ type SettingsPatch = Partial<Pick<VrijTraceNetworkData, "treeMinM">>;
 export type LineSettings = ZoneSettings & {
   lineWidthPx: number;
   reference: TrenchReference;
+  /** Minimale afstand for trees, from this line */
+  treeMinM: number;
 };
 
 export class VrijTraceController {
@@ -268,7 +272,8 @@ export class VrijTraceController {
       points[points.length - 1],
     );
     this.ensureNetwork(page);
-    const { lineWidthPx, reference, ...zone } = this.nextLineSettings(pageId);
+    const { lineWidthPx, reference, treeMinM, ...zone } =
+      this.nextLineSettings(pageId);
     this.app.scene.insertElement(
       newTrenchLine({
         points,
@@ -277,6 +282,7 @@ export class VrijTraceController {
         pdfParentId: pageId,
         strokeWidth: lineWidthPx,
         zone,
+        treeMinM,
       }),
     );
     this.app.scheduleCapture();
@@ -371,12 +377,18 @@ export class VrijTraceController {
   /** a page's zone settings: what lines without their own follow */
   private pageZone(
     pageId: string | null,
-  ): ZoneSettings & { lineWidthPx: number } {
+  ): ZoneSettings & { lineWidthPx: number; treeMinM: number } {
     const network = pageId
       ? getPageParts(this.app.scene.getNonDeletedElements(), pageId).network
       : null;
-    const { redSide, workWidthM, workSide } = settingsOf(network);
-    return { redSide, workWidthM, workSide, lineWidthPx: lineWidthOf(network) };
+    const { redSide, workWidthM, workSide, treeMinM } = settingsOf(network);
+    return {
+      redSide,
+      workWidthM,
+      workSide,
+      treeMinM,
+      lineWidthPx: lineWidthOf(network),
+    };
   }
 
   /** what the next line drawn on a page gets */
@@ -387,6 +399,7 @@ export class VrijTraceController {
       redSide: this.ui.redSide ?? page.redSide,
       workWidthM: this.ui.workWidthM ?? page.workWidthM,
       workSide: this.ui.workSide ?? page.workSide,
+      treeMinM: this.ui.treeMinM ?? page.treeMinM,
       reference: this.ui.reference,
     };
   }
@@ -399,6 +412,7 @@ export class VrijTraceController {
     return {
       ...page,
       ...trenchLineZone(line),
+      treeMinM: trenchLineTreeMin(line) ?? page.treeMinM,
       lineWidthPx: line.strokeWidth,
       reference: trenchLineReference(line),
     };
@@ -439,7 +453,9 @@ export class VrijTraceController {
   setLineZone(patch: Partial<ZoneSettings>, commit: boolean) {
     const lines = this.selectedLines();
     for (const line of lines) {
-      const { lineWidthPx, reference, ...zone } = this.lineSettings(line);
+      // Minimale afstand keeps following the page until it is changed itself
+      const { lineWidthPx, reference, treeMinM, ...zone } =
+        this.lineSettings(line);
       this.app.scene.mutateElement(line, {
         customData: { ...line.customData, ...zone, ...patch },
       });
@@ -450,6 +466,28 @@ export class VrijTraceController {
     // also the next line's; and it redraws the panel, or a dragged slider
     // snaps back to the old value until something else repaints
     this.setUI(patch);
+  }
+
+  /**
+   * Minimale afstand (for trees, beyond their ring) of the selected trench
+   * lines, and of the next one drawn. `commit` ends a slider drag as one
+   * undo step.
+   */
+  setLineTreeMin(treeMinM: number, commit: boolean) {
+    const v = Math.min(TREE_MIN_MAX_M, Math.max(0, treeMinM));
+    const lines = this.selectedLines();
+    for (const line of lines) {
+      if (line.customData?.treeMinM !== v) {
+        this.app.scene.mutateElement(line, {
+          customData: { ...line.customData, treeMinM: v },
+        });
+      }
+    }
+    if (lines.length && commit) {
+      this.app.scheduleCapture();
+    }
+    // also the next line's; and it redraws the panel
+    this.setUI({ treeMinM: v });
   }
 
   /** Tekenreferentie of the selected trench lines, and of the next one drawn */
@@ -475,7 +513,7 @@ export class VrijTraceController {
     return line ? trenchLineWidth(line) : this.ui.widthM;
   }
 
-  /** Minimale afstand: a rule for the page's trees, not a line's */
+  /** the page's Minimale afstand: what lines from before without their own follow */
   updateSettings(patch: SettingsPatch, commit: boolean) {
     const page = this.page();
     if (!page) {

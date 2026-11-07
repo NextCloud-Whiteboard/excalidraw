@@ -11,9 +11,7 @@ import {
   LINE_WIDTH_MIN_PX,
   WORK_WIDTH_MAX_M,
   WORK_WIDTH_MIN_M,
-  getPageParts,
-  isPdfPage,
-  settingsOf,
+  TREE_MIN_MAX_M,
 } from "./model";
 import { STR } from "./strings";
 
@@ -95,14 +93,11 @@ const WidthField = ({
  */
 export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
   const app = useApp();
-  const elements = useExcalidrawElements();
+  // the panel shows lines' settings: redraw when the elements change
+  useExcalidrawElements();
   const ui = appState.vrijTrace;
   const vt = app.vrijTrace;
-  const page = ui.pageId ? elements.find((e) => e.id === ui.pageId) : null;
-  const parts = isPdfPage(page) ? getPageParts(elements, page.id) : null;
-  // Minimale afstand is the page's; everything else is the selected line's,
-  // else the next line's
-  const { treeMinM } = settingsOf(parts?.network ?? null);
+  // every setting is the selected line's, else the next line's
   const width = vt.shownWidth();
   const line = vt.shownLineSettings();
   const selected = vt.selectedLines().length;
@@ -244,20 +239,18 @@ export const VrijTracePanel = ({ appState }: { appState: UIAppState }) => {
         <div className="vt-h">{STR.sections.trees}</div>
         <label className="vt-lbl" htmlFor="vt-tree-min">
           <span>{STR.labels.treeMin}</span>
-          <span>{fmt(treeMinM)} m</span>
+          <span>{fmt(line.treeMinM)} m</span>
         </label>
         <input
           id="vt-tree-min"
           data-testid="vt-tree-min"
           type="range"
           min="0"
-          max="15"
+          max={TREE_MIN_MAX_M}
           step="0.25"
-          value={treeMinM}
-          onChange={(e) =>
-            vt.updateSettings({ treeMinM: Number(e.target.value) }, false)
-          }
-          onPointerUp={() => vt.updateSettings({}, true)}
+          value={line.treeMinM}
+          onChange={(e) => vt.setLineTreeMin(Number(e.target.value), false)}
+          onPointerUp={() => vt.setLineTreeMin(line.treeMinM, true)}
         />
         <p className="vt-help">{STR.help.trees}</p>
       </div>

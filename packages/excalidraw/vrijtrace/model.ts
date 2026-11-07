@@ -133,6 +133,18 @@ const isSide = (v: unknown): v is VrijTraceSide =>
 /** the Werkruimte slider's range, in metres beyond the trench edge */
 export const WORK_WIDTH_MIN_M = 0.5;
 export const WORK_WIDTH_MAX_M = 4;
+/** the Minimale afstand slider's range */
+export const TREE_MIN_MAX_M = 15;
+
+/** a line's own Minimale afstand for trees; none on lines from before */
+export const trenchLineTreeMin = (
+  line: ExcalidrawLinearElement,
+): number | undefined => {
+  const v = line.customData?.treeMinM;
+  return typeof v === "number" && Number.isFinite(v)
+    ? Math.min(TREE_MIN_MAX_M, Math.max(0, v))
+    : undefined;
+};
 
 /**
  * The zone settings a trench line carries itself; lines drawn before lines
@@ -367,6 +379,7 @@ const lineGeometry = (
   const scene = trenchLinePoints(line);
   const widthM = trenchLineWidth(line);
   const zone = trenchLineZone(line);
+  const treeMinM = trenchLineTreeMin(line);
   const ref = trenchLineReference(line);
   const metres = scene.map((p) => sceneToPage(frame, p));
   const centre =
@@ -392,6 +405,7 @@ const lineGeometry = (
       widthM,
       dir,
       ...zone,
+      ...(treeMinM !== undefined && { treeMinM }),
     });
     used.add(i);
     used.add(i + 1);

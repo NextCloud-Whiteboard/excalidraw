@@ -205,6 +205,8 @@ describe("Vrij Tracé UI", () => {
     API.updateScene({
       elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
     });
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
     expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Conflict", "2,00 m"]);
     fireEvent.change(byId("vt-tree-min"), { target: { value: "1.5" } });
@@ -443,6 +445,31 @@ describe("Vrij Tracé UI", () => {
     expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
   });
 
+  it("Minimale afstand changes the selected line only, and its trees' check", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([100, 300], [400, 300]);
+    // 1,50 m beyond its ring from the first line, 5,50 m from the second
+    API.updateScene({
+      elements: [...h.elements, libraryTree("t1", 250, 160, 20)],
+    });
+    const [first, second] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([second]);
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "7" } });
+    const data = (id: string) =>
+      (h.elements.find((e) => e.id === id) as any).customData;
+    expect(data(second.id).treeMinM).toBe(7);
+    expect(data(first.id).treeMinM).toBe(0);
+    // the second line's 7 m decides, though the first line is nearer
+    expect(rows()[0].slice(2, 5)).toEqual(["5,50 m", "Conflict", "7,00 m"]);
+    API.setSelectedElements([first]);
+    expect((byId("vt-tree-min") as HTMLInputElement).value).toBe("0");
+    API.setSelectedElements([second]);
+    // passing, the row shows the nearest line again
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "5" } });
+    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Voldoet", "0,00 m"]);
+  });
+
   it("Tekenreferentie changes the selected line only", () => {
     drawLine([100, 100], [400, 100]);
     drawLine([100, 300], [400, 300]);
@@ -468,8 +495,10 @@ describe("Vrij Tracé UI", () => {
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
     fireEvent.change(byId("vt-line-width"), { target: { value: "2" } });
     fireEvent.change(byId("vt-red-side"), { target: { value: "rechts" } });
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
     const [first] = getPageParts(h.elements, "pdf1").lines;
     expect(first.strokeWidth).toBe(0.5);
+    expect(first.customData?.treeMinM).toBe(0);
     expect(first.customData).toMatchObject({
       workWidthM: 1.5,
       redSide: "beide",
@@ -481,6 +510,7 @@ describe("Vrij Tracé UI", () => {
       workWidthM: 3,
       redSide: "rechts",
       workSide: "beide",
+      treeMinM: 2,
     });
   });
 
@@ -525,6 +555,32 @@ describe("Vrij Tracé UI", () => {
       redSide: "links",
       workSide: "rechts",
     });
+  });
+
+  it("a line from before follows its page's Minimale afstand until it is changed", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    const network = getPageParts(h.elements, "pdf1").network!;
+    act(() => {
+      h.app.scene.mutateElement(line, {
+        customData: { tool: "trench", widthM: 1, pdfParentId: "pdf1" },
+      });
+      h.app.scene.mutateElement(network, {
+        trench: { ...(network.trench as any), treeMinM: 1.75 },
+      });
+    });
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
+    expect((byId("vt-tree-min") as HTMLInputElement).value).toBe("1.75");
+    // another setting leaves it following the page
+    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    expect(
+      getPageParts(h.elements, "pdf1").lines[0].customData?.treeMinM,
+    ).toBeUndefined();
+    fireEvent.change(byId("vt-tree-min"), { target: { value: "3" } });
+    expect(getPageParts(h.elements, "pdf1").lines[0].customData?.treeMinM).toBe(
+      3,
+    );
   });
 
   it("keeps the usual shape actions for other selections", () => {
