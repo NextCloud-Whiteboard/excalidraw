@@ -1,5 +1,6 @@
 import type {
   ElementsMap,
+  ExcalidrawElement,
   ExcalidrawImageElement,
   ExcalidrawTrenchElement,
 } from "@excalidraw/element/types";
@@ -7,11 +8,17 @@ import type {
 import { getClientColor } from "../clients";
 
 import { SMOOTH_PX, simplify } from "./editing";
-import { checkTree, computeZones, fingerprint } from "./geometry";
+import {
+  checkTree,
+  computeZones,
+  fingerprint,
+  treeDistances,
+} from "./geometry";
 import {
   centreOf,
   getPageFrame,
   isPdfPage,
+  isTreeRing,
   isTrenchLine,
   outlinePolygon,
   pageState,
@@ -428,6 +435,125 @@ const drawSelectedPreview = (
   }
 };
 
+/** trench lines this far beyond a selected tree's ring get a measuring line */
+export const TREE_DISTANCE_MAX_M = 15;
+const DISTANCE_OK = "#13283e";
+const DISTANCE_BAD = "#b42318";
+
+/** "8,50 m" */
+const metres = (n: number) => `${n.toFixed(2).replace(".", ",")} m`;
+
+/** a label of a fixed size on screen, its left middle at p */
+const drawLabel = (
+  ctx: CanvasRenderingContext2D,
+  p: Pt,
+  text: string,
+  color: string,
+  z: number,
+) => {
+  ctx.font = `500 ${12 / z}px sans-serif`;
+  const w = ctx.measureText(text).width;
+  const pad = 5 / z;
+  const h = 18 / z;
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1 / z;
+  ctx.beginPath();
+  ctx.rect(p.x, p.y - h / 2, w + 2 * pad, h);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, p.x + pad, p.y);
+};
+
+/**
+ * Selected trees (and the one pointed at in the Boomcontrole table): a
+ * measuring line from the ring to each trench line within 15 m, with the
+ * distance; red below the page's minimum. A tree the trench already reaches
+ * is labelled instead. Drawn on the editing layer, so never exported.
+ */
+const drawTreeDistances = (
+  ctx: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  elementsMap: ElementsMap,
+) => {
+  const ids = new Set(Object.keys(appState.selectedElementIds));
+  if (appState.vrijTrace.hotTreeId) {
+    ids.add(appState.vrijTrace.hotTreeId);
+  }
+  const byPage = new Map<string, ExcalidrawElement[]>();
+  for (const id of ids) {
+    const el = elementsMap.get(id);
+    if (el && isTreeRing(el)) {
+      const pageId = el.customData!.pdfParentId;
+      byPage.set(pageId, [...(byPage.get(pageId) ?? []), el]);
+    }
+  }
+  if (!byPage.size) {
+    return;
+  }
+  const z = appState.zoom.value;
+  const elements = [...elementsMap.values()];
+  for (const [pageId, trees] of byPage) {
+    const page = elementsMap.get(pageId);
+    const s = isPdfPage(page) ? pageState(elements, page) : null;
+    if (!s) {
+      continue;
+    }
+    for (const t of trees) {
+      const c = centreOf(t);
+      const p = sceneToPage(s.frame, c);
+      const ringM = treeRingM(t, s.frame);
+      const check = checkTree(p, ringM, s.zones, s.active, s.settings.treeMinM);
+      if (check.distanceM === null) {
+        continue;
+      }
+      ctx.save();
+      if (check.distanceM <= 0) {
+        drawLabel(
+          ctx,
+          { x: c.x + ringPx(t) * 0.75, y: c.y - ringPx(t) * 0.75 },
+          check.inside ? STR.treeInTrench : STR.treeInRing,
+          DISTANCE_BAD,
+          z,
+        );
+      }
+      for (const d of treeDistances(
+        p,
+        ringM,
+        s.geometry,
+        TREE_DISTANCE_MAX_M,
+      )) {
+        const a = pageToScene(s.frame, d.from);
+        const b = pageToScene(s.frame, d.to);
+        const color =
+          d.distanceM + 1e-9 < s.settings.treeMinM ? DISTANCE_BAD : DISTANCE_OK;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.5 / z;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        for (const q of [a, b]) {
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, 3 / z, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        drawLabel(
+          ctx,
+          { x: (a.x + b.x) / 2 + 6 / z, y: (a.y + b.y) / 2 },
+          metres(d.distanceM),
+          color,
+          z,
+        );
+      }
+      ctx.restore();
+    }
+  }
+};
+
 export const renderVrijTraceInteractive = (
   ctx: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -455,6 +581,7 @@ export const renderVrijTraceInteractive = (
     ctx.restore();
   }
   drawSelectedPreview(ctx, appState, elementsMap);
+  drawTreeDistances(ctx, appState, elementsMap);
   const ui = appState.vrijTrace;
   // the tree whose row in the Boomcontrole table is pointed at
   const hot = ui.hotTreeId ? elementsMap.get(ui.hotTreeId) : null;

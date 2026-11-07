@@ -286,9 +286,59 @@ describe("Vrij Tracé trees", () => {
       h.app.scene.getNonDeletedElementsMap(),
     );
     const z = h.state.zoom.value;
-    expect(recorded.arcs).toEqual([
-      { x: 250, y: 300, r: 20 + 6 / z, stroke: "#315d97" },
-    ]);
+    expect(recorded.arcs).toContainEqual({
+      x: 250,
+      y: 300,
+      r: 20 + 6 / z,
+      stroke: "#315d97",
+    });
+  });
+
+  const renderInteractive = () => {
+    const recorded = countingContext();
+    renderVrijTraceInteractive(
+      recorded.ctx,
+      h.state as any,
+      h.app.scene.getNonDeletedElementsMap(),
+    );
+    return recorded;
+  };
+  const tree = (id: string) => h.elements.find((el) => el.id === id)!;
+
+  it("measures a selected tree's ring to the trench, on the drawing", async () => {
+    await drawOnPage(1000, 700, false);
+    addTrees();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([tree("far")]);
+    const { texts, points } = renderInteractive();
+    // 200 px = 10 m from the centre line, less half the 1 m trench and the 1 m ring
+    expect(texts).toEqual(["8,50 m"]);
+    expect(points).toContainEqual([250, 280]);
+    expect(points).toContainEqual([250, 110]);
+  });
+
+  it("measures the tree pointed at in the table too", async () => {
+    await drawOnPage(1000, 700, false);
+    addTrees();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    act(() => h.app.vrijTrace.setHotTree("far"));
+    expect(renderInteractive().texts).toEqual(["8,50 m"]);
+  });
+
+  it("measures nothing while no tree is selected", async () => {
+    await drawOnPage(1000, 700, false);
+    addTrees();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements(h.elements.filter(isTrenchLine));
+    expect(renderInteractive().texts).toEqual([]);
+  });
+
+  it("says so when the trench already reaches a selected tree's ring", async () => {
+    await drawOnPage(1000, 700, false);
+    addTrees();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([tree("near")]);
+    expect(renderInteractive().texts).toEqual(["in ring"]);
   });
 });
 

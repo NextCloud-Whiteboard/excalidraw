@@ -8,6 +8,9 @@ export const STR = {
   concept: "CONCEPT · NIET GEACTIVEERD",
   heldBy: (name: string) => `${name} bewerkt dit punt`,
   editing: (name: string) => `${name} bewerkt`,
+  /** on the drawing, for a selected tree the trench reaches */
+  treeInRing: "in ring",
+  treeInTrench: "in sleuf",
   unknownUser: "Onbekend",
   sections: {
     snap: "1. Magnetisch uitlijnen",

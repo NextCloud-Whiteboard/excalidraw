@@ -320,6 +320,87 @@ export const checkTree = (
   };
 };
 
+export type TreeDistance = {
+  /** the trench line measured to */
+  lineId: string;
+  /** ring to that line's trench edge, metres */
+  distanceM: number;
+  /** on the ring, page metres */
+  from: Pt;
+  /** on the trench edge, page metres */
+  to: Pt;
+};
+
+/** line ids: segments of a trench line are `${line.id}:${i}` */
+const lineIdOf = (segmentId: string) => {
+  const i = segmentId.lastIndexOf(":");
+  return i < 0 ? segmentId : segmentId.slice(0, i);
+};
+
+const closestOnSegment = (p: Pt, a: Pt, b: Pt): Pt => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2
+    ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+    : 0;
+  return { x: a.x + t * dx, y: a.y + t * dy };
+};
+
+/**
+ * A tree's distance from its ring to each trench line on the page, each to
+ * that line's own edge (its own width), nearest first. Lines farther than
+ * maxM are left out, as are lines that already reach the ring (the tree check
+ * reports those) and edge points inside another line's trench, which are no
+ * edge of the network (a branch's end inside the main trench).
+ */
+export const treeDistances = (
+  p: Pt,
+  ringM: number,
+  g: NetworkGeometry,
+  maxM: number,
+): TreeDistance[] => {
+  const segs = ends(g).map(({ s, a, b }) => ({
+    line: lineIdOf(s.id),
+    a,
+    b,
+    half: s.widthM / 2,
+  }));
+  const nearest = new Map<string, { q: Pt; d: number; half: number }>();
+  for (const seg of segs) {
+    const q = closestOnSegment(p, seg.a, seg.b);
+    const d = Math.hypot(p.x - q.x, p.y - q.y);
+    const best = nearest.get(seg.line);
+    if (!best || d - seg.half < best.d - best.half) {
+      nearest.set(seg.line, { q, d, half: seg.half });
+    }
+  }
+  const out: TreeDistance[] = [];
+  for (const [lineId, { q, d, half }] of nearest) {
+    const distanceM = d - half - ringM;
+    if (!(distanceM > 0 && distanceM <= maxM)) {
+      continue;
+    }
+    const ux = (p.x - q.x) / d;
+    const uy = (p.y - q.y) / d;
+    const to = { x: q.x + ux * half, y: q.y + uy * half };
+    const covered = segs.some(
+      (seg) =>
+        seg.line !== lineId && pointSegment(to, seg.a, seg.b) < seg.half - 1e-6,
+    );
+    if (covered) {
+      continue;
+    }
+    out.push({
+      lineId,
+      distanceM,
+      from: { x: p.x - ux * ringM, y: p.y - uy * ringM },
+      to,
+    });
+  }
+  return out.sort((x, y) => x.distanceM - y.distanceM);
+};
+
 const hash = (text: string) => {
   let h = 5381;
   for (let i = 0; i < text.length; i++) {

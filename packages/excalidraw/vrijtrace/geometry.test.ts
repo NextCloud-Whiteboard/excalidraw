@@ -4,6 +4,7 @@ import {
   distanceToPolygons,
   fingerprint,
   pointInPolygons,
+  treeDistances,
 } from "./geometry";
 
 import type { NetworkGeometry, Polygons, ZoneSettings } from "./geometry";
@@ -228,6 +229,52 @@ describe("checkTree", () => {
       red: null,
       work: null,
     });
+  });
+});
+
+describe("treeDistances", () => {
+  // trench A along y = 0 (1 m wide), trench B up from A's centre at x = 10 (0,6 m)
+  const network: NetworkGeometry = {
+    nodes: [
+      { id: "A:0", x: 0, y: 0 },
+      { id: "A:1", x: 20, y: 0 },
+      { id: "B:0", x: 10, y: 0 },
+      { id: "B:1", x: 10, y: -20 },
+    ],
+    segments: [
+      { id: "A:0", a: "A:0", b: "A:1", widthM: 1 },
+      { id: "B:0", a: "B:0", b: "B:1", widthM: 0.6 },
+    ],
+  };
+
+  it("measures from the ring to each trench line's own edge, nearest first", () => {
+    // trunk at (6, -4), ring 1 m: 4 − 0,5 − 1 = 2,5 m to A, 4 − 0,3 − 1 = 2,7 m to B
+    const d = treeDistances({ x: 6, y: -4 }, 1, network, 15);
+    expect(d.map((x) => x.lineId)).toEqual(["A", "B"]);
+    expect(d[0].distanceM).toBeCloseTo(2.5, 9);
+    expect(d[1].distanceM).toBeCloseTo(2.7, 9);
+    expect(d[0].from.x).toBeCloseTo(6, 9);
+    expect(d[0].from.y).toBeCloseTo(-3, 9);
+    expect(d[0].to.y).toBeCloseTo(-0.5, 9);
+    expect(d[1].from.x).toBeCloseTo(7, 9);
+    expect(d[1].to.x).toBeCloseTo(9.7, 9);
+  });
+
+  it("leaves out trench lines farther than the limit", () => {
+    const d = treeDistances({ x: 2, y: -6 }, 1, network, 6);
+    expect(d.map((x) => x.lineId)).toEqual(["A"]);
+    expect(d[0].distanceM).toBeCloseTo(4.5, 9);
+  });
+
+  it("leaves out a line whose nearest edge lies inside another trench", () => {
+    // below A, B's nearest point is its end inside trench A
+    const d = treeDistances({ x: 10, y: 5 }, 1, network, 15);
+    expect(d.map((x) => x.lineId)).toEqual(["A"]);
+  });
+
+  it("leaves out a line the trench already reaches the ring of", () => {
+    const d = treeDistances({ x: 3, y: -1.2 }, 1, network, 15);
+    expect(d.map((x) => x.lineId)).toEqual(["B"]);
   });
 });
 
