@@ -341,7 +341,9 @@ export const fingerprint = (g: NetworkGeometry, s: ZoneSettings): string => {
     const side = x.workSide ?? s.workSide;
     return red === s.redSide && work === cm(s.workWidthM) && side === s.workSide
       ? ""
-      : `:${red}/${work}/${side}`;
+      : // "plan": sides are sides of the plan, so an activation made while
+        // Links and Rechts followed the drawing direction does not carry over
+        `:${red}/${work}/${side}/plan`;
   };
   const byId = <T extends { id: string }>(x: T, y: T) =>
     x.id < y.id ? -1 : x.id > y.id ? 1 : 0;

@@ -263,6 +263,25 @@ describe("fingerprint", () => {
     };
     expect(fingerprint(own, both)).toBe(fingerprint(line, both));
   });
+  it("drops an activation made while Links and Rechts followed the drawing direction", () => {
+    // how a segment with its own Links was fingerprinted before they were
+    // sides of the plan: its zone may lie elsewhere now
+    const djb2 = (text: string) => {
+      let h = 5381;
+      for (let i = 0; i < text.length; i++) {
+        h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+      }
+      return h.toString(36);
+    };
+    const own = {
+      ...line,
+      segments: [{ ...line.segments[0], redSide: "links" as const }],
+    };
+    const before = djb2(
+      "a:0,0;b:1000,0|s:a-b:100:links/150/beide|beide|150|beide",
+    );
+    expect(fingerprint(own, both)).not.toBe(before);
+  });
   it("ignores segment and node order", () => {
     const shuffled = {
       nodes: [...line.nodes].reverse(),
