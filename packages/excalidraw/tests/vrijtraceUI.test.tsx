@@ -534,6 +534,41 @@ describe("Vrij Tracé UI", () => {
     expect(byId("vt-ref-midden").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("Tekenreferentie of a selected line moves the line, not the trench", () => {
+    drawLine([100, 100], [400, 100]);
+    const [drawn] = getPageParts(h.elements, "pdf1").lines;
+    const page = () => h.elements.find((e) => e.id === "pdf1")!;
+    const trench = () => pageState(h.elements, page())!.geometry.nodes;
+    const before = trench();
+    const lineY = () =>
+      (h.elements.find((e) => e.id === drawn.id) as any).y as number;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([drawn]);
+    // a 1 m trench at 5 cm/px: its edges are 10 px from the centre
+    const steps: [string, number][] = [
+      ["boven", 90],
+      ["onder", 110],
+      ["links", 110], // a horizontal line keeps its fixed side: as Onderrand
+      ["midden", 100],
+    ];
+    for (const [ref, y] of steps) {
+      fireEvent.click(byId(`vt-ref-${ref}`));
+      expect(lineY(), ref).toBeCloseTo(y, 6);
+      trench().forEach((n, i) => {
+        expect(n.x, ref).toBeCloseTo(before[i].x, 6);
+        expect(n.y, ref).toBeCloseTo(before[i].y, 6);
+      });
+    }
+  });
+
+  it("a line drawn with an edge reference stays where it was drawn", () => {
+    fireEvent.click(byId("toolbar-vrijtrace"));
+    fireEvent.click(byId("vt-ref-boven"));
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    expect(line.y).toBeCloseTo(100, 6);
+  });
+
   it("with no line selected, the settings are for the next line", () => {
     drawLine([100, 100], [400, 100]);
     expect(container.textContent).toContain(

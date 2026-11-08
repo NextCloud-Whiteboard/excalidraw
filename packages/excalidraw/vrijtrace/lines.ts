@@ -46,6 +46,24 @@ export const trenchLineData = (
   ...(treeMinM !== undefined && { treeMinM }),
 });
 
+/**
+ * The position, points and size that put an existing line through scene
+ * points (already rotated, so the line itself keeps no angle).
+ */
+export const trenchLinePlacement = (scene: Pt[]) => {
+  const [first] = scene;
+  const points = scene.map((p) =>
+    pointFrom<LocalPoint>(p.x - first.x, p.y - first.y),
+  );
+  return {
+    x: first.x,
+    y: first.y,
+    angle: 0 as ExcalidrawLinearElement["angle"],
+    points,
+    ...getSizeFromPoints(points),
+  };
+};
+
 /** a new trench line through scene points */
 export const newTrenchLine = (opts: {
   id?: string;

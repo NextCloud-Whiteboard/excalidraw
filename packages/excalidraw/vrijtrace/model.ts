@@ -391,6 +391,33 @@ const edgeOffset = (
   return leftFaces(dir, TRENCH_SIDE[ref]) ? widthM / 2 : -widthM / 2;
 };
 
+/**
+ * Where a trench line goes when its Tekenreferentie changes from `from` to
+ * `to`: the trench (and so its zones) stays put and the line moves onto the
+ * centre or edge `to` names. Scene points in, scene points out.
+ */
+export const pointsForReference = (
+  scene: Pt[],
+  frame: PageFrame,
+  widthM: number,
+  from: TrenchReference,
+  to: TrenchReference,
+): Pt[] => {
+  if (from === to || scene.length < 2 || !frame.cmPerPx) {
+    return scene;
+  }
+  const metres = scene.map((p) => sceneToPage(frame, p));
+  const centre =
+    from === "midden"
+      ? metres
+      : offsetPolyline(metres, edgeOffset(metres, from, widthM));
+  const moved =
+    to === "midden"
+      ? centre
+      : offsetPolyline(centre, -edgeOffset(metres, to, widthM));
+  return moved.map((m) => pageToScene(frame, m));
+};
+
 /** a trench line as nodes and segments in page metres (ids `line:i`) */
 const lineGeometry = (
   line: ExcalidrawLinearElement,

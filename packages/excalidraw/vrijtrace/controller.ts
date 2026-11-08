@@ -21,7 +21,12 @@ import {
   snapToTrench,
   straighten,
 } from "./editing";
-import { chainSegments, newTrenchLine, trenchLineStyle } from "./lines";
+import {
+  chainSegments,
+  newTrenchLine,
+  trenchLinePlacement,
+  trenchLineStyle,
+} from "./lines";
 import {
   DEFAULT_SETTINGS,
   clampTrenchWidth,
@@ -34,6 +39,7 @@ import {
   lineWidthOf,
   networkIdForPage,
   pageState,
+  pointsForReference,
   settingsOf,
   sideForReference,
   trenchLinePoints,
@@ -506,7 +512,20 @@ export class VrijTraceController {
       const workSide = sideForReference(zone.workSide, reference);
       const sidesChanged =
         redSide !== zone.redSide || workSide !== zone.workSide;
+      // the trench and its zones stay put: the line moves onto the new edge
+      const page = this.page(line.customData?.pdfParentId ?? null);
+      const scene = trenchLinePoints(line);
+      const moved = page
+        ? pointsForReference(
+            scene,
+            getPageFrame(page),
+            trenchLineWidth(line),
+            trenchLineReference(line),
+            reference,
+          )
+        : scene;
       this.app.scene.mutateElement(line, {
+        ...(moved !== scene && trenchLinePlacement(moved)),
         customData: {
           ...line.customData,
           ...(sidesChanged && { ...zone, redSide, workSide }),

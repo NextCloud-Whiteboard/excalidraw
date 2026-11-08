@@ -14,6 +14,7 @@ import {
   outlinePolygon,
   pageState,
   pageToScene,
+  pointsForReference,
   sceneToPage,
   settingsOf,
   toGeometry,
@@ -536,6 +537,101 @@ describe("trench lines", () => {
     const moved = [page({ x: 600, y: 350 }), line("L1", 700, 500, pts)];
     expect(pageState(moved, moved[0])!.geometry.segments).toHaveLength(2);
     expect(fp(moved)).toBe(fp([page(), line("L1", 200, 200, pts)]));
+  });
+});
+
+describe("changing the Tekenreferentie of a line", () => {
+  const REFS = ["midden", "links", "rechts", "boven", "onder"] as const;
+  // scene points; page at (100, 50), 5 cm/px, so 20 px = 1 m
+  const SHAPES: Record<string, [number, number][]> = {
+    east: [
+      [300, 300],
+      [500, 300],
+    ],
+    west: [
+      [500, 300],
+      [300, 300],
+    ],
+    south: [
+      [300, 300],
+      [300, 500],
+    ],
+    north: [
+      [300, 500],
+      [300, 300],
+    ],
+    sloped: [
+      [300, 400],
+      [500, 300],
+    ],
+    bent: [
+      [300, 300],
+      [500, 300],
+      [560, 420],
+    ],
+  };
+  const lineAt = (pts: { x: number; y: number }[], reference: string) =>
+    line(
+      "L1",
+      pts[0].x,
+      pts[0].y,
+      pts.map((p) => [p.x - pts[0].x, p.y - pts[0].y] as [number, number]),
+      { tool: "trench", widthM: 2, reference, pdfParentId: "pdf1" },
+    );
+  const centre = (pts: { x: number; y: number }[], reference: string) =>
+    toGeometry(
+      getPageParts([page(), lineAt(pts, reference)], "pdf1"),
+      getPageFrame(page()),
+    ).nodes;
+
+  it("keeps the trench where it is for every shape and every change", () => {
+    for (const [name, raw] of Object.entries(SHAPES)) {
+      const pts = raw.map(([x, y]) => ({ x, y }));
+      for (const from of REFS) {
+        for (const to of REFS) {
+          const moved = pointsForReference(
+            pts,
+            getPageFrame(page()),
+            2,
+            from,
+            to,
+          );
+          const before = centre(pts, from);
+          const after = centre(moved, to);
+          expect(after.length, `${name} ${from}→${to}`).toBe(before.length);
+          after.forEach((n, i) => {
+            expect(n.x, `${name} ${from}→${to}`).toBeCloseTo(before[i].x, 6);
+            expect(n.y, `${name} ${from}→${to}`).toBeCloseTo(before[i].y, 6);
+          });
+        }
+      }
+    }
+  });
+
+  it("moves the line onto the edge the new reference names", () => {
+    const east = SHAPES.east.map(([x, y]) => ({ x, y }));
+    const frame = getPageFrame(page());
+    // a 2 m trench: the edges are 1 m (20 px) from the centre
+    const top = pointsForReference(east, frame, 2, "midden", "boven");
+    top.forEach((p, i) => {
+      expect(p.x).toBeCloseTo(east[i].x, 6);
+      expect(p.y).toBeCloseTo(280, 6);
+    });
+    const bottom = pointsForReference(top, frame, 2, "boven", "onder");
+    bottom.forEach((p) => expect(p.y).toBeCloseTo(320, 6));
+    const back = pointsForReference(bottom, frame, 2, "onder", "midden");
+    back.forEach((p) => expect(p.y).toBeCloseTo(300, 6));
+    const south = SHAPES.south.map(([x, y]) => ({ x, y }));
+    const left = pointsForReference(south, frame, 2, "midden", "links");
+    left.forEach((p) => expect(p.x).toBeCloseTo(280, 6));
+  });
+
+  it("leaves the line alone when the reference stays or the page has no scale", () => {
+    const east = SHAPES.east.map(([x, y]) => ({ x, y }));
+    const frame = getPageFrame(page());
+    expect(pointsForReference(east, frame, 2, "boven", "boven")).toBe(east);
+    const unscaled = getPageFrame(page({ customData: { isPdf: true } }));
+    expect(pointsForReference(east, unscaled, 2, "midden", "boven")).toBe(east);
   });
 });
 
