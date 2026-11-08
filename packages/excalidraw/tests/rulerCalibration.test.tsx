@@ -113,14 +113,19 @@ describe("ruler: the first line asks for its real length", () => {
     expect(h.state.rulerCalibration).toBeNull();
   });
 
-  it("asks once for the board when the line is not on a PDF", () => {
-    drawRuler(100, 100, 400, 100);
-    expect(h.state.rulerCalibration).not.toBeNull();
-    answer("3", "m");
-    expect(h.state.cmPerPx).toBeCloseTo(1);
-    expect(h.state.cmPerPxCalibrated).toBe(true);
-    drawRuler(100, 300, 200, 300);
+  it("measures on imported PDF pages only, never on the whiteboard", () => {
+    API.setElements([pdfPage("pdf1", 0)]);
+    // off the page: no line, and it says why
+    drawRuler(1200, 100, 1500, 100);
+    expect(rulers()).toHaveLength(0);
     expect(h.state.rulerCalibration).toBeNull();
+    expect(h.state.toast?.message).toBe(
+      "Meet met de liniaal alleen op een geïmporteerde PDF-pagina",
+    );
+    // on the page: drawn as before
+    drawRuler(100, 100, 400, 100);
+    expect(rulers()).toHaveLength(1);
+    expect(rulers()[0].customData?.pdfParentId).toBe("pdf1");
   });
 
   it("opens the question when a line without a scale is selected", () => {

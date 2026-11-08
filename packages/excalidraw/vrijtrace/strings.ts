@@ -5,6 +5,8 @@ export const STR = {
   /** why Liniaal and Vrij Tracé are greyed out */
   importPdfFirst: "Importeer eerst een PDF",
   selectPdfFirst: "Selecteer eerst een geïmporteerde PDF-pagina",
+  /** a ruler line started off every PDF page */
+  rulerOnlyOnPdf: "Meet met de liniaal alleen op een geïmporteerde PDF-pagina",
   calibrateFirst: "Kalibreer eerst de liniaal op deze pagina",
   notActivated: "Zones niet geactiveerd",
   conceptZones: "Zones niet geactiveerd · concept",

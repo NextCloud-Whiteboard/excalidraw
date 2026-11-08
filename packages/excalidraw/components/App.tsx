@@ -410,6 +410,7 @@ import {
 } from "../ruler/calibration";
 import { VrijTraceController } from "../vrijtrace/controller";
 import { migrateLegacyTrench } from "../vrijtrace/migrate";
+import { STR as VRIJTRACE_STR } from "../vrijtrace/strings";
 import {
   isPdfPage,
   pdfToolsHint,
@@ -7461,6 +7462,16 @@ class App extends React.Component<AppProps, AppState> {
       (this.state.activeTool.type === "custom" &&
         this.state.activeTool.customType === "ruler")
     ) {
+      // the ruler measures on imported PDF pages only, never on the
+      // whiteboard: a new ruler line has to start on a page
+      if (
+        this.state.activeTool.type === "custom" &&
+        !this.state.multiElement &&
+        !this.getPdfPageAt(pointerDownState.origin.x, pointerDownState.origin.y)
+      ) {
+        this.setToast({ message: VRIJTRACE_STR.rulerOnlyOnPdf });
+        return;
+      }
       const linearType =
         this.state.activeTool.type === "custom"
           ? "line"
