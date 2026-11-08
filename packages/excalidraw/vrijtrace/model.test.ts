@@ -585,6 +585,8 @@ describe("changing the Tekenreferentie of a line", () => {
     ).nodes;
 
   it("keeps the trench where it is for every shape and every change", () => {
+    // the shape and change of every case where the trench moved
+    const trenchMoved: string[] = [];
     for (const [name, raw] of Object.entries(SHAPES)) {
       const pts = raw.map(([x, y]) => ({ x, y }));
       for (const from of REFS) {
@@ -598,14 +600,20 @@ describe("changing the Tekenreferentie of a line", () => {
           );
           const before = centre(pts, from);
           const after = centre(moved, to);
-          expect(after.length, `${name} ${from}→${to}`).toBe(before.length);
-          after.forEach((n, i) => {
-            expect(n.x, `${name} ${from}→${to}`).toBeCloseTo(before[i].x, 6);
-            expect(n.y, `${name} ${from}→${to}`).toBeCloseTo(before[i].y, 6);
-          });
+          const same =
+            after.length === before.length &&
+            after.every(
+              (n, i) =>
+                Math.abs(n.x - before[i].x) < 1e-6 &&
+                Math.abs(n.y - before[i].y) < 1e-6,
+            );
+          if (!same) {
+            trenchMoved.push(`${name} ${from}→${to}`);
+          }
         }
       }
     }
+    expect(trenchMoved).toEqual([]);
   });
 
   it("moves the line onto the edge the new reference names", () => {

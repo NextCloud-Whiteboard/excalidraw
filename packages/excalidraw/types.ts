@@ -827,6 +827,7 @@ export type AppClassProperties = {
   togglePenMode: App["togglePenMode"];
   toggleLock: App["toggleLock"];
   setActiveTool: App["setActiveTool"];
+  setToast: App["setToast"];
   setOpenDialog: App["setOpenDialog"];
   insertEmbeddableElement: App["insertEmbeddableElement"];
   onMagicframeToolSelect: App["onMagicframeToolSelect"];

@@ -6,6 +6,7 @@ import { STROKE_WIDTH, updateActiveTool, ROUGHNESS } from "@excalidraw/common";
 import type { AppClassProperties } from "../types";
 import { ToolButton } from "../components/ToolButton";
 import { RulerIcon } from "../components/icons";
+import { pdfToolsHint } from "../vrijtrace/model";
 
 export const actionRuler = register({
   name: "ruler",
@@ -13,6 +14,14 @@ export const actionRuler = register({
   trackEvent: { category: "toolbar" },
   icon: RulerIcon,
   perform: (elements, appState, value, app) => {
+    // only on an imported PDF page: say why instead of switching
+    const hint = pdfToolsHint(elements, appState);
+    if (hint) {
+      return {
+        appState: { ...appState, toast: { message: hint } },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      };
+    }
     return {
       elements,
       appState: {
@@ -28,12 +37,14 @@ export const actionRuler = register({
     };
   },
   PanelComponent: ({ appState, app, updateData }) => {
+    const hint = pdfToolsHint(app.scene.getNonDeletedElements(), appState);
     return (
       <ToolButton
         type="button"
         icon={RulerIcon}
         aria-label={t("buttons.ruler")}
-        title={`${t("buttons.ruler")}`}
+        title={hint ? `${t("buttons.ruler")}: ${hint}` : t("buttons.ruler")}
+        className={hint ? "ToolIcon--unavailable" : undefined}
         selected={
           appState.activeTool.type === "custom" &&
           appState.activeTool.customType === "ruler"
@@ -45,4 +56,4 @@ export const actionRuler = register({
       />
     );
   },
-}); 
+});

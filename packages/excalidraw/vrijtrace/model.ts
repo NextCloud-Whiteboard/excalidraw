@@ -11,6 +11,7 @@ import type {
 import { isValidCmPerPx } from "../data/library";
 
 import { computeZones, fingerprint, leftFaces } from "./geometry";
+import { STR } from "./strings";
 
 import type {
   NetworkGeometry,
@@ -26,6 +27,38 @@ export const isPdfPage = (
   el: ExcalidrawElement | null | undefined,
 ): el is ExcalidrawImageElement =>
   !!el && isImageElement(el) && el.customData?.isPdf === true && !el.isDeleted;
+
+/**
+ * Why Liniaal and Vrij Tracé are greyed out, or null while they can be used:
+ * an imported PDF page is selected, or something on one (it carries the
+ * page's id), or one of the two tools is already in use.
+ */
+export const pdfToolsHint = (
+  elements: readonly ExcalidrawElement[],
+  appState: {
+    activeTool: { type: string; customType?: string | null };
+    selectedElementIds: Readonly<Record<string, true>>;
+  },
+): string | null => {
+  const { activeTool, selectedElementIds } = appState;
+  if (
+    activeTool.type === "custom" &&
+    (activeTool.customType === "ruler" || activeTool.customType === "vrijtrace")
+  ) {
+    return null;
+  }
+  const pages = new Set(elements.filter(isPdfPage).map((page) => page.id));
+  if (!pages.size) {
+    return STR.importPdfFirst;
+  }
+  const onPage = elements.some(
+    (el) =>
+      selectedElementIds[el.id] &&
+      !el.isDeleted &&
+      (pages.has(el.id) || pages.has(el.customData?.pdfParentId)),
+  );
+  return onPage ? null : STR.selectPdfFirst;
+};
 
 export type PageFrame = {
   id: string;

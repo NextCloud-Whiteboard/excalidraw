@@ -1,13 +1,16 @@
 import React from "react";
 import { act, fireEvent, queryByTestId } from "@testing-library/react";
 
+import { KEYS } from "@excalidraw/common";
 import { ShapeCache } from "@excalidraw/element";
+
+import type { ExcalidrawImageElement } from "@excalidraw/element/types";
 
 import { Excalidraw } from "../index";
 import { getPageParts, pageState } from "../vrijtrace/model";
 
 import { API } from "./helpers/api";
-import { Pointer } from "./helpers/ui";
+import { Keyboard, Pointer } from "./helpers/ui";
 import { render } from "./test-utils";
 
 const { h } = window;
@@ -47,10 +50,15 @@ const libraryTree = (
 describe("Vrij Tracé UI", () => {
   let container: HTMLElement;
   const byId = (id: string) => queryByTestId(container, id)!;
+  /** the tool, picked with the PDF page selected (it is greyed out before) */
+  const pickTool = () => {
+    API.setSelectedElements([h.elements.find((e) => e.id === "pdf1")!]);
+    fireEvent.click(byId("toolbar-vrijtrace"));
+  };
   /** a trench drawn with the tool, as one stroke (the tool stays) */
   const drawLine = (from: [number, number], to: [number, number]) => {
     if (h.state.activeTool.type !== "custom") {
-      fireEvent.click(byId("toolbar-vrijtrace"));
+      pickTool();
     }
     mouse.reset();
     mouse.downAt(...from);
@@ -63,7 +71,7 @@ describe("Vrij Tracé UI", () => {
     mouse.upAt(...to);
   };
   const openOnPage = () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     mouse.reset();
     mouse.clickAt(100, 100); // makes pdf1 the current page
   };
@@ -90,8 +98,71 @@ describe("Vrij Tracé UI", () => {
     expect(queryByTestId(other.container, "toolbar-vrijtrace")).toBeNull();
   });
 
+  describe("only on a selected PDF page", () => {
+    const SELECT = "Selecteer eerst een geïmporteerde PDF-pagina";
+    const IMPORT = "Importeer eerst een PDF";
+    const tool = () => h.state.activeTool;
+    // the radio button's test id is on its input, the look on its label
+    const icon = (id: string) => byId(id).closest(".ToolIcon")!;
+    const greyed = (id: string) =>
+      icon(id).classList.contains("ToolIcon--unavailable");
+
+    it("greys out Vrij Tracé and Liniaal until a PDF page is selected", () => {
+      expect(greyed("toolbar-vrijtrace")).toBe(true);
+      expect(greyed("toolbar-ruler")).toBe(true);
+      expect(icon("toolbar-vrijtrace").getAttribute("title")).toContain(SELECT);
+      expect(icon("toolbar-ruler").getAttribute("title")).toContain(SELECT);
+      fireEvent.click(byId("toolbar-vrijtrace"));
+      expect(tool().type).toBe("selection");
+      expect(h.state.toast?.message).toBe(SELECT);
+      fireEvent.click(byId("toolbar-ruler"));
+      expect(tool().type).toBe("selection");
+
+      API.setSelectedElements([h.elements.find((e) => e.id === "pdf1")!]);
+      expect(greyed("toolbar-vrijtrace")).toBe(false);
+      expect(greyed("toolbar-ruler")).toBe(false);
+      fireEvent.click(byId("toolbar-ruler"));
+      expect(tool()).toMatchObject({ type: "custom", customType: "ruler" });
+      fireEvent.click(byId("toolbar-vrijtrace"));
+      expect(tool()).toMatchObject({ type: "custom", customType: "vrijtrace" });
+    });
+
+    it("asks for a PDF on a board without one", () => {
+      API.setElements([]);
+      expect(greyed("toolbar-vrijtrace")).toBe(true);
+      expect(icon("toolbar-ruler").getAttribute("title")).toContain(IMPORT);
+      fireEvent.click(byId("toolbar-ruler"));
+      expect(h.state.toast?.message).toBe(IMPORT);
+    });
+
+    it("U does nothing but show the hint until a PDF page is selected", () => {
+      Keyboard.keyPress(KEYS.U);
+      expect(tool().type).toBe("selection");
+      expect(h.state.toast?.message).toBe(SELECT);
+      API.setSelectedElements([h.elements.find((e) => e.id === "pdf1")!]);
+      Keyboard.keyPress(KEYS.U);
+      expect(tool()).toMatchObject({ type: "custom", customType: "vrijtrace" });
+    });
+
+    it("stays available while working on the page, and greys out after", () => {
+      drawLine([100, 100], [400, 100]);
+      // the tool in use keeps both buttons, whatever is selected
+      API.setSelectedElements([]);
+      expect(greyed("toolbar-vrijtrace")).toBe(false);
+      expect(greyed("toolbar-ruler")).toBe(false);
+      act(() => h.app.setActiveTool({ type: "selection" }));
+      // something on the page selected: still available
+      API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
+      expect(greyed("toolbar-vrijtrace")).toBe(false);
+      // nothing on a page selected and another tool: greyed out again
+      API.setSelectedElements([]);
+      expect(greyed("toolbar-vrijtrace")).toBe(true);
+      expect(greyed("toolbar-ruler")).toBe(true);
+    });
+  });
+
   it("shows the settings without mode buttons, and only the zones toggle at the bottom", () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     for (const id of [
       "vt-snap-90",
       "vt-snap-45",
@@ -320,13 +391,13 @@ describe("Vrij Tracé UI", () => {
     mouse.moveTo(250, 160);
     mouse.upAt(250, 160);
     expect(getPageParts(h.elements, "pdf1").lines[0].y).toBeCloseTo(160);
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     drawLine([100, 300], [400, 300]);
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(2);
   });
 
   it("offers Bovenrand and Onderrand as drawing references", () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     expect(byId("vt-ref-boven").textContent).toBe("Bovenrand");
     expect(byId("vt-ref-onder").textContent).toBe("Onderrand");
     fireEvent.click(byId("vt-ref-boven"));
@@ -398,7 +469,7 @@ describe("Vrij Tracé UI", () => {
   });
 
   it("offers the sides of the plan for both zones", () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     for (const id of ["vt-red-side", "vt-work-side"]) {
       const options = [...(byId(id) as HTMLSelectElement).options];
       expect(options.map((o) => [o.value, o.textContent])).toEqual([
@@ -412,7 +483,7 @@ describe("Vrij Tracé UI", () => {
   });
 
   it("an edge reference offers only the sides across that edge", () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     const sides = (id: string) =>
       [...(byId(id) as HTMLSelectElement).options].map((o) => o.value);
     const expected = {
@@ -537,7 +608,8 @@ describe("Vrij Tracé UI", () => {
   it("Tekenreferentie of a selected line moves the line, not the trench", () => {
     drawLine([100, 100], [400, 100]);
     const [drawn] = getPageParts(h.elements, "pdf1").lines;
-    const page = () => h.elements.find((e) => e.id === "pdf1")!;
+    const page = () =>
+      h.elements.find((e) => e.id === "pdf1") as ExcalidrawImageElement;
     const trench = () => pageState(h.elements, page())!.geometry.nodes;
     const before = trench();
     const lineY = () =>
@@ -553,16 +625,16 @@ describe("Vrij Tracé UI", () => {
     ];
     for (const [ref, y] of steps) {
       fireEvent.click(byId(`vt-ref-${ref}`));
-      expect(lineY(), ref).toBeCloseTo(y, 6);
+      expect(lineY()).toBeCloseTo(y, 6);
       trench().forEach((n, i) => {
-        expect(n.x, ref).toBeCloseTo(before[i].x, 6);
-        expect(n.y, ref).toBeCloseTo(before[i].y, 6);
+        expect(n.x).toBeCloseTo(before[i].x, 6);
+        expect(n.y).toBeCloseTo(before[i].y, 6);
       });
     }
   });
 
   it("a line drawn with an edge reference stays where it was drawn", () => {
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     fireEvent.click(byId("vt-ref-boven"));
     drawLine([100, 100], [400, 100]);
     const [line] = getPageParts(h.elements, "pdf1").lines;
@@ -678,7 +750,7 @@ describe("Vrij Tracé UI", () => {
     const editor = container.querySelector(".excalidraw") as HTMLElement;
     const offset = () => editor.style.getPropertyValue("--vt-actions-offset");
     expect(offset()).toBe("");
-    fireEvent.click(byId("toolbar-vrijtrace"));
+    pickTool();
     expect(offset()).toMatch(/^\d+px$/);
     act(() => h.app.setActiveTool({ type: "selection" }));
     expect(offset()).toBe("");

@@ -18,6 +18,15 @@
     @include toolbarButtonColorStates;
   }
 
+  // a tool that cannot be used here yet: still clickable, to say why
+  .ToolIcon--unavailable {
+    cursor: not-allowed;
+
+    .ToolIcon__icon {
+      opacity: 0.35;
+    }
+  }
+
   .ToolIcon--plain {
     background-color: transparent;
     .ToolIcon__icon {

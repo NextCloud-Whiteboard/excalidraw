@@ -47,6 +47,7 @@ import {
 } from "../scene";
 
 import { showsScalePanel } from "../ruler/calibration";
+import { pdfToolsHint } from "../vrijtrace/model";
 import { STR as VRIJTRACE_STR } from "../vrijtrace/strings";
 
 import { SHAPES } from "./shapes";
@@ -317,6 +318,11 @@ export const ShapesSwitcher = ({
 
   const embeddableToolSelected = activeTool.type === "embeddable";
 
+  // Liniaal and Vrij Tracé: greyed out until a PDF page is selected
+  const pdfHint = app.props.vrijTraceEnabled
+    ? pdfToolsHint(app.scene.getNonDeletedElements(), appState)
+    : null;
+
   const { TTDDialogTriggerTunnel } = useTunnels();
 
   return (
@@ -438,13 +444,21 @@ export const ShapesSwitcher = ({
             activeTool.customType === "vrijtrace"
           }
           name="editor-current-shape"
-          title={`${VRIJTRACE_STR.tool} — U`}
+          title={
+            pdfHint
+              ? `${VRIJTRACE_STR.tool}: ${pdfHint}`
+              : `${VRIJTRACE_STR.tool} — U`
+          }
+          className={pdfHint ? "ToolIcon--unavailable" : undefined}
           aria-label={VRIJTRACE_STR.tool}
           aria-keyshortcuts="U"
           keyBindingLabel="U"
           data-testid="toolbar-vrijtrace"
           onChange={() =>
-            app.setActiveTool({ type: "custom", customType: "vrijtrace" })
+            // only on an imported PDF page: say why instead of switching
+            pdfHint
+              ? app.setToast({ message: pdfHint })
+              : app.setActiveTool({ type: "custom", customType: "vrijtrace" })
           }
         />
       )}

@@ -2,6 +2,9 @@
 export const STR = {
   tool: "Vrij Tracé",
   onlyOnPdf: "Sleuven teken je alleen op een geïmporteerde PDF-pagina",
+  /** why Liniaal and Vrij Tracé are greyed out */
+  importPdfFirst: "Importeer eerst een PDF",
+  selectPdfFirst: "Selecteer eerst een geïmporteerde PDF-pagina",
   calibrateFirst: "Kalibreer eerst de liniaal op deze pagina",
   notActivated: "Zones niet geactiveerd",
   conceptZones: "Zones niet geactiveerd · concept",

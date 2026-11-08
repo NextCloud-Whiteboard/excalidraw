@@ -412,6 +412,7 @@ import { VrijTraceController } from "../vrijtrace/controller";
 import { migrateLegacyTrench } from "../vrijtrace/migrate";
 import {
   isPdfPage,
+  pdfToolsHint,
   remapTrenchIds,
   selectableCopies,
   trenchPartsOf,
@@ -4959,7 +4960,16 @@ class App extends React.Component<AppProps, AppState> {
         !event[KEYS.CTRL_OR_CMD] &&
         !isInputLike(event.target)
       ) {
-        this.setActiveTool({ type: "custom", customType: "vrijtrace" });
+        // only on an imported PDF page: say why instead of switching
+        const hint = pdfToolsHint(
+          this.scene.getNonDeletedElements(),
+          this.state,
+        );
+        if (hint) {
+          this.setToast({ message: hint });
+        } else {
+          this.setActiveTool({ type: "custom", customType: "vrijtrace" });
+        }
         event.preventDefault();
         return;
       }
