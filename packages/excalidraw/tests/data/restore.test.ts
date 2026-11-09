@@ -330,6 +330,28 @@ describe("restoreElements", () => {
 });
 
 describe("restoreAppState", () => {
+  it("never restores a PDF import in progress", () => {
+    // the import ran in another session; nothing here could finish or cancel it
+    const restored = restore.restoreAppState(
+      {
+        pdfImport: {
+          stage: "convert",
+          name: "plan.pdf",
+          x: 0,
+          y: 0,
+          width: 10,
+          height: 7,
+          percent: 100,
+          placed: 0,
+          total: 0,
+          error: null,
+        },
+      } as any,
+      null,
+    );
+    expect(restored.pdfImport).toBeNull();
+  });
+
   it("should restore with imported data", () => {
     const stubImportedAppState = getDefaultAppState();
     stubImportedAppState.activeTool.type = "selection";

@@ -876,6 +876,9 @@ export const restoreAppState = (
         ? nextAppState.talkRoomStatusMessage
         : localAppState?.talkRoomStatusMessage ?? null,
     cursorButton: localAppState?.cursorButton || "up",
+    // an import runs in the session that started it: one restored from a
+    // saved scene has nothing behind it that could finish or be cancelled
+    pdfImport: localAppState?.pdfImport ?? null,
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:
       localAppState?.penDetected ??
