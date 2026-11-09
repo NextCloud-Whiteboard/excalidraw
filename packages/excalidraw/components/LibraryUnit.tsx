@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { memo, useEffect, useRef, useState } from "react";
 
+import { getCommonBounds } from "@excalidraw/element";
+
 import { useLibraryItemSvg } from "../hooks/useLibraryItemSvg";
 
 import { useDevice } from "./App";
@@ -12,6 +14,34 @@ import "./LibraryUnit.scss";
 import type { LibraryItem } from "../types";
 import type { SvgCache } from "../hooks/useLibraryItemSvg";
 
+/** the size, in scene units, a tile's drawing is centred in */
+export type LibraryUnitFrame = { width: number; height: number };
+
+/**
+ * Widen the exported svg's viewBox so the drawing sits centred in `frame`:
+ * tiles with the same frame show their items at one scale.
+ */
+const fitToFrame = (
+  svg: SVGSVGElement,
+  elements: LibraryItem["elements"],
+  frame: LibraryUnitFrame,
+) => {
+  const box = svg.getAttribute("viewBox")?.split(" ").map(Number);
+  if (!box || box.length !== 4 || box.some((v) => !Number.isFinite(v))) {
+    return;
+  }
+  const [x1, y1, x2, y2] = getCommonBounds(elements);
+  const extraW = Math.max(0, frame.width - (x2 - x1));
+  const extraH = Math.max(0, frame.height - (y2 - y1));
+  const [x, y, w, h] = box;
+  svg.setAttribute(
+    "viewBox",
+    `${x - extraW / 2} ${y - extraH / 2} ${w + extraW} ${h + extraH}`,
+  );
+  svg.setAttribute("width", `${w + extraW}`);
+  svg.setAttribute("height", `${h + extraH}`);
+};
+
 export const LibraryUnit = memo(
   ({
     id,
@@ -22,6 +52,8 @@ export const LibraryUnit = memo(
     onToggle,
     onDrag,
     svgCache,
+    frame,
+    caption,
   }: {
     id: LibraryItem["id"] | /** for pending item */ null;
     elements?: LibraryItem["elements"];
@@ -31,6 +63,8 @@ export const LibraryUnit = memo(
     onToggle: (id: string, event: React.MouseEvent) => void;
     onDrag: (id: string, event: React.DragEvent) => void;
     svgCache: SvgCache;
+    frame?: LibraryUnitFrame;
+    caption?: string;
   }) => {
     const ref = useRef<HTMLDivElement | null>(null);
     const svg = useLibraryItemSvg(id, elements, svgCache);
@@ -44,12 +78,16 @@ export const LibraryUnit = memo(
 
       if (svg) {
         node.innerHTML = svg.outerHTML;
+        const shown = node.querySelector("svg");
+        if (shown && frame && elements) {
+          fitToFrame(shown, elements, frame);
+        }
       }
 
       return () => {
         node.innerHTML = "";
       };
-    }, [svg]);
+    }, [svg, frame?.width, frame?.height, elements]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [isHovered, setIsHovered] = useState(false);
     const isMobile = useDevice().editor.isMobile;
@@ -57,7 +95,7 @@ export const LibraryUnit = memo(
       <div className="library-unit__adder">{PlusIcon}</div>
     );
 
-    return (
+    const unit = (
       <div
         className={clsx("library-unit", {
           "library-unit__active": elements,
@@ -103,6 +141,15 @@ export const LibraryUnit = memo(
           />
         )}
       </div>
+    );
+    // a library file can hold anything in this field, so only text counts
+    return typeof caption === "string" && caption ? (
+      <div className="library-unit-cell">
+        {unit}
+        <div className="library-unit__caption">{caption}</div>
+      </div>
+    ) : (
+      unit
     );
   },
 );

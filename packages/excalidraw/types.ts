@@ -590,6 +590,10 @@ export type LibraryItem = {
   name?: string;
   /** the library sidebar shows items with the same group together */
   group?: string;
+  /** a heading inside the group; its items are drawn to one scale */
+  subgroup?: string;
+  /** a short text under the item's tile */
+  caption?: string;
   error?: string;
 };
 export type LibraryItems = readonly LibraryItem[];

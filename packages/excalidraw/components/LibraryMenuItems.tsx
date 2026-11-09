@@ -8,7 +8,7 @@ import React, {
 
 import { MIME_TYPES, arrayToMap } from "@excalidraw/common";
 
-import { duplicateElements } from "@excalidraw/element";
+import { duplicateElements, getCommonBounds } from "@excalidraw/element";
 
 import { serializeLibraryAsJSON } from "../data/json";
 import { useLibraryCache } from "../hooks/useLibraryItemSvg";
@@ -28,6 +28,8 @@ import Stack from "./Stack";
 
 import "./LibraryMenuItems.scss";
 
+import type { LibraryUnitFrame } from "./LibraryUnit";
+
 import type {
   ExcalidrawProps,
   LibraryItem,
@@ -45,6 +47,18 @@ const ITEMS_RENDERED_PER_BATCH = 17;
 // when render outputs cached we can render many more items per batch to
 // speed it up
 const CACHED_ITEMS_RENDERED_PER_BATCH = 64;
+
+/** the size of a subgroup's largest item: its tiles share that frame, so one scale */
+const frameOf = (items: readonly LibraryItem[]): LibraryUnitFrame => {
+  let width = 0;
+  let height = 0;
+  for (const item of items) {
+    const [x1, y1, x2, y2] = getCommonBounds(item.elements);
+    width = Math.max(width, x2 - x1);
+    height = Math.max(height, y2 - y1);
+  }
+  return { width, height };
+};
 
 export default function LibraryMenuItems({
   isLoading,
@@ -339,20 +353,35 @@ export default function LibraryMenuItems({
                   {t("library.noSearchResults")}
                 </div>
               )}
-              {publishedGroups.map(({ title, items }) => {
-                const section = (
-                  <LibraryMenuSectionGrid>
-                    <LibraryMenuSection
-                      itemsRenderedPerBatch={itemsRenderedPerBatch}
-                      items={items}
-                      onItemSelectToggle={onItemSelectToggle}
-                      onItemDrag={onItemDrag}
-                      onClick={onItemClick}
-                      isItemSelected={isItemSelected}
-                      svgCache={svgCache}
-                    />
-                  </LibraryMenuSectionGrid>
-                );
+              {publishedGroups.map(({ title, items, subgroups }) => {
+                const section = subgroups.map((sub) => (
+                  <React.Fragment key={sub.title ?? ""}>
+                    {sub.title !== null && (
+                      <div className="library-subgroup__header">
+                        <span className="library-subgroup__title">
+                          {sub.title}
+                        </span>
+                        <span className="library-subgroup__count">
+                          {sub.items.length}
+                        </span>
+                      </div>
+                    )}
+                    <LibraryMenuSectionGrid>
+                      <LibraryMenuSection
+                        itemsRenderedPerBatch={itemsRenderedPerBatch}
+                        items={sub.items}
+                        frame={
+                          sub.title !== null ? frameOf(sub.items) : undefined
+                        }
+                        onItemSelectToggle={onItemSelectToggle}
+                        onItemDrag={onItemDrag}
+                        onClick={onItemClick}
+                        isItemSelected={isItemSelected}
+                        svgCache={svgCache}
+                      />
+                    </LibraryMenuSectionGrid>
+                  </React.Fragment>
+                ));
                 if (title === null) {
                   return <React.Fragment key="">{section}</React.Fragment>;
                 }

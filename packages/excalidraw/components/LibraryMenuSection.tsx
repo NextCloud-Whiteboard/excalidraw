@@ -6,6 +6,8 @@ import { useTransition } from "../hooks/useTransition";
 
 import { EmptyLibraryUnit, LibraryUnit } from "./LibraryUnit";
 
+import type { LibraryUnitFrame } from "./LibraryUnit";
+
 import type { SvgCache } from "../hooks/useLibraryItemSvg";
 import type { LibraryItem } from "../types";
 import type { ReactNode } from "react";
@@ -26,6 +28,8 @@ interface Props {
   isItemSelected: (id: LibraryItem["id"] | null) => boolean;
   svgCache: SvgCache;
   itemsRenderedPerBatch: number;
+  /** draw every tile to this size, so the items share one scale */
+  frame?: LibraryUnitFrame;
 }
 
 export const LibraryMenuSectionGrid = ({
@@ -45,6 +49,7 @@ export const LibraryMenuSection = memo(
     onClick,
     svgCache,
     itemsRenderedPerBatch,
+    frame,
   }: Props) => {
     const [, startTransition] = useTransition();
     const [index, setIndex] = useState(0);
@@ -70,6 +75,8 @@ export const LibraryMenuSection = memo(
               selected={isItemSelected(item.id)}
               onToggle={onItemSelectToggle}
               onDrag={onItemDrag}
+              frame={frame}
+              caption={"caption" in item ? item.caption : undefined}
               key={item?.id ?? i}
             />
           ) : (
