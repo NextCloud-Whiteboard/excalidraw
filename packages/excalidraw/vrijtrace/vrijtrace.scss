@@ -1,43 +1,187 @@
 .excalidraw {
-  .vt-panel {
+  // the second bar, right under the toolbar and centred on it; only the
+  // bar itself takes clicks, not the full-width row it sits in
+  .vt-bar-row {
+    position: absolute;
+    top: 4.25rem;
+    left: 0;
+    right: 0;
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 15rem;
-    padding: 0.25rem;
-    overflow-y: auto;
-    overflow-x: hidden;
+    justify-content: center;
+    pointer-events: none !important;
   }
 
-  .vt-sec {
+  .vt-bar {
+    display: flex;
+    flex-wrap: wrap;
+    // captions on one line, controls on the next
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.5rem 0.75rem;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.375rem 0.625rem 0.5rem;
+    pointer-events: var(--ui-pointerEvents);
+  }
+
+  .vt-group {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.25rem;
     min-width: 0;
   }
 
-  .vt-h {
-    margin: 0;
-    font-size: 12px;
+  .vt-cap {
+    font-size: 10.5px;
     font-weight: 700;
-    color: var(--color-on-surface);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-gray-60);
+    white-space: nowrap;
   }
 
-  .vt-applies {
-    margin: 0;
-    padding: 0.4rem 0.5rem;
-    border-radius: var(--border-radius-md, 6px);
-    font-size: 11.5px;
-    line-height: 1.4;
+  .vt-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .vt-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--color-surface-low);
+  }
+
+  .vt-seg {
+    display: flex;
+    gap: 2px;
+  }
+
+  .vt-opt,
+  .vt-act {
+    min-height: 2rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--color-surface-low);
+    border-radius: var(--border-radius-md, 0.375rem);
     background: var(--color-surface-low);
     color: var(--color-on-surface);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--color-primary);
+    }
   }
 
-  .vt-help {
-    margin: 0;
-    font-size: 11.5px;
-    line-height: 1.4;
+  .vt-opt {
+    min-width: 2.5rem;
+  }
+
+  .vt-opt[aria-pressed="true"] {
+    background: var(--color-surface-primary-container);
+    border-color: var(--color-primary);
+    color: var(--color-primary-darker);
+    font-weight: 700;
+  }
+
+  .vt-select {
+    height: 2rem !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 0.25rem;
+    border: 1px solid var(--color-surface-low);
+    border-radius: var(--border-radius-md, 0.375rem);
+    background: var(--island-bg-color);
+    color: var(--color-on-surface);
+    font-size: 12.5px;
+    font-family: inherit;
+  }
+
+  .vt-ro {
+    font-size: 12.5px;
+    color: var(--color-on-surface);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  // a typed value with its slider dropping down underneath
+  .vt-range {
+    position: relative;
+  }
+
+  .vt-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 2rem;
+    box-sizing: border-box;
+    padding: 0 0.5rem;
+    border: 1px solid var(--color-surface-low);
+    border-radius: var(--border-radius-md, 0.375rem);
+    background: var(--island-bg-color);
+    font-size: 12.5px;
     color: var(--color-gray-60);
+
+    &:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-surface-primary-container);
+    }
+  }
+
+  // the host page (Nextcloud) styles every text input with its own border,
+  // padding and height: inside the field box the input is bare text
+  .vt-field input.vt-num {
+    width: 2.75rem !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    color: var(--color-on-surface);
+    font-size: 12.5px;
+    font-family: inherit;
+    line-height: 1.2;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vt-pop {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    left: -0.5rem;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    width: 15rem;
+    box-sizing: border-box;
+    padding: 0.625rem 0.75rem;
+    box-shadow: var(--shadow-island);
+
+    &[hidden] {
+      display: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin: 0;
+      accent-color: var(--color-primary);
+    }
+  }
+
+  .vt-pop__ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--color-gray-60);
+    font-variant-numeric: tabular-nums;
   }
 
   .vt-lbl {
@@ -49,99 +193,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .vt-grid2,
-  .vt-grid3 {
-    display: grid;
-    gap: 4px;
-  }
-
-  .vt-grid2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .vt-grid3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .vt-opt,
   .vt-act {
-    min-height: 2rem;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--color-surface-low);
-    border-radius: var(--border-radius-md, 0.375rem);
-    background: var(--color-surface-low);
-    color: var(--color-on-surface);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    // wrap at spaces only: never break a word like "Middenlijn" in two
-    overflow-wrap: normal;
-    word-break: normal;
-    hyphens: manual;
-
-    &:hover {
-      border-color: var(--color-primary);
-    }
-  }
-
-  // Middenlijn on its own row, then the four edges two by two
-  .vt-refs > :first-child {
-    grid-column: 1 / -1;
-  }
-
-  .vt-opt[aria-pressed="true"] {
-    background: var(--color-surface-primary-container);
-    border-color: var(--color-primary);
-    color: var(--color-primary-darker);
-  }
-
-  .vt-num-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .vt-num {
-    width: 3.75rem;
-    padding: 0.125rem 0.375rem;
-    border: 1px solid var(--color-surface-low);
-    border-radius: var(--border-radius-md, 0.375rem);
-    background: var(--island-bg-color);
-    color: var(--color-on-surface);
-    font-size: 12px;
-    font-family: inherit;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-
-    &:focus {
-      outline: none;
-      border-color: var(--color-primary);
-    }
-  }
-
-  .vt-select,
-  .vt-panel input[type="range"] {
-    width: 100%;
-    font-size: 12px;
-  }
-
-  .vt-actions {
-    position: absolute;
-    bottom: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: var(--zIndex-layerUI, 4);
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px;
-    max-width: calc(100% - 2rem);
-    padding: 4px;
-    pointer-events: all;
-  }
-
-  .vt-act {
-    white-space: nowrap;
+    align-self: flex-end;
+    font-weight: 700;
   }
 
   // zones shown: the same button, outlined, offers to hide them
@@ -166,18 +220,43 @@
     }
   }
 
+  .vt-help {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--color-gray-60);
+  }
+
+  // ---- the overview beside the plan ----
+
   .vt-side {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
     padding: 0.75rem;
+    min-width: 0;
+  }
+
+  .vt-h {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-gray-60);
+  }
+
+  .vt-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     min-width: 0;
   }
 
   .vt-status {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.375rem;
     font-size: 12px;
     color: var(--color-gray-60);
   }
@@ -196,30 +275,123 @@
     color: var(--color-primary-darker);
   }
 
-  .vt-table-wrap {
-    overflow-x: auto;
+  .vt-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
   }
 
+  .vt-tile {
+    display: flex;
+    flex-direction: column;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--color-surface-low);
+    border-radius: var(--border-radius-md, 0.375rem);
+    font-size: 12px;
+    color: var(--color-gray-60);
+
+    b {
+      font-size: 20px;
+      line-height: 1.2;
+      color: var(--color-on-surface);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .vt-tile--ok b {
+    color: var(--color-success-text);
+  }
+
+  .vt-tile--bad {
+    border-color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+
+    b,
+    span {
+      color: var(--color-danger);
+    }
+  }
+
+  .vt-applies {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--color-gray-60);
+  }
+
+  .vt-dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.375rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    font-size: 12.5px;
+    line-height: 1.35;
+
+    // the host page gives dt and dd padding, height and alignment of its own
+    dt,
+    dd {
+      margin: 0 !important;
+      padding: 0 !important;
+      min-height: 0 !important;
+      height: auto !important;
+      display: block;
+    }
+
+    dt {
+      text-align: left !important;
+      color: var(--color-gray-60);
+    }
+
+    dd {
+      text-align: right !important;
+      font-weight: 600;
+      color: var(--color-on-surface);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  // fixed columns: the table fits the sidebar, a long tree name wraps
   .vt-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12.5px;
     font-variant-numeric: tabular-nums;
 
     th,
     td {
-      padding: 0.25rem 0.375rem;
+      padding: 0.375rem 0.25rem;
       border-bottom: 1px solid var(--color-surface-low);
       text-align: left;
       white-space: nowrap;
     }
 
     th {
-      font-size: 11px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
       color: var(--color-gray-60);
-      // "Afstand vanaf ring" wraps instead of widening its column
-      white-space: normal;
       vertical-align: bottom;
+      white-space: normal;
+    }
+
+    .vt-col-n {
+      width: 1.25rem;
+    }
+
+    .vt-col-d {
+      width: 4.25rem;
+    }
+
+    .vt-col-v {
+      width: 4.25rem;
+    }
+
+    .vt-col-z {
+      width: 2.75rem;
     }
 
     // a row outlines its tree on the plan while pointed at or tapped
@@ -231,11 +403,9 @@
       background: var(--color-surface-primary-container);
     }
 
-    // "C1 groot, zonder scherm" wraps, so the distance and verdict stay in view
-    // (they come right after it; the rest scrolls)
+    // a long tree name wraps, so every column stays in view
     td.vt-tree-name {
       white-space: normal;
-      min-width: 6.5em;
     }
   }
 
@@ -250,18 +420,50 @@
     font-weight: 600;
   }
 
+  // a zone a tree's ring reaches: filled; one it keeps clear of: outlined
+  .vt-z {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 2px;
+    box-sizing: border-box;
+    border: 1.5px solid var(--color-gray-40, #c4c4cc);
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+
+  .vt-z--trench {
+    background: #343a40;
+    border-color: #343a40;
+  }
+
+  .vt-z--red {
+    background: #e2707a;
+    border-color: #cf4752;
+  }
+
+  .vt-z--work {
+    background: #f1b35e;
+    border-color: #e0952f;
+  }
+
   .vt-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 0.75rem;
+    gap: 0.375rem 0.75rem;
     font-size: 12px;
-    color: var(--color-on-surface);
+    color: var(--color-gray-60);
 
     span {
       display: inline-flex;
       align-items: center;
       gap: 0.375rem;
     }
+  }
+
+  .vt-legend--plan {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-surface-low);
 
     i {
       display: inline-block;

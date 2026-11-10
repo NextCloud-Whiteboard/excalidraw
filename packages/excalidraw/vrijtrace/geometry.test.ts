@@ -180,52 +180,45 @@ describe("checkTree", () => {
   const z = computeZones(line, both);
   it("measures from the tree's ring to the trench edge", () => {
     expect(distanceToPolygons({ x: 5, y: 4 }, z.trench)).toBeCloseTo(3.5, 1);
-    const r = checkTree({ x: 5, y: 4 }, 1, z, true, 0);
+    const r = checkTree({ x: 5, y: 4 }, 1, z, true);
     expect(r).toMatchObject({ inside: false, pass: true });
     expect(r.distanceM).toBeCloseTo(2.5, 1);
   });
   it("is a conflict as soon as the trench reaches the ring", () => {
-    const r = checkTree({ x: 5, y: 1.2 }, 1, z, true, 0);
+    const r = checkTree({ x: 5, y: 1.2 }, 1, z, true);
     expect(r.inside).toBe(false);
     expect(r.distanceM).toBeCloseTo(-0.3, 1);
     expect(r.pass).toBe(false);
   });
-  it("counts the minimum distance beyond the ring", () => {
-    const a = checkTree({ x: 5, y: 4 }, 1, z, true, 2);
-    const b = checkTree({ x: 5, y: 4 }, 1, z, true, 3);
-    expect(a.distanceM).toBe(b.distanceM);
-    expect([a.pass, b.pass]).toEqual([true, false]);
-  });
   it("goes further below zero for a trunk inside the trench", () => {
-    const r = checkTree({ x: 5, y: 0.2 }, 1, z, true, 0);
+    const r = checkTree({ x: 5, y: 0.2 }, 1, z, true);
     expect(r.inside).toBe(true);
     expect(r.distanceM).toBeCloseTo(-1.3, 1);
     expect(r.pass).toBe(false);
   });
   it("reports a zone the ring reaches, only while the zones are active", () => {
-    expect(checkTree({ x: 5, y: 4 }, 2, z, false, 0)).toMatchObject({
+    expect(checkTree({ x: 5, y: 4 }, 2, z, false)).toMatchObject({
       red: null,
       work: null,
     });
-    expect(checkTree({ x: 5, y: 4 }, 2, z, true, 0)).toMatchObject({
+    expect(checkTree({ x: 5, y: 4 }, 2, z, true)).toMatchObject({
       red: true,
       work: true,
     });
-    expect(checkTree({ x: 5, y: 4.3 }, 2, z, true, 0)).toMatchObject({
+    expect(checkTree({ x: 5, y: 4.3 }, 2, z, true)).toMatchObject({
       red: true,
       work: false,
     });
-    expect(checkTree({ x: 5, y: 8 }, 1, z, true, 0)).toMatchObject({
+    expect(checkTree({ x: 5, y: 8 }, 1, z, true)).toMatchObject({
       red: false,
       work: false,
     });
   });
   it("has no answer without a trench", () => {
     const empty = computeZones({ nodes: [], segments: [] }, both);
-    expect(checkTree({ x: 1, y: 1 }, 1, empty, true, 0)).toEqual({
+    expect(checkTree({ x: 1, y: 1 }, 1, empty, true)).toEqual({
       inside: false,
       distanceM: null,
-      minM: null,
       pass: null,
       red: null,
       work: null,
@@ -273,16 +266,14 @@ describe("treeDistances", () => {
     expect(d.map((x) => x.lineId)).toEqual(["A"]);
   });
 
-  it("tells each line's own minimum, else the page's", () => {
+  it("carries no minimum: a line saved with one measures the same", () => {
     const own: NetworkGeometry = {
       ...network,
       segments: [network.segments[0], { ...network.segments[1], treeMinM: 3 }],
     };
-    const d = treeDistances({ x: 6, y: -4 }, 1, own, 15, 0.5);
-    expect(d.map((x) => [x.lineId, x.minM])).toEqual([
-      ["A", 0.5],
-      ["B", 3],
-    ]);
+    const d = treeDistances({ x: 6, y: -4 }, 1, own, 15);
+    expect(d).toEqual(treeDistances({ x: 6, y: -4 }, 1, network, 15));
+    expect(d[1]).not.toHaveProperty("minM");
   });
 
   it("leaves out a line the trench already reaches the ring of", () => {
@@ -291,9 +282,10 @@ describe("treeDistances", () => {
   });
 });
 
-describe("checkTree with each line's own minimum", () => {
-  // A along y = 0 (1 m), B along x = 10 (0,6 m); the tree is 2,5 m from A
-  // and 2,7 m from B beyond its 1 m ring
+describe("checkTree from the ring only", () => {
+  // A along y = 0 (1 m), B along x = 10 (0,6 m); trees have a fixed size, so
+  // the check asks only that the ring stays clear of the trench: a minimum a
+  // line was saved with (B: 3 m) no longer counts
   const g: NetworkGeometry = {
     nodes: [
       { id: "A:0", x: 0, y: 0 },
@@ -307,36 +299,20 @@ describe("checkTree with each line's own minimum", () => {
     ],
   };
   const zones = computeZones(g, both);
-  const p = { x: 6, y: -4 };
 
-  it("fails on a farther line whose own minimum the tree does not keep", () => {
-    const r = checkTree(p, 1, zones, false, 0, g);
-    expect(r.pass).toBe(false);
-    // the line that decides: B, at 2,7 m against its 3 m
-    expect(r.distanceM).toBeCloseTo(2.7, 6);
-    expect(r.minM).toBe(3);
-  });
-
-  it("passes when every line's own minimum is kept", () => {
-    const easy = {
-      ...g,
-      segments: [g.segments[0], { ...g.segments[1], treeMinM: 2 }],
-    };
-    const r = checkTree(p, 1, zones, false, 0, easy);
+  it("passes while the ring stays clear of every trench line", () => {
+    // 2,5 m from A and 2,7 m from B beyond its 1 m ring
+    const r = checkTree({ x: 6, y: -4 }, 1, zones, false);
     expect(r.pass).toBe(true);
-    // the nearest line decides when all pass with room to spare
     expect(r.distanceM).toBeCloseTo(2.5, 6);
-    expect(r.minM).toBe(0);
+    expect(r).not.toHaveProperty("minM");
   });
 
-  it("lines without their own minimum take the page's", () => {
-    const r = checkTree(p, 1, zones, false, 2.6, {
-      ...g,
-      segments: [g.segments[0], { ...g.segments[1], treeMinM: undefined }],
-    });
+  it("fails once a trench line reaches the ring, and tells by how much", () => {
+    // B's edge at x = 9,7; the ring reaches x = 9,9
+    const r = checkTree({ x: 8.9, y: -10 }, 1, zones, false);
     expect(r.pass).toBe(false);
-    expect(r.distanceM).toBeCloseTo(2.5, 6);
-    expect(r.minM).toBe(2.6);
+    expect(r.distanceM).toBeCloseTo(-0.2, 6);
   });
 });
 

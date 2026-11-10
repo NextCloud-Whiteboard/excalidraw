@@ -299,6 +299,70 @@ export const SelectedShapeActions = ({
   );
 };
 
+/**
+ * Liniaal and Vrij Tracé, first in the toolbar right after the PDF uploader:
+ * the tools for imported PDF pages. Vrij Tracé is greyed out until a PDF
+ * page is selected and then says why instead of switching.
+ */
+export const PdfToolButtons = ({
+  activeTool,
+  appState,
+  app,
+  actionManager,
+}: {
+  activeTool: UIAppState["activeTool"];
+  appState: UIAppState;
+  app: AppClassProperties;
+  actionManager: ActionManager;
+}) => {
+  const pdfHint = app.props.vrijTraceEnabled
+    ? pdfToolsHint(app.scene.getNonDeletedElements(), appState)
+    : null;
+  return (
+    <>
+      {actionManager.renderAction("ruler")}
+      {/* Vrij Tracé: trench planning on imported PDF pages */}
+      {app.props.vrijTraceEnabled && (
+        <ToolButton
+          type="radio"
+          icon={
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+            >
+              <path d="M2 7h16M2 13h16M2 10h2.5m3 0h2.5m3 0h2.5" />
+            </svg>
+          }
+          checked={
+            activeTool.type === "custom" &&
+            activeTool.customType === "vrijtrace"
+          }
+          name="editor-current-shape"
+          title={
+            pdfHint
+              ? `${VRIJTRACE_STR.tool}: ${pdfHint}`
+              : `${VRIJTRACE_STR.tool} — U`
+          }
+          className={pdfHint ? "ToolIcon--unavailable" : undefined}
+          aria-label={VRIJTRACE_STR.tool}
+          aria-keyshortcuts="U"
+          keyBindingLabel="U"
+          data-testid="toolbar-vrijtrace"
+          onChange={() =>
+            // only on an imported PDF page: say why instead of switching
+            pdfHint
+              ? app.setToast({ message: pdfHint })
+              : app.setActiveTool({ type: "custom", customType: "vrijtrace" })
+          }
+        />
+      )}
+    </>
+  );
+};
+
 export const ShapesSwitcher = ({
   activeTool,
   appState,
@@ -317,11 +381,6 @@ export const ShapesSwitcher = ({
   const lassoToolSelected = activeTool.type === "lasso";
 
   const embeddableToolSelected = activeTool.type === "embeddable";
-
-  // Liniaal and Vrij Tracé: greyed out until a PDF page is selected
-  const pdfHint = app.props.vrijTraceEnabled
-    ? pdfToolsHint(app.scene.getNonDeletedElements(), appState)
-    : null;
 
   const { TTDDialogTriggerTunnel } = useTunnels();
 
@@ -402,10 +461,7 @@ export const ShapesSwitcher = ({
         return renderButton();
       })}
 
-<div className="App-toolbar__divider" />
-
-      {/* Ruler tool as standalone button */}
-      {actionManager && actionManager.renderAction("ruler")}
+      <div className="App-toolbar__divider" />
 
       {/* Magnifier tool as standalone button */}
       {actionManager && actionManager.renderAction("magnifier")}
@@ -413,7 +469,18 @@ export const ShapesSwitcher = ({
       {/* Text Bubble tool as standalone button */}
       <ToolButton
         type="radio"
-        icon={<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h12a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" /></svg>}
+        icon={
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 5h12a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+          </svg>
+        }
         checked={activeTool.customType === "textbubble"}
         name="editor-current-shape"
         title={`${t("toolBar.textBubble")} — T`}
@@ -421,49 +488,10 @@ export const ShapesSwitcher = ({
         aria-keyshortcuts="T"
         keyBindingLabel="T"
         data-testid="toolbar-text-bubble"
-        onChange={() => app.setActiveTool({ type: "custom", customType: "textbubble" })}
+        onChange={() =>
+          app.setActiveTool({ type: "custom", customType: "textbubble" })
+        }
       />
-
-      {/* Vrij Tracé: trench planning on imported PDF pages */}
-      {app.props.vrijTraceEnabled && (
-        <ToolButton
-          type="radio"
-          icon={
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-            >
-              <path d="M2 7h16M2 13h16M2 10h2.5m3 0h2.5m3 0h2.5" />
-            </svg>
-          }
-          checked={
-            activeTool.type === "custom" &&
-            activeTool.customType === "vrijtrace"
-          }
-          name="editor-current-shape"
-          title={
-            pdfHint
-              ? `${VRIJTRACE_STR.tool}: ${pdfHint}`
-              : `${VRIJTRACE_STR.tool} — U`
-          }
-          className={pdfHint ? "ToolIcon--unavailable" : undefined}
-          aria-label={VRIJTRACE_STR.tool}
-          aria-keyshortcuts="U"
-          keyBindingLabel="U"
-          data-testid="toolbar-vrijtrace"
-          onChange={() =>
-            // only on an imported PDF page: say why instead of switching
-            pdfHint
-              ? app.setToast({ message: pdfHint })
-              : app.setActiveTool({ type: "custom", customType: "vrijtrace" })
-          }
-        />
-      )}
-
-
 
       {/* Add laser and lasso directly to the toolbar */}
       <ToolButton

@@ -28,12 +28,14 @@ import { useAtom, useAtomValue } from "../editor-jotai";
 import { t } from "../i18n";
 import { calculateScrollCenter } from "../scene";
 
-import { VrijTraceActions } from "../vrijtrace/VrijTraceActions";
-
-import { VrijTracePanel } from "../vrijtrace/VrijTracePanel";
+import { VrijTraceBar } from "../vrijtrace/VrijTraceBar";
 import { isTrenchLine } from "../vrijtrace/model";
 
-import { SelectedShapeActions, ShapesSwitcher } from "./Actions";
+import {
+  PdfToolButtons,
+  SelectedShapeActions,
+  ShapesSwitcher,
+} from "./Actions";
 import { LoadingMessage } from "./LoadingMessage";
 import { LockButton } from "./LockButton";
 import { MobileMenu } from "./MobileMenu";
@@ -140,7 +142,7 @@ const DefaultOverwriteConfirmDialog = () => {
   );
 };
 
-/** Vrij Tracé's panel and zones toggle: with its tool, or trench lines selected */
+/** Vrij Tracé's bar under the toolbar: with its tool, or trench lines selected */
 const showsVrijTrace = (
   appState: UIAppState,
   elements: readonly NonDeletedExcalidrawElement[],
@@ -275,17 +277,10 @@ const LayerUI = ({
         <div className="App-menu App-menu_top">
           <Stack.Col gap={6} className={clsx("App-menu_top__left")}>
             {renderCanvasActions()}
-            {vrijTraceActive ? (
-              <Island
-                className={CLASSES.SHAPE_ACTIONS_MENU}
-                padding={2}
-                style={{ maxHeight: `${appState.height - 166}px` }}
-              >
-                <VrijTracePanel appState={appState} />
-              </Island>
-            ) : (
-              shouldRenderSelectedShapeActions && renderSelectedShapeActions()
-            )}
+            {/* Vrij Tracé's settings are in its own bar under the toolbar */}
+            {!vrijTraceActive &&
+              shouldRenderSelectedShapeActions &&
+              renderSelectedShapeActions()}
           </Stack.Col>
           {!appState.viewModeEnabled &&
             appState.openDialog?.name !== "elementLinkSelector" && (
@@ -308,18 +303,29 @@ const LayerUI = ({
                             "zen-mode": appState.zenModeEnabled,
                           })}
                         >
-                          <HintViewer
-                            appState={appState}
-                            isMobile={device.editor.isMobile}
-                            device={device}
-                            app={app}
-                          />
+                          {/* the Vrij Tracé bar takes the hint's place */}
+                          {!vrijTraceActive && (
+                            <HintViewer
+                              appState={appState}
+                              isMobile={device.editor.isMobile}
+                              device={device}
+                              app={app}
+                            />
+                          )}
                           {heading}
                           <Stack.Row gap={1}>
-                            {/* PDF Import tool as first button */}
+                            {/* the PDF uploader first, then the tools for
+                                its pages: Liniaal and Vrij Tracé */}
                             {actionManager &&
                               actionManager.renderAction("pdfImport")}
+                            <PdfToolButtons
+                              appState={appState}
+                              activeTool={appState.activeTool}
+                              app={app}
+                              actionManager={actionManager}
+                            />
 
+                            <div className="App-toolbar__divider" />
                             <PenModeButton
                               zenModeEnabled={appState.zenModeEnabled}
                               checked={appState.penMode}
@@ -327,8 +333,6 @@ const LayerUI = ({
                               title={t("toolBar.penMode")}
                               penDetected={appState.penDetected}
                             />
-
-                            <div className="App-toolbar__divider" />
                             <LockButton
                               checked={appState.activeTool.locked}
                               onChange={onLockToggle}
@@ -412,6 +416,11 @@ const LayerUI = ({
             )}
           </div>
         </div>
+        {vrijTraceActive &&
+          !appState.viewModeEnabled &&
+          appState.openDialog?.name !== "elementLinkSelector" && (
+            <VrijTraceBar appState={appState} />
+          )}
       </FixedSideContainer>
     );
   };
@@ -603,9 +612,6 @@ const LayerUI = ({
           >
             {renderWelcomeScreen && <tunnels.WelcomeScreenCenterTunnel.Out />}
             {renderFixedSideContainer()}
-            {showsVrijTrace(appState, elements) && (
-              <VrijTraceActions appState={appState} />
-            )}
             <Footer
               appState={appState}
               actionManager={actionManager}

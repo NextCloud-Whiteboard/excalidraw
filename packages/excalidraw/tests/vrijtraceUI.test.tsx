@@ -70,6 +70,10 @@ describe("Vrij Tracé UI", () => {
     }
     mouse.upAt(...to);
   };
+  /** Tekenreferentie, a dropdown in the bar */
+  const setRef = (ref: string) =>
+    fireEvent.change(byId("vt-reference"), { target: { value: ref } });
+  const reference = () => (byId("vt-reference") as HTMLSelectElement).value;
   const openOnPage = () => {
     pickTool();
     mouse.reset();
@@ -161,22 +165,32 @@ describe("Vrij Tracé UI", () => {
     });
   });
 
-  it("shows the settings without mode buttons, and only the zones toggle at the bottom", () => {
+  it("shows the settings in a bar under the toolbar, the zones toggle at its end", () => {
     pickTool();
+    const bar = container.querySelector(".vt-bar")!;
     for (const id of [
       "vt-snap-90",
       "vt-snap-45",
       "vt-snap-vrij",
-      "vt-width",
-      "vt-ref-links",
+      "vt-width-input",
+      "vt-reference",
+      "vt-line-width-input",
       "vt-red-side",
-      "vt-work-width",
+      "vt-work-width-input",
       "vt-work-side",
-      "vt-tree-min",
       "vt-activate",
     ]) {
-      expect(byId(id)).not.toBeNull();
+      expect(queryByTestId(bar as HTMLElement, id)).not.toBeNull();
     }
+    expect(bar.lastElementChild).toBe(byId("vt-activate"));
+    expect(
+      [...bar.querySelectorAll(".vt-cap")].map((c) => c.textContent),
+    ).toEqual(["1 Uitlijnen", "2 Sleuf", "3 Schadepreventie", "4 Werkruimte"]);
+    // no panel on the left, no row floating at the bottom, no tree minimum:
+    // trees have a fixed size and are measured from their outer ring
+    expect(container.querySelector(".vt-panel")).toBeNull();
+    expect(container.querySelector(".vt-actions")).toBeNull();
+    expect(byId("vt-tree-min")).toBeNull();
     expect(byId("vt-snap-vrij").getAttribute("aria-pressed")).toBe("true");
     // the whiteboard covers these: drawing, moving, selecting, deleting,
     // undo/redo and finishing a line
@@ -230,6 +244,12 @@ describe("Vrij Tracé UI", () => {
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(0);
   });
 
+  const zones = () =>
+    [...byId("vt-rows").querySelectorAll("tr")].map((tr) =>
+      [...tr.querySelectorAll(".vt-z")].map((z) =>
+        z.getAttribute("aria-label"),
+      ),
+    );
   const rows = () =>
     [...byId("vt-rows").querySelectorAll("tr")].map((tr) =>
       [...tr.querySelectorAll("td")].map((td) => td.textContent),
@@ -246,42 +266,44 @@ describe("Vrij Tracé UI", () => {
         libraryTree("t2", 250, 120, 20, { klasse: "C3", scherm: true }),
       ],
     });
-    // the verdict right after the name: a narrow sidebar scrolls the rest
+    // five columns, the last three small squares: nothing to scroll
     expect(rows()).toEqual([
-      [
-        "1",
-        "C1 groot, zonder scherm",
-        "1,50 m",
-        "Voldoet",
-        "0,00 m",
-        "Nee",
-        "—",
-        "—",
-      ],
-      [
-        "2",
-        "C3 klein, met scherm",
-        "−0,50 m",
-        "Conflict",
-        "0,00 m",
-        "Nee",
-        "—",
-        "—",
-      ],
+      ["1", "C1 groot, zonder scherm", "1,50 m", "Voldoet", ""],
+      ["2", "C3 klein, met scherm", "−0,50 m", "Conflict", ""],
     ]);
+    // in sleuf, schadepreventie, werkruimte: zones off, so only "in sleuf"
+    // is answered (no)
+    expect(zones()).toEqual([
+      ["in sleuf: nee", "schadepreventie: —", "werkruimte: —"],
+      ["in sleuf: nee", "schadepreventie: —", "werkruimte: —"],
+    ]);
+    fireEvent.click(byId("vt-activate"));
+    expect(zones()[1]).toEqual([
+      "in sleuf: nee",
+      "schadepreventie: ja",
+      "werkruimte: ja",
+    ]);
+    // at a glance: two trees, one passes, one conflict
+    expect(
+      [...byId("vt-tiles").querySelectorAll("b")].map((b) => b.textContent),
+    ).toEqual(["2", "1", "1"]);
   });
 
-  it("counts the minimum distance beyond the ring", () => {
+  it("passes a tree while its ring stays clear, whatever minimum a line saved", () => {
     drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    // a line from before, saved with a 2 m Minimale afstand
     API.updateScene({
-      elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
+      elements: [
+        ...h.elements.map((e) =>
+          e.id === line.id
+            ? { ...e, customData: { ...e.customData, treeMinM: 2 } }
+            : e,
+        ),
+        libraryTree("t1", 250, 200, 60),
+      ],
     });
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
-    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Conflict", "2,00 m"]);
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "1.5" } });
-    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Voldoet", "1,50 m"]);
+    expect(rows()[0].slice(2, 4)).toEqual(["1,50 m", "Voldoet"]);
   });
 
   it("pointing at a row outlines that tree", () => {
@@ -299,23 +321,61 @@ describe("Vrij Tracé UI", () => {
     expect(h.state.vrijTrace.hotTreeId).toBe("t1");
   });
 
-  it("the Werkruimte and Minimale afstand sliders follow the drag at once", () => {
+  it("the Werkruimte slider follows the drag at once", () => {
     drawLine([100, 100], [400, 100]);
     const work = () => byId("vt-work-width") as HTMLInputElement;
-    const treeMin = () => byId("vt-tree-min") as HTMLInputElement;
     fireEvent.change(work(), { target: { value: "3" } });
     expect(work().value).toBe("3");
-    expect(container.textContent).toContain("3,00 m");
-    fireEvent.change(treeMin(), { target: { value: "7.5" } });
-    expect(treeMin().value).toBe("7.5");
-    expect(container.textContent).toContain("7,50 m");
+    expect((byId("vt-work-width-input") as HTMLInputElement).value).toBe(
+      "3,00",
+    );
+  });
+
+  it("drops a field's slider down while the field is in use, from its minimum to its maximum", () => {
+    pickTool();
+    const pop = (id: string) => byId(id).closest(".vt-pop") as HTMLElement;
+    for (const id of ["vt-width", "vt-line-width", "vt-work-width"]) {
+      expect(pop(id).hidden).toBe(true);
+    }
+    fireEvent.focus(byId("vt-width-input"));
+    expect(pop("vt-width").hidden).toBe(false);
+    expect(pop("vt-line-width").hidden).toBe(true);
+    expect(pop("vt-width").textContent).toContain("0,30 m");
+    expect(pop("vt-width").textContent).toContain("max. 10,00 m");
+    // from the field to its slider: still open
+    fireEvent.blur(byId("vt-width-input"), {
+      relatedTarget: byId("vt-width"),
+    });
+    expect(pop("vt-width").hidden).toBe(false);
+    // somewhere else: closed
+    fireEvent.blur(byId("vt-width"), { relatedTarget: null });
+    expect(pop("vt-width").hidden).toBe(true);
+    expect(pop("vt-work-width").textContent).toContain("max. 4,00 m");
+  });
+
+  it("holds a typed Werkruimte and Lijndikte to their range", () => {
+    drawLine([100, 100], [400, 100]);
+    const [line] = getPageParts(h.elements, "pdf1").lines;
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([line]);
+    const type = (id: string, value: string) => {
+      fireEvent.change(byId(id), { target: { value } });
+      fireEvent.keyDown(byId(id), { key: "Enter" });
+    };
+    const now = () => getPageParts(h.elements, "pdf1").lines[0];
+    type("vt-work-width-input", "9");
+    expect(now().customData?.workWidthM).toBe(4);
+    type("vt-work-width-input", "2,5");
+    expect(now().customData?.workWidthM).toBe(2.5);
+    type("vt-line-width-input", "20");
+    expect(now().strokeWidth).toBe(4);
   });
 
   it("a slider drag is one undo step", async () => {
     drawLine([100, 100], [400, 100]);
     act(() => h.app.setActiveTool({ type: "selection" }));
     API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
-    for (const id of ["vt-work-width", "vt-tree-min"]) {
+    for (const id of ["vt-work-width", "vt-width", "vt-line-width"]) {
       const before = API.getUndoStack().length;
       for (const v of ["1", "2", "3", "4"]) {
         fireEvent.change(byId(id), { target: { value: v } });
@@ -398,10 +458,20 @@ describe("Vrij Tracé UI", () => {
 
   it("offers Bovenrand and Onderrand as drawing references", () => {
     pickTool();
-    expect(byId("vt-ref-boven").textContent).toBe("Bovenrand");
-    expect(byId("vt-ref-onder").textContent).toBe("Onderrand");
-    fireEvent.click(byId("vt-ref-boven"));
-    expect(byId("vt-ref-boven").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      [...(byId("vt-reference") as HTMLSelectElement).options].map((o) => [
+        o.value,
+        o.textContent,
+      ]),
+    ).toEqual([
+      ["midden", "Middenlijn"],
+      ["boven", "Bovenrand"],
+      ["onder", "Onderrand"],
+      ["links", "Linker rand"],
+      ["rechts", "Rechter rand"],
+    ]);
+    setRef("boven");
+    expect(reference()).toBe("boven");
     drawLine([100, 100], [400, 100]);
     const [line] = getPageParts(h.elements, "pdf1").lines;
     expect(line.customData?.reference).toBe("boven");
@@ -494,7 +564,7 @@ describe("Vrij Tracé UI", () => {
       rechts: ["beide", "links", "rechts"],
     };
     for (const [ref, values] of Object.entries(expected)) {
-      fireEvent.click(byId(`vt-ref-${ref}`));
+      setRef(ref);
       expect(sides("vt-red-side")).toEqual(values);
       expect(sides("vt-work-side")).toEqual(values);
     }
@@ -507,7 +577,7 @@ describe("Vrij Tracé UI", () => {
     API.setSelectedElements([line]);
     fireEvent.change(byId("vt-red-side"), { target: { value: "boven" } });
     fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
-    fireEvent.click(byId("vt-ref-links"));
+    setRef("links");
     expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
       reference: "links",
       redSide: "beide",
@@ -520,7 +590,7 @@ describe("Vrij Tracé UI", () => {
   it("the next line's sides follow its reference too", () => {
     openOnPage();
     fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
-    fireEvent.click(byId("vt-ref-rechts"));
+    setRef("rechts");
     expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
     drawLine([100, 300], [400, 300]);
     expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
@@ -563,46 +633,21 @@ describe("Vrij Tracé UI", () => {
     expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
   });
 
-  it("Minimale afstand changes the selected line only, and its trees' check", () => {
-    drawLine([100, 100], [400, 100]);
-    drawLine([100, 300], [400, 300]);
-    // 1,50 m beyond its ring from the first line, 5,50 m from the second
-    API.updateScene({
-      elements: [...h.elements, libraryTree("t1", 250, 160, 20)],
-    });
-    const [first, second] = getPageParts(h.elements, "pdf1").lines;
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    API.setSelectedElements([second]);
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "7" } });
-    const data = (id: string) =>
-      (h.elements.find((e) => e.id === id) as any).customData;
-    expect(data(second.id).treeMinM).toBe(7);
-    expect(data(first.id).treeMinM).toBe(0);
-    // the second line's 7 m decides, though the first line is nearer
-    expect(rows()[0].slice(2, 5)).toEqual(["5,50 m", "Conflict", "7,00 m"]);
-    API.setSelectedElements([first]);
-    expect((byId("vt-tree-min") as HTMLInputElement).value).toBe("0");
-    API.setSelectedElements([second]);
-    // passing, the row shows the nearest line again
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "5" } });
-    expect(rows()[0].slice(2, 5)).toEqual(["1,50 m", "Voldoet", "0,00 m"]);
-  });
-
   it("Tekenreferentie changes the selected line only", () => {
     drawLine([100, 100], [400, 100]);
     drawLine([100, 300], [400, 300]);
     const [first, second] = getPageParts(h.elements, "pdf1").lines;
     act(() => h.app.setActiveTool({ type: "selection" }));
     API.setSelectedElements([first]);
-    fireEvent.click(byId("vt-ref-boven"));
+    setRef("boven");
     const el = (id: string) => h.elements.find((e) => e.id === id) as any;
     expect(el(first.id).customData.reference).toBe("boven");
     expect(el(first.id).strokeStyle).toBe("solid");
     expect(el(second.id).customData.reference).toBe("midden");
     expect(el(second.id).strokeStyle).toBe("dashed");
-    expect(byId("vt-ref-boven").getAttribute("aria-pressed")).toBe("true");
+    expect(reference()).toBe("boven");
     API.setSelectedElements([second]);
-    expect(byId("vt-ref-midden").getAttribute("aria-pressed")).toBe("true");
+    expect(reference()).toBe("midden");
   });
 
   it("Tekenreferentie of a selected line moves the line, not the trench", () => {
@@ -624,7 +669,7 @@ describe("Vrij Tracé UI", () => {
       ["midden", 100],
     ];
     for (const [ref, y] of steps) {
-      fireEvent.click(byId(`vt-ref-${ref}`));
+      setRef(ref);
       expect(lineY()).toBeCloseTo(y, 6);
       trench().forEach((n, i) => {
         expect(n.x).toBeCloseTo(before[i].x, 6);
@@ -635,7 +680,7 @@ describe("Vrij Tracé UI", () => {
 
   it("a line drawn with an edge reference stays where it was drawn", () => {
     pickTool();
-    fireEvent.click(byId("vt-ref-boven"));
+    setRef("boven");
     drawLine([100, 100], [400, 100]);
     const [line] = getPageParts(h.elements, "pdf1").lines;
     expect(line.y).toBeCloseTo(100, 6);
@@ -649,10 +694,8 @@ describe("Vrij Tracé UI", () => {
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
     fireEvent.change(byId("vt-line-width"), { target: { value: "2" } });
     fireEvent.change(byId("vt-red-side"), { target: { value: "rechts" } });
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "2" } });
     const [first] = getPageParts(h.elements, "pdf1").lines;
     expect(first.strokeWidth).toBe(0.5);
-    expect(first.customData?.treeMinM).toBe(0);
     expect(first.customData).toMatchObject({
       workWidthM: 1.5,
       redSide: "beide",
@@ -664,7 +707,6 @@ describe("Vrij Tracé UI", () => {
       workWidthM: 3,
       redSide: "rechts",
       workSide: "beide",
-      treeMinM: 2,
     });
   });
 
@@ -711,32 +753,6 @@ describe("Vrij Tracé UI", () => {
     });
   });
 
-  it("a line from before follows its page's Minimale afstand until it is changed", () => {
-    drawLine([100, 100], [400, 100]);
-    const [line] = getPageParts(h.elements, "pdf1").lines;
-    const network = getPageParts(h.elements, "pdf1").network!;
-    act(() => {
-      h.app.scene.mutateElement(line, {
-        customData: { tool: "trench", widthM: 1, pdfParentId: "pdf1" },
-      });
-      h.app.scene.mutateElement(network, {
-        trench: { ...(network.trench as any), treeMinM: 1.75 },
-      });
-    });
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
-    expect((byId("vt-tree-min") as HTMLInputElement).value).toBe("1.75");
-    // another setting leaves it following the page
-    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
-    expect(
-      getPageParts(h.elements, "pdf1").lines[0].customData?.treeMinM,
-    ).toBeUndefined();
-    fireEvent.change(byId("vt-tree-min"), { target: { value: "3" } });
-    expect(getPageParts(h.elements, "pdf1").lines[0].customData?.treeMinM).toBe(
-      3,
-    );
-  });
-
   it("keeps the usual shape actions for other selections", () => {
     API.setElements([
       pdfPage(),
@@ -746,13 +762,22 @@ describe("Vrij Tracé UI", () => {
     expect(byId("vt-width")).toBeNull();
   });
 
-  it("lifts toasts above the action row while the tool is open", () => {
-    const editor = container.querySelector(".excalidraw") as HTMLElement;
-    const offset = () => editor.style.getPropertyValue("--vt-actions-offset");
-    expect(offset()).toBe("");
-    pickTool();
-    expect(offset()).toMatch(/^\d+px$/);
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    expect(offset()).toBe("");
+  it("puts the PDF uploader, Liniaal and Vrij Tracé first in the toolbar", () => {
+    const ids = [
+      ...container.querySelectorAll(".App-toolbar [data-testid^='toolbar-']"),
+    ].map((el) => el.getAttribute("data-testid"));
+    expect(ids.slice(0, 3)).toEqual([
+      "toolbar-pdf-import",
+      "toolbar-ruler",
+      "toolbar-vrijtrace",
+    ]);
+    // then the whiteboard's own tools, in their usual order
+    expect(ids.indexOf("toolbar-selection")).toBeGreaterThan(2);
+    expect(ids.indexOf("toolbar-rectangle")).toBe(
+      ids.indexOf("toolbar-selection") + 1,
+    );
+    expect(ids.indexOf("toolbar-laser")).toBeGreaterThan(
+      ids.indexOf("toolbar-eraser"),
+    );
   });
 });

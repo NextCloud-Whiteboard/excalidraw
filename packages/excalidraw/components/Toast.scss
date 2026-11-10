@@ -8,8 +8,7 @@
     animation: fade-in 0.5s;
     background-color: var(--button-gray-1);
     border-radius: 4px;
-    // raised above the Vrij Tracé action row while it is shown
-    bottom: calc(10px + var(--vt-actions-offset, 0px));
+    bottom: 10px;
     box-sizing: border-box;
     cursor: default;
     left: 50%;
@@ -45,7 +44,7 @@
 
     &.Toast--loading {
       flex-direction: row;
-      
+
       .Toast__message {
         padding-left: 32px; // Make room for spinner
       }
@@ -66,7 +65,7 @@
       align-items: center;
       justify-content: center;
       color: var(--popup-text-color);
-      
+
       svg {
         animation: spin 1s linear infinite;
       }

@@ -10,7 +10,11 @@ import { t } from "../i18n";
 import { calculateScrollCenter } from "../scene";
 import { SCROLLBAR_WIDTH, SCROLLBAR_MARGIN } from "../scene/scrollbars";
 
-import { SelectedShapeActions, ShapesSwitcher } from "./Actions";
+import {
+  PdfToolButtons,
+  SelectedShapeActions,
+  ShapesSwitcher,
+} from "./Actions";
 import { FixedSideContainer } from "./FixedSideContainer";
 import { HandButton } from "./HandButton";
 import { HintViewer } from "./HintViewer";
@@ -87,6 +91,12 @@ export const MobileMenu = ({
                 <Island padding={1} className="App-toolbar App-toolbar--mobile">
                   {heading}
                   <Stack.Row gap={1}>
+                    <PdfToolButtons
+                      appState={appState}
+                      activeTool={appState.activeTool}
+                      app={app}
+                      actionManager={actionManager}
+                    />
                     <ShapesSwitcher
                       appState={appState}
                       activeTool={appState.activeTool}

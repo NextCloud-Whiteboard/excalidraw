@@ -23,7 +23,7 @@ export type GeoSegment = {
   b: string;
   widthM: number;
   dir?: Pt;
-  /** its line's own Minimale afstand for trees; else the page's */
+  /** a Minimale afstand saved by older versions; the tree check ignores it */
   treeMinM?: number;
 } & Partial<ZoneSettings>;
 export type NetworkGeometry = { nodes: GeoNode[]; segments: GeoSegment[] };
@@ -36,8 +36,6 @@ export type Zones = {
 export type TreeCheck = {
   inside: boolean;
   distanceM: number | null;
-  /** the Minimale afstand of the line that decides */
-  minM: number | null;
   pass: boolean | null;
   red: boolean | null;
   work: boolean | null;
@@ -295,50 +293,24 @@ const lineIdOf = (segmentId: string) => {
   return i < 0 ? segmentId : segmentId.slice(0, i);
 };
 
-/** per trench line: the ring's distance to its own edge and its own minimum */
-const lineMargins = (
-  p: Pt,
-  ringM: number,
-  g: NetworkGeometry,
-  pageMinM: number,
-) => {
-  const byLine = new Map<string, { d: number; minM: number }>();
-  for (const { s, a, b } of ends(g)) {
-    const id = lineIdOf(s.id);
-    const d = pointSegment(p, a, b) - s.widthM / 2 - ringM;
-    const best = byLine.get(id);
-    if (!best || d < best.d) {
-      byLine.set(id, { d, minM: s.treeMinM ?? pageMinM });
-    }
-  }
-  return [...byLine.values()];
-};
-
 /**
  * Tree check, measured from the tree's outer ring (its CINH toetsstraal,
  * ringM): the distance runs from the ring to the trench edge and is below
- * zero once the trench reaches the ring. The minimum counts beyond the ring
- * and never changes the measured distance; zones are reported only while
- * they are active.
- *
- * With the network's geometry, each trench line asks its own minimum (else
- * the page's treeMinM): the tree passes when it keeps every line's. A tree
- * that fails is reported against the line it fails worst; one that passes
- * against the nearest line.
+ * zero once the trench reaches the ring. Trees have a fixed size, so the
+ * ring is the whole margin: the tree passes while no trench reaches it, and
+ * a Minimale afstand saved on older lines or pages no longer counts. Zones
+ * are reported only while they are active.
  */
 export const checkTree = (
   p: Pt,
   ringM: number,
   zones: Zones,
   active: boolean,
-  treeMinM: number,
-  g?: NetworkGeometry,
 ): TreeCheck => {
   if (!zones.trench.length) {
     return {
       inside: false,
       distanceM: null,
-      minM: null,
       pass: null,
       red: null,
       work: null,
@@ -346,31 +318,13 @@ export const checkTree = (
   }
   const inside = pointInPolygons(p, zones.trench);
   const toEdge = distanceToPolygons(p, zones.trench);
-  const nearestM = (inside ? -toEdge : toEdge) - ringM;
-  const zoneCheck = {
-    red: active ? ringReaches(p, ringM, zones.red) : null,
-    work: active ? ringReaches(p, ringM, zones.work) : null,
-  };
-  const lines = g ? lineMargins(p, ringM, g, treeMinM) : [];
-  if (!lines.length) {
-    return {
-      inside,
-      distanceM: nearestM,
-      minM: treeMinM,
-      pass: nearestM + 1e-9 >= treeMinM && nearestM > 0,
-      ...zoneCheck,
-    };
-  }
-  const nearest = lines.reduce((x, y) => (y.d < x.d ? y : x));
-  const worst = lines.reduce((x, y) => (y.d - y.minM < x.d - x.minM ? y : x));
-  const pass = nearestM > 0 && worst.d + 1e-9 >= worst.minM;
-  const deciding = pass || nearestM <= 0 ? nearest : worst;
+  const distanceM = (inside ? -toEdge : toEdge) - ringM;
   return {
     inside,
-    distanceM: deciding === nearest ? nearestM : worst.d,
-    minM: deciding.minM,
-    pass,
-    ...zoneCheck,
+    distanceM,
+    pass: distanceM > 0,
+    red: active ? ringReaches(p, ringM, zones.red) : null,
+    work: active ? ringReaches(p, ringM, zones.work) : null,
   };
 };
 
@@ -383,8 +337,6 @@ export type TreeDistance = {
   from: Pt;
   /** on the trench edge, page metres */
   to: Pt;
-  /** that line's own Minimale afstand, else the page's */
-  minM: number;
 };
 
 const closestOnSegment = (p: Pt, a: Pt, b: Pt): Pt => {
@@ -409,29 +361,24 @@ export const treeDistances = (
   ringM: number,
   g: NetworkGeometry,
   maxM: number,
-  pageMinM = 0,
 ): TreeDistance[] => {
   const segs = ends(g).map(({ s, a, b }) => ({
     line: lineIdOf(s.id),
     a,
     b,
     half: s.widthM / 2,
-    minM: s.treeMinM ?? pageMinM,
   }));
-  const nearest = new Map<
-    string,
-    { q: Pt; d: number; half: number; minM: number }
-  >();
+  const nearest = new Map<string, { q: Pt; d: number; half: number }>();
   for (const seg of segs) {
     const q = closestOnSegment(p, seg.a, seg.b);
     const d = Math.hypot(p.x - q.x, p.y - q.y);
     const best = nearest.get(seg.line);
     if (!best || d - seg.half < best.d - best.half) {
-      nearest.set(seg.line, { q, d, half: seg.half, minM: seg.minM });
+      nearest.set(seg.line, { q, d, half: seg.half });
     }
   }
   const out: TreeDistance[] = [];
-  for (const [lineId, { q, d, half, minM }] of nearest) {
+  for (const [lineId, { q, d, half }] of nearest) {
     const distanceM = d - half - ringM;
     if (!(distanceM > 0 && distanceM <= maxM)) {
       continue;
@@ -451,7 +398,6 @@ export const treeDistances = (
       distanceM,
       from: { x: p.x - ux * ringM, y: p.y - uy * ringM },
       to,
-      minM,
     });
   }
   return out.sort((x, y) => x.distanceM - y.distanceM);

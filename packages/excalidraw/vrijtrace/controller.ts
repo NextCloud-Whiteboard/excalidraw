@@ -43,7 +43,6 @@ import {
   settingsOf,
   sideForReference,
   trenchLinePoints,
-  TREE_MIN_MAX_M,
   trenchLineReference,
   trenchLineTreeMin,
   trenchLineWidth,
@@ -473,28 +472,6 @@ export class VrijTraceController {
     // also the next line's; and it redraws the panel, or a dragged slider
     // snaps back to the old value until something else repaints
     this.setUI(patch);
-  }
-
-  /**
-   * Minimale afstand (for trees, beyond their ring) of the selected trench
-   * lines, and of the next one drawn. `commit` ends a slider drag as one
-   * undo step.
-   */
-  setLineTreeMin(treeMinM: number, commit: boolean) {
-    const v = Math.min(TREE_MIN_MAX_M, Math.max(0, treeMinM));
-    const lines = this.selectedLines();
-    for (const line of lines) {
-      if (line.customData?.treeMinM !== v) {
-        this.app.scene.mutateElement(line, {
-          customData: { ...line.customData, treeMinM: v },
-        });
-      }
-    }
-    if (lines.length && commit) {
-      this.app.scheduleCapture();
-    }
-    // also the next line's; and it redraws the panel
-    this.setUI({ treeMinM: v });
   }
 
   /** Tekenreferentie of the selected trench lines, and of the next one drawn */

@@ -304,8 +304,6 @@ const drawPage = (
       treeRingM(t, s.frame),
       s.zones,
       s.active,
-      s.settings.treeMinM,
-      s.geometry,
     );
     if (check.pass === false) {
       drawTreeConflict(ctx, c, ringPx(t), z);
@@ -506,14 +504,7 @@ const drawTreeDistances = (
       const c = centreOf(t);
       const p = sceneToPage(s.frame, c);
       const ringM = treeRingM(t, s.frame);
-      const check = checkTree(
-        p,
-        ringM,
-        s.zones,
-        s.active,
-        s.settings.treeMinM,
-        s.geometry,
-      );
+      const check = checkTree(p, ringM, s.zones, s.active);
       if (check.distanceM === null) {
         continue;
       }
@@ -532,11 +523,11 @@ const drawTreeDistances = (
         ringM,
         s.geometry,
         TREE_DISTANCE_MAX_M,
-        s.settings.treeMinM,
       )) {
         const a = pageToScene(s.frame, d.from);
         const b = pageToScene(s.frame, d.to);
-        const color = d.distanceM + 1e-9 < d.minM ? DISTANCE_BAD : DISTANCE_OK;
+        // a line that reaches the ring is the in-ring label's, not a distance
+        const color = DISTANCE_OK;
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
         ctx.lineWidth = 1.5 / z;
