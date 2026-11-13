@@ -271,14 +271,16 @@ export const LibraryMenu = memo(() => {
   const memoizedLibrary = useMemo(() => app.library, [app.library]);
   const pendingElements = usePendingElementsMemo(appState, app);
   const elements = useExcalidrawElements();
+  const [{ libraryItems }] = useAtom(libraryItemsAtom);
   // a placed library item selected on the canvas shows its tile here (a tree
   // too: Vrij Tracé has its check, the library still knows where it came from)
   const revealedItemId = useMemo(() => {
     const target = selectionTarget(elements, appState.selectedElementIds, {
       trees: false,
+      libraryItems,
     });
     return target?.kind === "library" ? target.itemId : null;
-  }, [elements, appState.selectedElementIds]);
+  }, [elements, appState.selectedElementIds, libraryItems]);
 
   const onInsertLibraryItems = useCallback(
     (libraryItems: LibraryItems) => {

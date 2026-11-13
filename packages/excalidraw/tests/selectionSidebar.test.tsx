@@ -127,6 +127,192 @@ describe("selectionTarget", () => {
     });
   });
 
+  describe("items placed before they were tagged", () => {
+    const shape = (
+      id: string,
+      type: "rectangle" | "ellipse",
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      extra: Record<string, any> = {},
+    ) => ({
+      ...API.createElement({ type, id, x, y, width: w, height: h }),
+      ...extra,
+    });
+    const libItem = (id: string, elements: any[]): LibraryItem => ({
+      id,
+      status: "published",
+      created: 1,
+      elements,
+    });
+    // a box with a smaller box inside, as drawn in the library
+    const avp = libItem("avp", [
+      shape("a", "rectangle", 0, 0, 100, 100),
+      shape("b", "rectangle", 30, 40, 40, 20, { backgroundColor: "#343a40" }),
+    ]);
+    const duct = (id: string, strokeColor: string) =>
+      libItem(id, [
+        shape(`${id}-r`, "rectangle", 0, 0, 150, 10, { strokeColor }),
+      ]);
+    /** the item's elements as placed: moved, scaled by `k`, grouped */
+    const placedCopy = (item: LibraryItem, k: number, group = "g1") =>
+      item.elements.map((e, i) => ({
+        ...e,
+        id: `${item.id}-placed-${i}`,
+        x: 500 + e.x * k,
+        y: 300 + e.y * k,
+        width: e.width * k,
+        height: e.height * k,
+        groupIds: [group],
+        customData: { libraryCmPerPx: 1.5 },
+      }));
+    const target = (els: any[], libraryItems: LibraryItem[]) =>
+      selectionTarget(els, ids(...els.map((e) => e.id)), { libraryItems });
+
+    it("are recognised by their drawing, at any scale", () => {
+      expect(target(placedCopy(avp, 3.25), [duct("d", "#000"), avp])).toEqual({
+        kind: "library",
+        itemId: "avp",
+      });
+    });
+
+    it("tell items of one shape apart by their colours", () => {
+      const red = duct("red", "#e03131");
+      const blue = duct("blue", "#1971c2");
+      expect(target(placedCopy(blue, 2), [red, blue])).toEqual({
+        kind: "library",
+        itemId: "blue",
+      });
+    });
+
+    it("tell trees of one drawing apart by their tree data", () => {
+      const tree = (id: string, scherm: boolean) =>
+        libItem(id, [
+          shape(`${id}-ring`, "ellipse", 0, 0, 130, 130, {
+            customData: { treeRing: { klasse: "C3", scherm } },
+          }),
+          shape(`${id}-trunk`, "ellipse", 55, 55, 20, 20),
+        ]);
+      const zonder = tree("c3z", false);
+      const met = tree("c3m", true);
+      const placedMet = placedCopy(met, 1).map((e, i) =>
+        i === 0
+          ? {
+              ...e,
+              customData: { ...e.customData, ...met.elements[0].customData },
+            }
+          : e,
+      );
+      expect(target(placedMet, [zonder, met])).toEqual({
+        kind: "library",
+        itemId: "c3m",
+      });
+    });
+
+    it("a tree placed before trees carried their data still matches", () => {
+      const tree = libItem("c1z", [
+        shape("ring", "ellipse", 0, 0, 390, 390, {
+          customData: { treeRing: { klasse: "C1", scherm: false } },
+        }),
+        shape("crown", "ellipse", 120, 120, 150, 150, {
+          backgroundColor: "#b2f2bb",
+        }),
+      ]);
+      // as placed then: the drawing, without the tree data
+      expect(target(placedCopy(tree, 0.5), [avp, tree])).toEqual({
+        kind: "library",
+        itemId: "c1z",
+      });
+    });
+
+    it("tell real-size items of one drawing apart by their real size", () => {
+      // one tree drawing at two sizes, drawn at 65 px/m (100/65 cm/px)
+      const tree = (id: string, ringM: number) => {
+        const d = ringM * 2 * 65;
+        return libItem(id, [
+          shape(`${id}-ring`, "ellipse", 0, 0, d, d, {
+            customData: { libraryCmPerPx: 100 / 65 },
+          }),
+          shape(`${id}-crown`, "ellipse", d * 0.3, d * 0.3, d * 0.4, d * 0.4, {
+            backgroundColor: "#b2f2bb",
+            customData: { libraryCmPerPx: 100 / 65 },
+          }),
+        ]);
+      };
+      const c1 = tree("c1", 3);
+      const c3 = tree("c3", 1);
+      // the small one placed on a page at 5 cm/px: 1 m ring = 40 px across
+      const placedC3 = c3.elements.map((e, i) => ({
+        ...e,
+        id: `p${i}`,
+        x: 100 + (e.x * (100 / 65)) / 5,
+        y: 100 + (e.y * (100 / 65)) / 5,
+        width: (e.width * (100 / 65)) / 5,
+        height: (e.height * (100 / 65)) / 5,
+        groupIds: ["g1"],
+        customData: { libraryCmPerPx: 5 },
+      }));
+      expect(target(placedC3, [c1, c3])).toEqual({
+        kind: "library",
+        itemId: "c3",
+      });
+    });
+
+    it("a lone line or arrow matches on its look, whatever its length", () => {
+      const boring = libItem("boring", [
+        {
+          ...API.createElement({
+            type: "arrow",
+            id: "ar",
+            width: 215,
+            height: 0,
+          }),
+          startArrowhead: "circle_outline",
+          endArrowhead: "circle_outline",
+        },
+      ]);
+      const plainArrow = libItem("arrow", [
+        API.createElement({ type: "arrow", id: "pa", width: 100, height: 0 }),
+      ]);
+      const placedBoring = {
+        ...boring.elements[0],
+        id: "pb",
+        x: 40,
+        y: 90,
+        width: 480,
+        height: 30,
+        customData: { librarySymbol: true },
+      };
+      expect(target([placedBoring], [plainArrow, boring])).toEqual({
+        kind: "library",
+        itemId: "boring",
+      });
+    });
+
+    it("a drawing like no item is nothing", () => {
+      const els = [
+        shape("x1", "rectangle", 0, 0, 100, 100, {
+          groupIds: ["g9"],
+          customData: { libraryCmPerPx: 1.5 },
+        }),
+        shape("x2", "rectangle", 10, 10, 20, 70, {
+          groupIds: ["g9"],
+          customData: { libraryCmPerPx: 1.5 },
+        }),
+      ];
+      expect(target(els, [avp])).toBeNull();
+    });
+
+    it("a shape the user drew is never taken for an item", () => {
+      // drawn, not placed: it carries none of the library's scale marks
+      const own = placedCopy(duct("d", "#000"), 1).map(
+        ({ customData, ...e }) => e,
+      );
+      expect(target(own, [duct("d", "#000")])).toBeNull();
+    });
+  });
+
   it("is nothing for a plain shape or an empty selection", () => {
     const rect = API.createElement({ type: "rectangle", id: "r1" });
     expect(selectionTarget([rect], ids("r1"))).toBeNull();
@@ -249,14 +435,48 @@ describe("a selection opens its sidebar tab", () => {
     expect(rows[0].classList.contains("vt-selected")).toBe(true);
   });
 
-  it("on a screen too narrow for the sidebar, a selection leaves it closed", () => {
+  it("on a phone, a selection leaves the sidebar closed", () => {
     h.app.device = {
       ...h.app.device,
-      editor: { ...h.app.device.editor, canFitSidebar: false },
+      editor: { ...h.app.device.editor, isMobile: true, canFitSidebar: false },
     };
     API.setElements([pdfPage(), placed("e1", "avp")]);
     API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
     expect(h.state.openSidebar).toBeNull();
+  });
+
+  it("on a narrow desktop window it still opens, over the drawing", () => {
+    // e.g. a laptop with display scaling: narrower than the docked sidebar needs
+    h.app.device = {
+      ...h.app.device,
+      editor: { ...h.app.device.editor, isMobile: false, canFitSidebar: false },
+    };
+    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
+  });
+
+  it("an item placed before items were tagged still opens the library", async () => {
+    const [avpItem] = h.app.library.getLatestLibrary
+      ? (await h.app.library.getLatestLibrary()).filter((i) => i.id === "avp")
+      : [];
+    const copy = {
+      ...avpItem.elements[0],
+      id: "old1",
+      x: 400,
+      y: 400,
+      width: avpItem.elements[0].width * 2,
+      height: avpItem.elements[0].height * 2,
+      customData: { libraryCmPerPx: 1.5 },
+    };
+    API.setElements([pdfPage(), copy]);
+    API.setSelectedElements([h.elements.find((e) => e.id === "old1")!]);
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
+    await waitFor(() =>
+      expect(queryByTestId(lib(), "library-revealed")?.textContent).toContain(
+        "aVP buiten 5 × 5 m",
+      ),
+    );
   });
 
   it("a plain shape leaves the sidebar as it is", () => {

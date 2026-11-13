@@ -401,6 +401,7 @@ import Library, {
   distributeLibraryItemsOnSquareGrid,
   getCalibrationScale,
   isValidCmPerPx,
+  libraryItemsAtom,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
 import {
@@ -3037,7 +3038,10 @@ class App extends React.Component<AppProps, AppState> {
     const target = selectionTarget(
       this.scene.getNonDeletedElements(),
       this.state.selectedElementIds,
-      { trees: !!this.props.vrijTraceEnabled },
+      {
+        trees: !!this.props.vrijTraceEnabled,
+        libraryItems: editorJotaiStore.get(libraryItemsAtom).libraryItems,
+      },
     );
     const key = selectionTargetKey(target);
     const quiet = this.quietSelection;
@@ -3048,7 +3052,7 @@ class App extends React.Component<AppProps, AppState> {
     this.selectionSidebarKey = key;
     this.pendingSelectionSidebar = null;
     // on a phone the sidebar would cover the drawing being worked on
-    if (!target || quiet || !this.device.editor.canFitSidebar) {
+    if (!target || quiet || this.device.editor.isMobile) {
       return;
     }
     if (
