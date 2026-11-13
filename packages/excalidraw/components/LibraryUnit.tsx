@@ -54,6 +54,7 @@ export const LibraryUnit = memo(
     svgCache,
     frame,
     caption,
+    revealed = false,
   }: {
     id: LibraryItem["id"] | /** for pending item */ null;
     elements?: LibraryItem["elements"];
@@ -65,8 +66,16 @@ export const LibraryUnit = memo(
     svgCache: SvgCache;
     frame?: LibraryUnitFrame;
     caption?: string;
+    /** placed from this item, and selected on the canvas */
+    revealed?: boolean;
   }) => {
     const ref = useRef<HTMLDivElement | null>(null);
+    // bring the tile of the item selected on the canvas into view
+    useEffect(() => {
+      if (revealed) {
+        ref.current?.scrollIntoView?.({ block: "nearest" });
+      }
+    }, [revealed]);
     const svg = useLibraryItemSvg(id, elements, svgCache);
 
     useEffect(() => {
@@ -101,6 +110,7 @@ export const LibraryUnit = memo(
           "library-unit__active": elements,
           "library-unit--hover": elements && isHovered,
           "library-unit--selected": selected,
+          "library-unit--revealed": revealed,
           "library-unit--skeleton": !svg,
         })}
         onMouseEnter={() => setIsHovered(true)}

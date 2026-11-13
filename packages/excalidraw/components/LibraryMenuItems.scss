@@ -99,6 +99,39 @@
 }
 
 .excalidraw {
+  // the item the canvas selection was placed from
+  .library-revealed {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-surface-primary-container);
+    margin-bottom: 0.5rem;
+  }
+
+  .library-revealed__label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-primary-darker);
+  }
+
+  .library-revealed__name {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary-color);
+  }
+
+  .library-revealed__group {
+    font-size: 0.8125rem;
+    color: var(--color-gray-60);
+  }
+
   .library-search {
     box-sizing: border-box;
     width: 100%;

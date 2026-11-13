@@ -28,6 +28,7 @@ import { atom, useAtom } from "../editor-jotai";
 import { t } from "../i18n";
 
 import { getSelectedElements } from "../scene";
+import { selectionTarget } from "../selectionSidebar";
 
 import {
   useApp,
@@ -68,6 +69,7 @@ const LibraryMenuContent = memo(
     theme,
     selectedItems,
     onSelectItems,
+    revealedItemId,
   }: {
     pendingElements: LibraryItem["elements"];
     onInsertLibraryItems: (libraryItems: LibraryItems) => void;
@@ -79,6 +81,8 @@ const LibraryMenuContent = memo(
     theme: UIAppState["theme"];
     selectedItems: LibraryItem["id"][];
     onSelectItems: (id: LibraryItem["id"][]) => void;
+    /** the item the canvas selection was placed from */
+    revealedItemId: LibraryItem["id"] | null;
   }) => {
     const [libraryItemsData] = useAtom(libraryItemsAtom);
 
@@ -152,6 +156,7 @@ const LibraryMenuContent = memo(
           theme={theme}
           onSelectItems={onSelectItems}
           selectedItems={selectedItems}
+          revealedItemId={revealedItemId}
         />
         {showBtn && (
           <LibraryMenuControlButtons
@@ -265,6 +270,15 @@ export const LibraryMenu = memo(() => {
   const [selectedItems, setSelectedItems] = useState<LibraryItem["id"][]>([]);
   const memoizedLibrary = useMemo(() => app.library, [app.library]);
   const pendingElements = usePendingElementsMemo(appState, app);
+  const elements = useExcalidrawElements();
+  // a placed library item selected on the canvas shows its tile here (a tree
+  // too: Vrij Tracé has its check, the library still knows where it came from)
+  const revealedItemId = useMemo(() => {
+    const target = selectionTarget(elements, appState.selectedElementIds, {
+      trees: false,
+    });
+    return target?.kind === "library" ? target.itemId : null;
+  }, [elements, appState.selectedElementIds]);
 
   const onInsertLibraryItems = useCallback(
     (libraryItems: LibraryItems) => {
@@ -295,6 +309,7 @@ export const LibraryMenu = memo(() => {
       theme={appState.theme}
       selectedItems={selectedItems}
       onSelectItems={setSelectedItems}
+      revealedItemId={revealedItemId}
     />
   );
 });

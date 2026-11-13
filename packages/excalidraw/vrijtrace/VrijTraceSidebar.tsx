@@ -8,6 +8,8 @@ import {
   useExcalidrawElements,
 } from "../components/App";
 
+import { selectionTarget } from "../selectionSidebar";
+
 import { checkTree } from "./geometry";
 import {
   centreOf,
@@ -112,10 +114,56 @@ export const VrijTraceSidebar = () => {
       s.active,
     ),
   }));
+  // the tree selected on the plan: a card on top, its row highlighted
+  const target = selectionTarget(elements, appState.selectedElementIds);
+  const selectedIndex =
+    target?.kind === "tree" && target.pageId === page.id
+      ? trees.findIndex(({ t }) => t.id === target.ringId)
+      : -1;
+  const selectedTree = selectedIndex >= 0 ? trees[selectedIndex] : null;
   const passing = trees.filter(({ r }) => r.pass === true).length;
   const failing = trees.filter(({ r }) => r.pass === false).length;
   return (
     <div className="vt-side">
+      {selectedTree && (
+        <div className="vt-selected-tree" data-testid="vt-selected-tree">
+          <div className="vt-selected-tree__head">
+            <span className="vt-h">{STR.selectedTree.title}</span>
+            <span>{STR.selectedTree.number(selectedIndex + 1)}</span>
+          </div>
+          <b className="vt-selected-tree__name">{treeName(selectedTree.t)}</b>
+          <dl className="vt-dl">
+            <dt>{STR.selectedTree.distance}</dt>
+            <dd className={selectedTree.r.pass === false ? "vt-bad" : ""}>
+              {selectedTree.r.distanceM === null
+                ? "—"
+                : `${fmt(selectedTree.r.distanceM)} m`}
+            </dd>
+            <dt>{STR.table.verdict}</dt>
+            <dd
+              className={
+                selectedTree.r.pass === null
+                  ? ""
+                  : selectedTree.r.pass
+                  ? "vt-ok"
+                  : "vt-bad"
+              }
+            >
+              {selectedTree.r.pass === null
+                ? "—"
+                : selectedTree.r.pass
+                ? STR.table.ok
+                : STR.table.conflict}
+            </dd>
+            <dt>{STR.table.zones}</dt>
+            <dd className="vt-zones">
+              <ZoneMark kind="trench" on={selectedTree.r.inside} />
+              <ZoneMark kind="red" on={selectedTree.r.red} />
+              <ZoneMark kind="work" on={selectedTree.r.work} />
+            </dd>
+          </dl>
+        </div>
+      )}
       <div className="vt-status">
         <span
           data-testid="vt-zone-state"
@@ -205,9 +253,12 @@ export const VrijTraceSidebar = () => {
                 return (
                   <tr
                     key={t.id}
-                    className={
-                      appState.vrijTrace.hotTreeId === t.id ? "vt-hot" : ""
-                    }
+                    className={[
+                      appState.vrijTrace.hotTreeId === t.id ? "vt-hot" : "",
+                      i === selectedIndex ? "vt-selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     onPointerEnter={outline}
                     onPointerLeave={() => app.vrijTrace.setHotTree(null)}
                     onClick={outline}

@@ -71,6 +71,7 @@ export default function LibraryMenuItems({
   libraryReturnUrl,
   onSelectItems,
   selectedItems,
+  revealedItemId = null,
 }: {
   isLoading: boolean;
   libraryItems: LibraryItems;
@@ -82,6 +83,8 @@ export default function LibraryMenuItems({
   id: string;
   selectedItems: LibraryItem["id"][];
   onSelectItems: (id: LibraryItem["id"][]) => void;
+  /** the item the canvas selection was placed from: shown and highlighted */
+  revealedItemId?: LibraryItem["id"] | null;
 }) {
   const libraryContainerRef = useRef<HTMLDivElement>(null);
   const scrollPosition = useScrollPosition<HTMLDivElement>(libraryContainerRef);
@@ -116,6 +119,40 @@ export default function LibraryMenuItems({
     }
     setFoldVersion((v) => v + 1);
   }, []);
+
+  const revealedItem = useMemo(
+    () => libraryItems.find((item) => item.id === revealedItemId) ?? null,
+    [libraryItems, revealedItemId],
+  );
+  // a newly selected item: unfold its group, and drop a search that hides it
+  useEffect(() => {
+    if (!revealedItem) {
+      return;
+    }
+    const group =
+      typeof revealedItem.group === "string" ? revealedItem.group : null;
+    if (group && foldedGroups.delete(group)) {
+      setFoldVersion((v) => v + 1);
+    }
+    setQuery("");
+  }, [revealedItem]);
+
+  // under the heading of the library the item is in
+  const revealedCard = revealedItem && (
+    <div className="library-revealed" data-testid="library-revealed">
+      <span className="library-revealed__label">
+        {t("library.selectedOnCanvas")}
+      </span>
+      <span className="library-revealed__name">
+        {[revealedItem.name, revealedItem.caption].find(
+          (v) => typeof v === "string" && v,
+        ) ?? t("library.selectedOnCanvasUnnamed")}
+      </span>
+      {typeof revealedItem.group === "string" && revealedItem.group && (
+        <span className="library-revealed__group">{revealedItem.group}</span>
+      )}
+    </div>
+  );
 
   const showBtn = !libraryItems.length && !pendingElements.length;
 
@@ -278,6 +315,7 @@ export default function LibraryMenuItems({
               {t("labels.personalLib")}
             </div>
           )}
+          {revealedItem?.status !== "published" && revealedCard}
           {isLoading && (
             <div
               style={{
@@ -322,6 +360,7 @@ export default function LibraryMenuItems({
                 onClick={onItemClick}
                 isItemSelected={isItemSelected}
                 svgCache={svgCache}
+                revealedItemId={revealedItemId}
               />
             </LibraryMenuSectionGrid>
           )}
@@ -337,6 +376,7 @@ export default function LibraryMenuItems({
           )}
           {publishedItems.length > 0 ? (
             <>
+              {revealedItem?.status === "published" && revealedCard}
               <input
                 // "text", not "search": the canvas ignores keys typed in text
                 // inputs, but would take a search input's keys as shortcuts
@@ -378,6 +418,7 @@ export default function LibraryMenuItems({
                         onClick={onItemClick}
                         isItemSelected={isItemSelected}
                         svgCache={svgCache}
+                        revealedItemId={revealedItemId}
                       />
                     </LibraryMenuSectionGrid>
                   </React.Fragment>

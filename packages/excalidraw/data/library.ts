@@ -481,6 +481,9 @@ export const distributeLibraryItemsOnSquareGrid = (
       // eslint-disable-next-line no-loop-func
       ...item.elements.map((element) => ({
         ...element,
+        // a placed item remembers where it came from, so selecting it can
+        // show its tile in the library
+        customData: { ...element.customData, libraryItemId: item.id },
         x:
           element.x +
           // offset for column

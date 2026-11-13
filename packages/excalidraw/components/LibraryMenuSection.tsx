@@ -30,6 +30,8 @@ interface Props {
   itemsRenderedPerBatch: number;
   /** draw every tile to this size, so the items share one scale */
   frame?: LibraryUnitFrame;
+  /** the item the canvas selection was placed from */
+  revealedItemId?: LibraryItem["id"] | null;
 }
 
 export const LibraryMenuSectionGrid = ({
@@ -50,6 +52,7 @@ export const LibraryMenuSection = memo(
     svgCache,
     itemsRenderedPerBatch,
     frame,
+    revealedItemId = null,
   }: Props) => {
     const [, startTransition] = useTransition();
     const [index, setIndex] = useState(0);
@@ -73,6 +76,7 @@ export const LibraryMenuSection = memo(
               svgCache={svgCache}
               id={item?.id}
               selected={isItemSelected(item.id)}
+              revealed={!!item?.id && item.id === revealedItemId}
               onToggle={onItemSelectToggle}
               onDrag={onItemDrag}
               frame={frame}

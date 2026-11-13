@@ -155,6 +155,8 @@
     "shapeSwitch": "Vorm wisselen"
   },
   "library": {
+    "selectedOnCanvas": "In tekening geselecteerd",
+    "selectedOnCanvasUnnamed": "Bibliotheekitem",
     "noItems": "Nog geen items toegevoegd...",
     "hint_emptyLibrary": "Selecteer een item op het canvas om het hier toe te voegen.",
     "hint_emptyPrivateLibrary": "Selecteer een item op het canvas om het hier toe te voegen.",

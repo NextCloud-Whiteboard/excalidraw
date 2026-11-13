@@ -31,6 +31,9 @@ import {
   APP_NAME,
   CURSOR_TYPE,
   DEFAULT_MAX_IMAGE_WIDTH_OR_HEIGHT,
+  DEFAULT_SIDEBAR,
+  LIBRARY_SIDEBAR_TAB,
+  VRIJTRACE_SIDEBAR_TAB,
   DEFAULT_VERTICAL_ALIGN,
   DRAGGING_THRESHOLD,
   ELEMENT_SHIFT_TRANSLATE_AMOUNT,
@@ -423,6 +426,7 @@ import {
   trenchPartsOf,
 } from "../vrijtrace/model";
 import { resizeElementsAroundCentre } from "../pdfCalibration";
+import { selectionTarget, selectionTargetKey } from "../selectionSidebar";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
 import { defaultLang, getLanguage, languages, setLanguage, t } from "../i18n";
@@ -673,6 +677,12 @@ class App extends React.Component<AppProps, AppState> {
   public scene: Scene;
   /** Vrij Tracé tool (trench planning on imported PDF pages) */
   public vrijTrace: VrijTraceController;
+  /** what the selection last pointed the sidebar at (see openSidebarForSelection) */
+  private selectionSidebarKey: string | null = null;
+  /** the next selection comes from a paste or library insert: no tab switch */
+  private quietSelection = false;
+  /** a tab to open once the pointer that made the selection is released */
+  private pendingSelectionSidebar: AppState["openSidebar"] = null;
   public fonts: Fonts;
   public renderer: Renderer;
   public visibleElements: readonly NonDeletedExcalidrawElement[];
@@ -3018,10 +3028,62 @@ class App extends React.Component<AppProps, AppState> {
     this.setState({ rulerCalibration: null });
   };
 
+  /**
+   * Selecting one tree on a PDF page shows its check in the Vrij Tracé tab;
+   * selecting one placed library item shows its tile in the library. Once per
+   * selection, so the user can still close the sidebar or switch tabs.
+   */
+  private openSidebarForSelection() {
+    const target = selectionTarget(
+      this.scene.getNonDeletedElements(),
+      this.state.selectedElementIds,
+      { trees: !!this.props.vrijTraceEnabled },
+    );
+    const key = selectionTargetKey(target);
+    const quiet = this.quietSelection;
+    this.quietSelection = false;
+    if (key === this.selectionSidebarKey) {
+      return;
+    }
+    this.selectionSidebarKey = key;
+    this.pendingSelectionSidebar = null;
+    // on a phone the sidebar would cover the drawing being worked on
+    if (!target || quiet || !this.device.editor.canFitSidebar) {
+      return;
+    }
+    if (
+      target.kind === "tree" &&
+      this.state.vrijTrace.pageId !== target.pageId
+    ) {
+      this.vrijTrace.setUI({ pageId: target.pageId, hotTreeId: null });
+    }
+    const openSidebar = {
+      name: DEFAULT_SIDEBAR.name,
+      tab: target.kind === "tree" ? VRIJTRACE_SIDEBAR_TAB : LIBRARY_SIDEBAR_TAB,
+    };
+    // an undocked sidebar closes on a canvas pointerdown, the very press that
+    // selected: open it once the pointer is up (which also keeps a drag calm)
+    if (this.state.cursorButton === "down") {
+      this.pendingSelectionSidebar = openSidebar;
+    } else {
+      this.setState({ openSidebar });
+    }
+  }
+
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
     this.updateRulerCalibration(prevState);
     if (prevState.selectedElementIds !== this.state.selectedElementIds) {
       this.vrijTrace.followSelection();
+      this.openSidebarForSelection();
+    }
+    if (
+      this.pendingSelectionSidebar &&
+      prevState.cursorButton === "down" &&
+      this.state.cursorButton === "up"
+    ) {
+      const openSidebar = this.pendingSelectionSidebar;
+      this.pendingSelectionSidebar = null;
+      this.setState({ openSidebar });
     }
     this.migrateLegacyTrench();
     if (
@@ -3653,6 +3715,8 @@ class App extends React.Component<AppProps, AppState> {
     const nextElementsToSelect = excludeElementsInFramesFromSelection(
       selectableCopies(duplicatedElements),
     );
+    // placing a tree from the library must not swap the library for Vrij Tracé
+    this.quietSelection = true;
 
     this.setState(
       {

@@ -26,6 +26,13 @@
       border-width: 1px;
     }
 
+    // placed from this item, and selected on the canvas
+    &--revealed {
+      border: 2px solid var(--color-primary);
+      background-color: var(--color-surface-primary-container);
+      box-shadow: 0 0 0 3px var(--color-surface-primary-container);
+    }
+
     &--skeleton {
       opacity: 0.5;
       background: linear-gradient(

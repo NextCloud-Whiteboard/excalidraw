@@ -72,6 +72,12 @@ export const STR = {
     redValue: (side: string) => `2,00 m · ${side}`,
     workValue: (m: string, side: string) => `${m} m · ${side}`,
   },
+  /** the tree selected on the plan, above the overview */
+  selectedTree: {
+    title: "Geselecteerde boom",
+    number: (n: number) => `nr. ${n}`,
+    distance: "Afstand ring tot sleuf",
+  },
   table: {
     title: "Boomcontrole",
     number: "#",
