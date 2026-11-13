@@ -687,6 +687,7 @@
     "converting": "Converting...",
     "finalizing": "Finalizing conversion...",
     "almostReady": "Almost ready...",
+    "tooLarge": "{{name}} is too large to import: {{size}} MB, the limit is {{max}} MB.",
     "failedToImport": "Failed to import PDF: {{message}}",
     "uploading": "Uploading · {{percent}}%",
     "convertingOnServer": "Converting on the server…",

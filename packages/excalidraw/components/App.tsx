@@ -400,7 +400,11 @@ import Library, {
   isValidCmPerPx,
 } from "../data/library";
 import { restore, restoreElements } from "../data/restore";
-import { blobText, uploadForConversion } from "../pdfImport/upload";
+import {
+  blobText,
+  converterReason,
+  uploadForConversion,
+} from "../pdfImport/upload";
 import {
   CM_PER_UNIT,
   isRulerLine,
@@ -11366,6 +11370,25 @@ class App extends React.Component<AppProps, AppState> {
    * the conversion on the server, then each page as it is placed.
    */
   public importPdf = async (pdfFile: File) => {
+    // too large for the host's limit: say so at once instead of uploading
+    // a file the converter will not finish
+    const maxMB = this.props.maxPdfFileSizeMB;
+    if (maxMB && maxMB > 0 && pdfFile.size > maxMB * 1024 * 1024) {
+      const mb = (bytes: number) =>
+        (bytes / (1024 * 1024)).toLocaleString(getLanguage().code, {
+          maximumFractionDigits: 1,
+        });
+      this.setToast({
+        message: t("pdfImport.tooLarge", {
+          name: pdfFile.name,
+          size: mb(pdfFile.size),
+          max: mb(maxMB * 1024 * 1024),
+        }),
+        closable: true,
+        duration: 8000,
+      });
+      return;
+    }
     this.pdfImportRun?.abort();
     const zoom = this.state.zoom.value;
     const availableWidth = (this.state.width * 0.85) / zoom;
@@ -11421,7 +11444,11 @@ class App extends React.Component<AppProps, AppState> {
         return;
       }
       if (!response.ok) {
-        throw new Error(response.statusText || `HTTP ${response.status}`);
+        throw new Error(
+          (await converterReason(response.body)) ||
+            response.statusText ||
+            `HTTP ${response.status}`,
+        );
       }
       this.setPdfImport({ stage: "convert" });
 

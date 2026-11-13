@@ -606,6 +606,7 @@
     "converting": "Converteren...",
     "finalizing": "Conversie afronden...",
     "almostReady": "Bijna klaar...",
+    "tooLarge": "{{name}} is te groot om te importeren: {{size}} MB, de limiet is {{max}} MB.",
     "failedToImport": "PDF importeren mislukt: {{message}}",
     "uploading": "Uploaden · {{percent}}%",
     "convertingOnServer": "Converteren op de server…",

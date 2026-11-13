@@ -117,6 +117,21 @@ describe("PDF import placeholder", () => {
     expect(h.state.pdfImport?.stage).toBe("upload");
   });
 
+  it("shows the converter's own reason when it gives one", async () => {
+    await start();
+    act(() =>
+      FakeXHR.last.respond(
+        500,
+        JSON.stringify({ error: "Image size exceeds limit" }),
+        "application/json",
+        "Internal Server Error",
+      ),
+    );
+    await waitFor(() => expect(h.state.pdfImport?.stage).toBe("error"));
+    expect(placeholder()?.textContent).toContain("Image size exceeds limit");
+    expect(placeholder()?.textContent).not.toContain("Internal Server Error");
+  });
+
   it("cancel stops the upload and removes the placeholder", async () => {
     await start();
     fireEvent.click(container.querySelector(".PdfImportPlaceholder__cancel")!);
@@ -191,5 +206,54 @@ describe("PDF import placeholder", () => {
     );
     expect(job.y + job.height / 2).toBeCloseTo(centre.y);
     expect(job.x).toBeCloseTo(centre.x);
+  });
+});
+
+describe("PDF import size limit", () => {
+  beforeEach(() => {
+    FakeXHR.all = [];
+    vi.stubGlobal("XMLHttpRequest", FakeXHR);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** a PDF of the given size in MB */
+  const pdfOf = (mb: number) =>
+    new File([new Uint8Array(Math.round(mb * 1024 * 1024))], "OV-100.pdf", {
+      type: "application/pdf",
+    });
+
+  it("refuses a PDF over the limit at once: no upload, no placeholder", async () => {
+    await render(
+      <Excalidraw pdfApiUrl="http://pdf.test" maxPdfFileSizeMB={10} />,
+    );
+    await act(() => h.app.importPdf(pdfOf(33.6)));
+    expect(FakeXHR.all).toHaveLength(0);
+    expect(h.state.pdfImport).toBeNull();
+    expect(h.state.toast?.message).toContain("OV-100.pdf");
+    expect(h.state.toast?.message).toContain("33.6 MB");
+    expect(h.state.toast?.message).toContain("10 MB");
+  });
+
+  it("imports a PDF within the limit as usual", async () => {
+    await render(
+      <Excalidraw pdfApiUrl="http://pdf.test" maxPdfFileSizeMB={10} />,
+    );
+    act(() => {
+      void h.app.importPdf(pdfOf(9.5));
+    });
+    await waitFor(() => expect(FakeXHR.all).toHaveLength(1));
+    expect(h.state.pdfImport?.stage).toBe("upload");
+    expect(h.state.toast).toBeNull();
+  });
+
+  it("has no limit unless the host sets one", async () => {
+    await render(<Excalidraw pdfApiUrl="http://pdf.test" />);
+    act(() => {
+      void h.app.importPdf(pdfOf(33.6));
+    });
+    await waitFor(() => expect(FakeXHR.all).toHaveLength(1));
   });
 });

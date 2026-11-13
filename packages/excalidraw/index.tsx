@@ -57,6 +57,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     showDeprecatedFonts,
     renderScrollbars,
     pdfApiUrl,
+    maxPdfFileSizeMB,
     vrijTraceEnabled,
     vrijTraceUser,
     onVrijTraceEditing,
@@ -154,6 +155,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           showDeprecatedFonts={showDeprecatedFonts}
           renderScrollbars={renderScrollbars}
           pdfApiUrl={pdfApiUrl}
+          maxPdfFileSizeMB={maxPdfFileSizeMB}
           vrijTraceEnabled={vrijTraceEnabled}
           vrijTraceUser={vrijTraceUser}
           onVrijTraceEditing={onVrijTraceEditing}

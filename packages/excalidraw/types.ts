@@ -721,6 +721,8 @@ export interface ExcalidrawProps {
   renderScrollbars?: boolean;
   /** PDF-to-image service base URL; falls back to VITE_APP_PDF_API */
   pdfApiUrl?: string;
+  /** refuse PDFs larger than this many MB before uploading; no limit if unset */
+  maxPdfFileSizeMB?: number;
   /** show the Vrij Tracé tool (trench planning on imported PDF pages) */
   vrijTraceEnabled?: boolean;
   /** the current user, recorded when someone activates zones */

@@ -15,6 +15,17 @@ export const blobText = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
+/** the reason a failed conversion gives in its JSON body ({ error } or { detail }) */
+export const converterReason = async (body: Blob): Promise<string | null> => {
+  try {
+    const json = JSON.parse(await blobText(body));
+    const reason = json?.error ?? json?.detail ?? json?.message;
+    return typeof reason === "string" && reason.trim() ? reason.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * POST a PDF to the converter with XMLHttpRequest, which (unlike fetch)
  * reports how much of the upload has been sent.
