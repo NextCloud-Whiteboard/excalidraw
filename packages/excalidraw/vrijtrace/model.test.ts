@@ -678,9 +678,42 @@ describe("a sleuf's direction", () => {
     { x: -1, y: -8 },
   ];
 
-  it("is horizontal within 45° of horizontal, else vertical, from start to end", () => {
+  it("is horizontal up to 22,5°, vertical beyond 67,5°, diagonal between, from start to end", () => {
     expect(directionOf(h)).toBe("horizontaal");
     expect(directionOf(v)).toBe("verticaal");
+    // y runs down the page: going right and up rises, right and down falls
+    expect(
+      directionOf([
+        { x: 0, y: 0 },
+        { x: 10, y: -10 },
+      ]),
+    ).toBe("oplopend");
+    expect(
+      directionOf([
+        { x: 0, y: 0 },
+        { x: 10, y: 5 },
+      ]),
+    ).toBe("aflopend");
+    // drawn the other way round: the same sleuf
+    expect(
+      directionOf([
+        { x: 10, y: -10 },
+        { x: 0, y: 0 },
+      ]),
+    ).toBe("oplopend");
+    // just inside each range
+    expect(
+      directionOf([
+        { x: 0, y: 0 },
+        { x: 10, y: 4 },
+      ]),
+    ).toBe("horizontaal");
+    expect(
+      directionOf([
+        { x: 0, y: 0 },
+        { x: 4, y: 10 },
+      ]),
+    ).toBe("verticaal");
     // an L: the overall direction counts
     expect(
       directionOf([
@@ -696,6 +729,9 @@ describe("a sleuf's direction", () => {
     expect(REFERENCES_FOR.verticaal).toEqual(["midden", "links", "rechts"]);
     expect(SIDES_FOR.horizontaal).toEqual(["beide", "boven", "onder"]);
     expect(SIDES_FOR.verticaal).toEqual(["beide", "links", "rechts"]);
+    // a diagonal's upper and lower side, named by both directions in the UI
+    expect(REFERENCES_FOR.oplopend).toEqual(["midden", "boven", "onder"]);
+    expect(SIDES_FOR.aflopend).toEqual(["beide", "boven", "onder"]);
   });
 
   it("names a saved choice that does not fit by what is drawn", () => {
@@ -712,6 +748,14 @@ describe("a sleuf's direction", () => {
     expect(fitSide("boven", v)).toBe("rechts");
     expect(fitSide("beide", v)).toBe("beide");
     expect(fitSide("links", v)).toBe("links");
+    // on a rising diagonal the left edge is its upper one
+    const up = [
+      { x: 0, y: 0 },
+      { x: 10, y: -10 },
+    ];
+    expect(fitReference("links", up)).toBe("boven");
+    expect(fitReference("rechts", up)).toBe("onder");
+    expect(fitSide("links", up)).toBe("boven");
   });
 
   it("turns a choice made before drawing into the edge or side of the direction drawn", () => {
@@ -721,6 +765,8 @@ describe("a sleuf's direction", () => {
     expect(forDirection("rechts", "horizontaal")).toBe("onder");
     expect(forDirection("boven", "horizontaal")).toBe("boven");
     expect(forDirection("midden", "verticaal")).toBe("midden");
+    expect(forDirection("links", "oplopend")).toBe("boven");
+    expect(forDirection("onder", "aflopend")).toBe("onder");
     expect(forDirection("beide", "verticaal")).toBe("beide");
     // the pair a choice belongs to, named as on a horizontal line
     expect(pairChoice("links")).toBe("boven");

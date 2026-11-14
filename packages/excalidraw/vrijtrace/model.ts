@@ -404,19 +404,42 @@ const edgeOffset = (
 };
 
 /**
- * A sleuf runs horizontally or vertically: from its first to its last point,
- * within 45° of horizontal is horizontal. Its edges and zone sides are named
- * for that direction: Boven/Onder along a horizontal sleuf, Links/Rechts
- * along a vertical one.
+ * A sleuf runs horizontally, vertically or diagonally, by the angle from its
+ * first to its last point: up to 22,5° from horizontal is horizontal, beyond
+ * 67,5° vertical, between them diagonal, rising (/) or falling (\\) to the
+ * right. Its edges and zone sides are named for that direction: Boven/Onder
+ * along a horizontal sleuf, Links/Rechts along a vertical one, and a
+ * diagonal's upper and lower side by both (Linksboven, Rechtsonder…).
  */
-export type LineDirection = "horizontaal" | "verticaal";
+export type LineDirection =
+  | "horizontaal"
+  | "verticaal"
+  | "oplopend"
+  | "aflopend";
+
+export const isDiagonal = (dir: LineDirection) =>
+  dir === "oplopend" || dir === "aflopend";
+
+const DIAGONAL_FROM = Math.tan((22.5 * Math.PI) / 180);
+const DIAGONAL_TO = Math.tan((67.5 * Math.PI) / 180);
 
 export const directionOf = (pts: readonly Pt[]): LineDirection => {
   const a = pts[0];
   const b = pts[pts.length - 1];
-  return a && b && Math.abs(b.y - a.y) > Math.abs(b.x - a.x)
+  if (!a || !b) {
+    return "horizontaal";
+  }
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const slope = Math.abs(dy) / (Math.abs(dx) || Number.MIN_VALUE);
+  return slope <= DIAGONAL_FROM
+    ? "horizontaal"
+    : slope >= DIAGONAL_TO
     ? "verticaal"
-    : "horizontaal";
+    : // y runs down the page: right and up (or left and down) rises
+    dx * dy < 0
+    ? "oplopend"
+    : "aflopend";
 };
 
 /** a trench line's points in page metres (its direction's frame) */
@@ -430,10 +453,15 @@ export const REFERENCES_FOR: Record<LineDirection, readonly TrenchReference[]> =
   {
     horizontaal: ["midden", "boven", "onder"],
     verticaal: ["midden", "links", "rechts"],
+    // a diagonal's upper and lower edge
+    oplopend: ["midden", "boven", "onder"],
+    aflopend: ["midden", "boven", "onder"],
   };
 export const SIDES_FOR: Record<LineDirection, readonly VrijTraceSide[]> = {
   horizontaal: ["beide", "boven", "onder"],
   verticaal: ["beide", "links", "rechts"],
+  oplopend: ["beide", "boven", "onder"],
+  aflopend: ["beide", "boven", "onder"],
 };
 
 const overallDirection = (pts: readonly Pt[]) => ({
@@ -481,6 +509,14 @@ export const fitSide = (
   );
 };
 
+/** an edge's name for a direction: Bovenrand, Linker rand, Linkerbovenrand… */
+export const edgeName = (dir: LineDirection, ref: TrenchReference) =>
+  ref === "midden" ? STR.labels.middle : STR.edgeNames[dir][ref] ?? ref;
+
+/** a zone side's name for a direction: Boven, Links, Linksboven… */
+export const sideName = (dir: LineDirection, side: VrijTraceSide) =>
+  side === "beide" ? STR.labels.both : STR.sideNames[dir][side] ?? side;
+
 /**
  * Before a sleuf is drawn its direction is not known: an edge or side is
  * chosen as a pair, Boven or Links, Onder or Rechts. `pairChoice` names the
@@ -507,8 +543,9 @@ export const forDirection = <T extends TrenchReference | VrijTraceSide>(
     return c;
   }
   const pair = PAIR[c as keyof typeof PAIR];
+  // a horizontal or diagonal sleuf takes the upper or lower side
   return (
-    dir === "horizontaal" ? pair : pair === "boven" ? "links" : "rechts"
+    dir !== "verticaal" ? pair : pair === "boven" ? "links" : "rechts"
   ) as T;
 };
 

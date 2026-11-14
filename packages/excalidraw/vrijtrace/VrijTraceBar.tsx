@@ -22,6 +22,8 @@ import {
   pageState,
   REFERENCES_FOR,
   SIDES_FOR,
+  edgeName,
+  sideName,
 } from "./model";
 import { STR } from "./strings";
 
@@ -31,22 +33,6 @@ import type { LineDirection, TrenchReference } from "./model";
 import type { UIAppState } from "../types";
 
 const fmt = (n: number) => n.toFixed(2).replace(".", ",");
-
-const SIDE_LABELS: Record<VrijTraceSide, string> = {
-  beide: STR.labels.both,
-  boven: STR.labels.sideTop,
-  onder: STR.labels.sideBottom,
-  links: STR.labels.sideLeft,
-  rechts: STR.labels.sideRight,
-};
-
-const REFERENCE_LABELS: Record<TrenchReference, string> = {
-  midden: STR.labels.middle,
-  boven: STR.labels.top,
-  onder: STR.labels.bottom,
-  links: STR.labels.left,
-  rechts: STR.labels.right,
-};
 
 type ShownDirection = LineDirection | "mixed" | null;
 
@@ -58,8 +44,8 @@ type ShownDirection = LineDirection | "mixed" | null;
 const referenceChoices = (
   dir: ShownDirection,
 ): readonly (readonly [TrenchReference, string])[] =>
-  dir === "horizontaal" || dir === "verticaal"
-    ? REFERENCES_FOR[dir].map((r) => [r, REFERENCE_LABELS[r]] as const)
+  dir && dir !== "mixed"
+    ? REFERENCES_FOR[dir].map((r) => [r, edgeName(dir, r)] as const)
     : [
         ["midden", STR.labels.middle],
         ["boven", STR.pairs.edgeTop],
@@ -70,8 +56,8 @@ const referenceChoices = (
 const sideChoices = (
   dir: ShownDirection,
 ): readonly (readonly [VrijTraceSide, string])[] =>
-  dir === "horizontaal" || dir === "verticaal"
-    ? SIDES_FOR[dir].map((v) => [v, SIDE_LABELS[v]] as const)
+  dir && dir !== "mixed"
+    ? SIDES_FOR[dir].map((v) => [v, sideName(dir, v)] as const)
     : [
         ["beide", STR.labels.both],
         ["boven", STR.pairs.sideTop],

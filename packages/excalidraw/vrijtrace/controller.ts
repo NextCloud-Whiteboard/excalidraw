@@ -40,6 +40,7 @@ import {
   networkIdForPage,
   pageState,
   directionOf,
+  edgeName,
   fitReference,
   fitSide,
   forDirection,
@@ -48,6 +49,7 @@ import {
   pointsForReference,
   sceneToPage,
   settingsOf,
+  sideName,
   trenchLinePoints,
   trenchLineReference,
   trenchLineTreeMin,
@@ -306,14 +308,19 @@ export class VrijTraceController {
     this.app.scheduleCapture();
     // say which edge and sides that made, if any were chosen
     const parts = [
-      reference !== "midden" && STR.drawn.edge(STR.drawn.edges[reference]),
-      redSide !== "beide" && STR.drawn.red(redSide),
-      workSide !== "beide" && STR.drawn.work(workSide),
+      reference !== "midden" &&
+        STR.drawn.edge(edgeName(dir, reference).toLowerCase()),
+      redSide !== "beide" &&
+        STR.drawn.red(sideName(dir, redSide).toLowerCase()),
+      workSide !== "beide" &&
+        STR.drawn.work(sideName(dir, workSide).toLowerCase()),
     ].filter((x): x is string => !!x);
     if (parts.length) {
       const n = getPageParts(this.app.scene.getNonDeletedElements(), pageId)
         .lines.length;
-      this.app.setToast({ message: STR.drawn.message(n, dir, parts) });
+      this.app.setToast({
+        message: STR.drawn.message(n, STR.directionWord[dir], parts),
+      });
     }
   }
 

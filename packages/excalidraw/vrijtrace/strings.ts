@@ -72,12 +72,34 @@ export const STR = {
     redValue: (side: string) => `2,00 m · ${side}`,
     workValue: (m: string, side: string) => `${m} m · ${side}`,
   },
-  /** a sleuf runs one way or the other; the next one is not drawn yet */
+  /** a sleuf runs one way or another; the next one is not drawn yet */
   direction: {
     horizontaal: "horizontaal",
     verticaal: "verticaal",
+    oplopend: "diagonaal ↗",
+    aflopend: "diagonaal ↘",
     mixed: "beide richtingen",
   },
+  /** "Sleuf 3 loopt …" */
+  directionWord: {
+    horizontaal: "horizontaal",
+    verticaal: "verticaal",
+    oplopend: "diagonaal",
+    aflopend: "diagonaal",
+  },
+  /** a sleuf's edges and zone sides, named for its direction */
+  edgeNames: {
+    horizontaal: { boven: "Bovenrand", onder: "Onderrand" },
+    verticaal: { links: "Linker rand", rechts: "Rechter rand" },
+    oplopend: { boven: "Linkerbovenrand", onder: "Rechteronderrand" },
+    aflopend: { boven: "Rechterbovenrand", onder: "Linkeronderrand" },
+  } as Record<string, Record<string, string>>,
+  sideNames: {
+    horizontaal: { boven: "Boven", onder: "Onder" },
+    verticaal: { links: "Links", rechts: "Rechts" },
+    oplopend: { boven: "Linksboven", onder: "Rechtsonder" },
+    aflopend: { boven: "Rechtsboven", onder: "Linksonder" },
+  } as Record<string, Record<string, string>>,
   /** an edge or side chosen before the direction is known */
   pairs: {
     edgeTop: "Bovenrand / linker rand",
@@ -87,12 +109,6 @@ export const STR = {
   },
   /** after drawing: what the chosen pair became */
   drawn: {
-    edges: {
-      boven: "bovenrand",
-      onder: "onderrand",
-      links: "linker rand",
-      rechts: "rechter rand",
-    } as Record<string, string>,
     edge: (name: string) => `getekend met de ${name}`,
     red: (side: string) => `schadepreventie ${side}`,
     work: (side: string) => `werkruimte ${side}`,

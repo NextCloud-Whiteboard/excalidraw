@@ -25,7 +25,9 @@ import {
   pxPerMetre,
   sceneToPage,
   settingsOf,
+  sideName,
   directionOf,
+  edgeName,
   fitReference,
   fitSide,
   linePagePoints,
@@ -177,18 +179,22 @@ export const VrijTraceSidebar = () => {
   const shownDir = vt.shownDirection();
   const asPair = shownDir === null || shownDir === "mixed";
   const referenceText = (r: keyof typeof REFERENCE_TEXT) =>
-    asPair && r !== "midden"
-      ? r === "boven" || r === "links"
+    asPair
+      ? r === "midden"
+        ? REFERENCE_TEXT[r]
+        : r === "boven" || r === "links"
         ? STR.pairs.edgeTop
         : STR.pairs.edgeBottom
-      : REFERENCE_TEXT[r];
+      : edgeName(shownDir, r);
   const sideText = (v: VrijTraceSide) =>
-    asPair && v !== "beide"
-      ? (v === "boven" || v === "links"
-          ? STR.pairs.sideTop
-          : STR.pairs.sideBottom
-        ).toLowerCase()
-      : SIDE_TEXT[v];
+    asPair
+      ? v === "beide"
+        ? SIDE_TEXT[v]
+        : (v === "boven" || v === "links"
+            ? STR.pairs.sideTop
+            : STR.pairs.sideBottom
+          ).toLowerCase()
+      : sideName(shownDir, v).toLowerCase();
   const totalM = lines.reduce((m, x) => m + x.lengthM, 0);
   const trees = s.parts.trees.map((t) => ({
     t,
@@ -317,18 +323,28 @@ export const VrijTraceSidebar = () => {
             </div>
             <div className="vt-set">
               <span>{STR.labels.reference}</span>
-              <b>{REFERENCE_TEXT[selectedLine.reference]}</b>
+              <b>{edgeName(selectedLine.direction, selectedLine.reference)}</b>
             </div>
             <div className="vt-set">
               <span>{STR.summary.red}</span>
-              <b>{STR.summary.redValue(SIDE_TEXT[selectedLine.redSide])}</b>
+              <b>
+                {STR.summary.redValue(
+                  sideName(
+                    selectedLine.direction,
+                    selectedLine.redSide,
+                  ).toLowerCase(),
+                )}
+              </b>
             </div>
             <div className="vt-set">
               <span>{STR.summary.work}</span>
               <b>
                 {STR.summary.workValue(
                   fmt(selectedLine.workWidthM),
-                  SIDE_TEXT[selectedLine.workSide],
+                  sideName(
+                    selectedLine.direction,
+                    selectedLine.workSide,
+                  ).toLowerCase(),
                 )}
               </b>
             </div>
@@ -439,10 +455,10 @@ export const VrijTraceSidebar = () => {
                 </span>
                 <span className="vt-c vt-c--sub">
                   {STR.lists.lineSub(
-                    REFERENCE_TEXT[x.reference],
-                    SIDE_TEXT[x.redSide],
+                    edgeName(x.direction, x.reference),
+                    sideName(x.direction, x.redSide).toLowerCase(),
                     fmt(x.workWidthM),
-                    SIDE_TEXT[x.workSide],
+                    sideName(x.direction, x.workSide).toLowerCase(),
                   )}
                 </span>
               </li>

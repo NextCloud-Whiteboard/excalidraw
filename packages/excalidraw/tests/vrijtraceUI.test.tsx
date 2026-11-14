@@ -532,6 +532,47 @@ describe("Vrij Tracé UI", () => {
     ]);
   });
 
+  it("a diagonal sleuf offers its upper and lower edge, named by both directions", () => {
+    drawLine([100, 400], [400, 100]); // rising
+    drawLine([500, 100], [800, 400]); // falling
+    const [rising, falling] = lines();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([rising]);
+    expect(byId("vt-direction")!.textContent).toBe("diagonaal ↗");
+    expect(options("vt-reference")).toEqual([
+      ["midden", "Middenlijn"],
+      ["boven", "Linkerbovenrand"],
+      ["onder", "Rechteronderrand"],
+    ]);
+    expect(options("vt-red-side")).toEqual([
+      ["beide", "Beide zijden"],
+      ["boven", "Linksboven"],
+      ["onder", "Rechtsonder"],
+    ]);
+    API.setSelectedElements([falling]);
+    expect(byId("vt-direction")!.textContent).toBe("diagonaal ↘");
+    expect(options("vt-reference")).toEqual([
+      ["midden", "Middenlijn"],
+      ["boven", "Rechterbovenrand"],
+      ["onder", "Linkeronderrand"],
+    ]);
+    expect(options("vt-work-side")).toEqual([
+      ["beide", "Beide zijden"],
+      ["boven", "Rechtsboven"],
+      ["onder", "Linksonder"],
+    ]);
+  });
+
+  it("drawn diagonally, the choice becomes its upper edge, and it says so", () => {
+    pickTool();
+    setRef("boven");
+    drawLine([100, 400], [400, 100]);
+    expect(lines()[0].customData).toMatchObject({ reference: "boven" });
+    expect(h.state.toast?.message).toBe(
+      "Sleuf 1 loopt diagonaal: getekend met de linkerbovenrand.",
+    );
+  });
+
   it("a sleuf saved with an edge its direction lacks shows the edge it is drawn with", () => {
     drawLine([100, 100], [400, 100]);
     const [line] = lines();
