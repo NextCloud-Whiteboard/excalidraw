@@ -227,6 +227,7 @@ const getRelevantAppStateProps = (
   activeTool: appState.activeTool,
   vrijTrace: appState.vrijTrace,
   vrijTraceRemoteHolds: appState.vrijTraceRemoteHolds,
+  openSidebar: appState.openSidebar,
 });
 
 const areEqual = (

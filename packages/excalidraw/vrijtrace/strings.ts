@@ -67,10 +67,35 @@ export const STR = {
     conflict: "conflict",
     settings: "Sleufinstellingen",
     snap: "Uitlijnen",
-    red: "Schadepreventiezone",
+    red: "Schadepreventie",
     work: "Werkruimte",
     redValue: (side: string) => `2,00 m · ${side}`,
     workValue: (m: string, side: string) => `${m} m · ${side}`,
+  },
+  /** the panel's lists, numbered like the labels on the plan */
+  lists: {
+    lines: "Sleuven",
+    trees: "Bomen",
+    elements: "Elementen",
+    linesTotal: (n: number, m: string) => `${n} · ${m} m`,
+    distance: "afstand ring",
+    noLines: "Nog geen sleuven. Teken er een met Vrij Tracé.",
+    lineMain: (width: string, length: string) =>
+      `${width} m breed · ${length} m`,
+    lineSub: (reference: string, red: string, work: string, side: string) =>
+      `${reference} · schadepr. ${red} · werkr. ${work} m ${side}`,
+    unnamed: "Bibliotheekitem",
+  },
+  /** a trench line or another element selected on the plan */
+  selectedLine: {
+    title: "Geselecteerde sleuf",
+    length: "Lengte",
+  },
+  selectedElement: {
+    title: "Geselecteerd element",
+    zones: "Raakt zones",
+    none: "geen",
+    showInLibrary: "Toon in bibliotheek",
   },
   /** the tree selected on the plan, above the overview */
   selectedTree: {

@@ -1,6 +1,10 @@
 import { act, queryByTestId } from "@testing-library/react";
 import React from "react";
 
+import { pointFrom } from "@excalidraw/math";
+
+import type { LocalPoint } from "@excalidraw/math";
+
 import { Excalidraw } from "../index";
 import { selectionTarget } from "../selectionSidebar";
 
@@ -112,6 +116,45 @@ describe("selectionTarget", () => {
     expect(selectionTarget(els, ids("t1", "t1-trunk"))).toEqual({
       kind: "library",
       itemId: "c1z",
+    });
+  });
+
+  it("an item placed on a calibrated page is a Vrij Tracé element", () => {
+    const els = [
+      pdfPage(),
+      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+    ];
+    expect(selectionTarget(els, ids("e1", "e2"))).toEqual({
+      kind: "element",
+      key: "g1",
+      pageId: "pdf1",
+      itemId: "avp",
+    });
+    // the library only wants the item
+    expect(selectionTarget(els, ids("e1", "e2"), { vrijTrace: false })).toEqual(
+      { kind: "library", itemId: "avp" },
+    );
+  });
+
+  it("an item on a page not yet calibrated is its library item", () => {
+    const page = { ...pdfPage(), customData: { isPdf: true } };
+    const els = [page, placed("e1", "avp", { pdfParentId: "pdf1" })];
+    expect(selectionTarget(els, ids("e1"))).toEqual({
+      kind: "library",
+      itemId: "avp",
+    });
+  });
+
+  it("a trench line on a calibrated page is a Vrij Tracé line", () => {
+    const line = {
+      ...API.createElement({ type: "line", id: "l1" }),
+      customData: { tool: "trench", pdfParentId: "pdf1", widthM: 1 },
+    };
+    expect(selectionTarget([pdfPage(), line], ids("l1"))).toEqual({
+      kind: "line",
+      lineId: "l1",
+      pageId: "pdf1",
     });
   });
 
@@ -431,8 +474,88 @@ describe("a selection opens its sidebar tab", () => {
     expect(queryByTestId(container, "vt-selected-tree")!.textContent).toContain(
       "C1 groot, zonder scherm",
     );
-    const rows = queryByTestId(container, "vt-rows")!.querySelectorAll("tr");
+    const rows = queryByTestId(container, "vt-rows")!.querySelectorAll("li");
     expect(rows[0].classList.contains("vt-selected")).toBe(true);
+  });
+
+  it("an item on a PDF page opens Vrij Tracé on it, and leads on to the library", async () => {
+    API.setElements([
+      pdfPage(),
+      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+    ]);
+    API.setSelectedElements(
+      h.elements.filter((e) => e.id === "e1" || e.id === "e2"),
+    );
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "vrijtrace" });
+    await waitFor(() =>
+      expect(
+        queryByTestId(container, "vt-selected-element")?.textContent,
+      ).toContain("aVP buiten 5 × 5 m"),
+    );
+    const [row] = queryByTestId(container, "vt-elements")!.querySelectorAll(
+      "li",
+    );
+    expect(row.classList.contains("vt-selected")).toBe(true);
+    fireEvent.click(queryByTestId(container, "vt-show-in-library")!);
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
+    await waitFor(() =>
+      expect(queryByTestId(lib(), "library-revealed")?.textContent).toContain(
+        "aVP buiten 5 × 5 m",
+      ),
+    );
+  });
+
+  it("a row in Elementen selects its item on the plan", async () => {
+    API.setElements([
+      pdfPage(),
+      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("d1", "duct", { pdfParentId: "pdf1" }),
+    ]);
+    act(() => h.app.vrijTrace.setUI({ pageId: "pdf1" }));
+    await waitFor(() =>
+      expect(
+        queryByTestId(container, "vt-elements")?.querySelectorAll("li"),
+      ).toHaveLength(2),
+    );
+    fireEvent.click(
+      queryByTestId(container, "vt-elements")!.querySelectorAll("li")[1],
+    );
+    expect(Object.keys(h.state.selectedElementIds)).toEqual(["d1"]);
+    fireEvent.click(
+      queryByTestId(container, "vt-elements")!.querySelectorAll("li")[0],
+    );
+    expect(Object.keys(h.state.selectedElementIds).sort()).toEqual([
+      "e1",
+      "e2",
+    ]);
+  });
+
+  it("a trench line on a PDF page opens Vrij Tracé with its card", async () => {
+    const line = {
+      ...API.createElement({
+        type: "line",
+        id: "l1",
+        x: 100,
+        y: 100,
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      }),
+      customData: { tool: "trench", pdfParentId: "pdf1", widthM: 1.5 },
+    };
+    API.setElements([pdfPage(), line]);
+    API.setSelectedElements([h.elements.find((e) => e.id === "l1")!]);
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "vrijtrace" });
+    await waitFor(() =>
+      expect(queryByTestId(container, "vt-selected-line")).not.toBeNull(),
+    );
+    // 200 px at 20 px/m
+    const card = queryByTestId(container, "vt-selected-line")!.textContent;
+    expect(card).toContain("1,50 m");
+    expect(card).toContain("10,00 m");
+    const [row] = queryByTestId(container, "vt-lines")!.querySelectorAll("li");
+    expect(row.classList.contains("vt-selected")).toBe(true);
+    expect(row.textContent).toContain("1,50 m breed · 10,00 m");
   });
 
   it("on a phone, a selection leaves the sidebar closed", () => {

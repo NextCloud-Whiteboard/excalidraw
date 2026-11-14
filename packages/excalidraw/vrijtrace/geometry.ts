@@ -284,6 +284,36 @@ export const distanceToPolygons = (p: Pt, polys: Polygons): number => {
 };
 
 /** the ring around p (radius r) reaches polygons: overlaps or touches them */
+/** the segments a-b and c-d cross or touch */
+const segmentsMeet = (a: Pt, b: Pt, c: Pt, d: Pt) => {
+  const side = (p: Pt, q: Pt, r: Pt) =>
+    Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return side(a, b, c) !== side(a, b, d) && side(c, d, a) !== side(c, d, b);
+};
+
+/**
+ * A footprint (a closed polygon, e.g. an element's box on the page) touches
+ * the zone: a corner lies in it, a zone corner lies in the footprint, or an
+ * edge of each crosses, so a narrow zone running right through counts too.
+ */
+export const polygonTouches = (poly: Pt[], polys: Polygons): boolean => {
+  if (!polys.length || poly.length < 3) {
+    return false;
+  }
+  if (poly.some((p) => pointInPolygons(p, polys))) {
+    return true;
+  }
+  if (polys.some((ring) => ring.some((p) => pointInPolygons(p, [poly])))) {
+    return true;
+  }
+  return poly.some((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    return polys.some((ring) =>
+      ring.some((c, j) => segmentsMeet(a, b, c, ring[(j + 1) % ring.length])),
+    );
+  });
+};
+
 const ringReaches = (p: Pt, r: number, polys: Polygons) =>
   pointInPolygons(p, polys) || distanceToPolygons(p, polys) <= r;
 

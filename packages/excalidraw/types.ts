@@ -253,6 +253,8 @@ export type InteractiveCanvasAppState = Readonly<
     activeTool: AppState["activeTool"];
     vrijTrace: AppState["vrijTrace"];
     vrijTraceRemoteHolds: AppState["vrijTraceRemoteHolds"];
+    /** Vrij Tracé labels its plan while its tab is open */
+    openSidebar: AppState["openSidebar"];
   }
 >;
 

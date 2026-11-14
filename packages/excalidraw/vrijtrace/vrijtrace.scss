@@ -312,8 +312,182 @@
     }
   }
 
-  // the tree selected on the plan, above the overview
-  .vt-selected-tree {
+  .vt-applies {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--color-gray-60);
+  }
+
+  // ---- the overview's parts: cards, lists, settings ----
+
+  .vt-block__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 11.5px;
+    color: var(--color-gray-60);
+  }
+
+  // the file name on its own line, cut short with … when long
+  .vt-fname {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--color-on-surface);
+  }
+
+  // the number on a row, styled like its label on the plan
+  .vt-n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.375rem;
+    height: 1.25rem;
+    padding: 0 0.25rem;
+    box-sizing: border-box;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vt-n--line {
+    background: #315d97;
+  }
+
+  .vt-n--tree {
+    background: #2f6b33;
+    border-radius: 999px;
+  }
+
+  .vt-n--tree-bad {
+    background: #c22b2b;
+    border-radius: 999px;
+  }
+
+  .vt-n--element {
+    background: #5f5a6e;
+    border-radius: 3px;
+  }
+
+  // a list of two-line rows: nothing squeezed into columns
+  .vt-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+  }
+
+  .vt-li {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "n name zones"
+      "n sub zones";
+    align-items: center;
+    column-gap: 0.5rem;
+    row-gap: 0.125rem;
+    margin: 0 !important;
+    padding: 0.375rem !important;
+    border-radius: var(--border-radius-md, 0.375rem);
+    font-size: 12.5px;
+    cursor: pointer;
+
+    & + .vt-li {
+      border-top: 1px solid var(--color-surface-low);
+    }
+  }
+
+  .vt-li--tree {
+    grid-template-columns: 1.75rem auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "n name name name"
+      "n dist verdict zones";
+  }
+
+  .vt-c {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .vt-c--n {
+    grid-area: n;
+    align-self: start;
+  }
+
+  .vt-c--name {
+    grid-area: name;
+    color: var(--color-on-surface);
+  }
+
+  .vt-c--sub {
+    grid-area: sub;
+    font-size: 11.5px;
+    color: var(--color-gray-60);
+  }
+
+  .vt-c--dist {
+    grid-area: dist;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vt-c--verdict {
+    grid-area: verdict;
+  }
+
+  .vt-c--zones {
+    grid-area: zones;
+    white-space: nowrap;
+    justify-self: end;
+  }
+
+  .vt-li.vt-hot,
+  .vt-li.vt-selected {
+    background: var(--color-surface-primary-container);
+  }
+
+  .vt-li.vt-selected {
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+
+  // label and value: the value may take two lines, the label never runs
+  // into it (a long word breaks instead)
+  .vt-sets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .vt-set {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 12.5px;
+    line-height: 1.35;
+
+    span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: var(--color-gray-60);
+    }
+
+    b {
+      max-width: 60%;
+      text-align: right;
+      font-weight: 600;
+      color: var(--color-on-surface);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  // what is selected on the plan, above the overview
+  .vt-card {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -324,128 +498,42 @@
     font-size: 12px;
     color: var(--color-gray-60);
 
-    .vt-dl {
+    .vt-sets {
       margin-top: 0.25rem;
     }
   }
 
-  .vt-selected-tree__head {
+  .vt-card__head {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
   }
 
-  .vt-selected-tree__name {
+  .vt-card__name {
     font-size: 15px;
+    line-height: 1.25;
     color: var(--color-on-surface);
   }
 
-  .vt-applies {
-    margin: 0;
-    font-size: 11.5px;
-    line-height: 1.4;
-    color: var(--color-gray-60);
+  .vt-card__sub {
+    font-size: 12px;
   }
 
-  .vt-dl {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 0.375rem 0.75rem;
-    margin: 0;
-    padding: 0;
+  .vt-link {
+    align-self: flex-start;
+    margin: 0.25rem 0 0 !important;
+    min-height: 0 !important;
+    height: 1.875rem;
+    padding: 0 0.625rem !important;
+    border: 1px solid var(--color-primary) !important;
+    border-radius: var(--border-radius-md, 0.375rem);
+    background: var(--island-bg-color) !important;
+    color: var(--color-primary);
+    font: inherit;
     font-size: 12.5px;
-    line-height: 1.35;
-
-    // the host page gives dt and dd padding, height and alignment of its own
-    dt,
-    dd {
-      margin: 0 !important;
-      padding: 0 !important;
-      min-height: 0 !important;
-      height: auto !important;
-      display: block;
-    }
-
-    dt {
-      text-align: left !important;
-      color: var(--color-gray-60);
-    }
-
-    dd {
-      text-align: right !important;
-      font-weight: 600;
-      color: var(--color-on-surface);
-      font-variant-numeric: tabular-nums;
-    }
+    font-weight: 600;
+    cursor: pointer;
   }
-
-  // fixed columns: the table fits the sidebar, a long tree name wraps
-  .vt-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-    font-size: 12.5px;
-    font-variant-numeric: tabular-nums;
-
-    th,
-    td {
-      padding: 0.375rem 0.25rem;
-      border-bottom: 1px solid var(--color-surface-low);
-      text-align: left;
-      white-space: nowrap;
-    }
-
-    th {
-      font-size: 10.5px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--color-gray-60);
-      vertical-align: bottom;
-      white-space: normal;
-    }
-
-    .vt-col-n {
-      width: 1.25rem;
-    }
-
-    .vt-col-d {
-      width: 4.25rem;
-    }
-
-    .vt-col-v {
-      width: 4.25rem;
-    }
-
-    .vt-col-z {
-      width: 2.75rem;
-    }
-
-    // a row outlines its tree on the plan while pointed at or tapped
-    tbody tr {
-      cursor: pointer;
-    }
-
-    tr.vt-hot td {
-      background: var(--color-surface-primary-container);
-    }
-
-    // the tree selected on the plan
-    tr.vt-selected td {
-      background: var(--color-surface-primary-container);
-    }
-
-    tr.vt-selected td:first-child {
-      box-shadow: inset 3px 0 0 var(--color-primary);
-    }
-
-    // a long tree name wraps, so every column stays in view
-    td.vt-tree-name {
-      white-space: normal;
-    }
-  }
-
   .vt-ok {
     // --color-success is a pale background green; this is its text colour
     color: var(--color-success-text);

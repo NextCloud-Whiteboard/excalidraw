@@ -41,6 +41,15 @@
     }
   }
 
+  // little room beside an open panel: the tools take a second row
+  // (a Stack row is a one-row grid; here it becomes a wrapping flex row)
+  .App-toolbar--wrap .Stack_horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.25rem;
+  }
+
   .App-toolbar__extra-tools-dropdown {
     margin-top: 0.375rem;
     right: 0;

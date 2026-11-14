@@ -3030,8 +3030,9 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   /**
-   * Selecting one tree on a PDF page shows its check in the Vrij Tracé tab;
-   * selecting one placed library item shows its tile in the library. Once per
+   * Selecting one tree, trench line or other placed library item on a
+   * calibrated PDF page shows it in the Vrij Tracé tab; one placed library
+   * item anywhere else shows its tile in the library. Once per
    * selection, so the user can still close the sidebar or switch tabs.
    */
   private openSidebarForSelection() {
@@ -3039,7 +3040,7 @@ class App extends React.Component<AppProps, AppState> {
       this.scene.getNonDeletedElements(),
       this.state.selectedElementIds,
       {
-        trees: !!this.props.vrijTraceEnabled,
+        vrijTrace: !!this.props.vrijTraceEnabled,
         libraryItems: editorJotaiStore.get(libraryItemsAtom).libraryItems,
       },
     );
@@ -3056,14 +3057,15 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
     if (
-      target.kind === "tree" &&
+      target.kind !== "library" &&
       this.state.vrijTrace.pageId !== target.pageId
     ) {
       this.vrijTrace.setUI({ pageId: target.pageId, hotTreeId: null });
     }
     const openSidebar = {
       name: DEFAULT_SIDEBAR.name,
-      tab: target.kind === "tree" ? VRIJTRACE_SIDEBAR_TAB : LIBRARY_SIDEBAR_TAB,
+      tab:
+        target.kind === "library" ? LIBRARY_SIDEBAR_TAB : VRIJTRACE_SIDEBAR_TAB,
     };
     // an undocked sidebar closes on a canvas pointerdown, the very press that
     // selected: open it once the pointer is up (which also keeps a drag calm)

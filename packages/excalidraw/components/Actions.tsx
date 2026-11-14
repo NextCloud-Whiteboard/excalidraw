@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import React from "react";
+import React, { useState } from "react";
 
 import {
   CLASSES,
@@ -59,13 +59,16 @@ import Stack from "./Stack";
 
 import { ToolButton } from "./ToolButton";
 import { Tooltip } from "./Tooltip";
+import DropdownMenu from "./dropdownMenu/DropdownMenu";
 import {
   EmbedIcon,
+  extraToolsIcon,
   frameToolIcon,
   mermaidLogoIcon,
   laserPointerToolIcon,
   MagicIcon,
   LassoIcon,
+  MagnifierIcon,
 } from "./icons";
 
 import type { AppClassProperties, AppProps, UIAppState, Zoom } from "../types";
@@ -369,16 +372,18 @@ export const ShapesSwitcher = ({
   app,
   UIOptions,
   actionManager,
+  compact = false,
 }: {
   activeTool: UIAppState["activeTool"];
   appState: UIAppState;
   app: AppClassProperties;
   UIOptions: AppProps["UIOptions"];
   actionManager: ActionManager;
+  /** little room beside an open panel: the last tools go under Meer */
+  compact?: boolean;
 }) => {
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const frameToolSelected = activeTool.type === "frame";
-  const laserToolSelected = activeTool.type === "laser";
-  const lassoToolSelected = activeTool.type === "lasso";
 
   const embeddableToolSelected = activeTool.type === "embeddable";
 
@@ -463,6 +468,143 @@ export const ShapesSwitcher = ({
 
       <div className="App-toolbar__divider" />
 
+      {compact ? (
+        <MoreTools
+          app={app}
+          activeTool={activeTool}
+          open={isMoreOpen}
+          setOpen={setIsMoreOpen}
+        />
+      ) : (
+        <TrailingTools
+          app={app}
+          activeTool={activeTool}
+          actionManager={actionManager}
+        />
+      )}
+    </>
+  );
+};
+
+const TEXT_BUBBLE_ICON = (
+  <svg
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.25"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 5h12a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+  </svg>
+);
+
+/**
+ * The magnifier, text bubble, laser and lasso under one Meer button, for
+ * when the toolbar has little room (an open panel on a narrow screen). The
+ * button shows the picked tool's icon while one of them is in use.
+ */
+const MoreTools = ({
+  app,
+  activeTool,
+  open,
+  setOpen,
+}: {
+  app: AppClassProperties;
+  activeTool: UIAppState["activeTool"];
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) => {
+  const magnifier =
+    activeTool.type === "custom" && activeTool.customType === "magnifier";
+  const bubble =
+    activeTool.type === "custom" && activeTool.customType === "textbubble";
+  const laser = activeTool.type === "laser";
+  const lasso = activeTool.type === "lasso";
+  return (
+    <DropdownMenu open={open}>
+      <DropdownMenu.Trigger
+        className={clsx("App-toolbar__extra-tools-trigger", {
+          "App-toolbar__extra-tools-trigger--selected":
+            magnifier || bubble || laser || lasso,
+        })}
+        onToggle={() => setOpen(!open)}
+        title={t("toolBar.extraTools")}
+        data-testid="toolbar-more"
+      >
+        {magnifier
+          ? MagnifierIcon
+          : bubble
+          ? TEXT_BUBBLE_ICON
+          : laser
+          ? laserPointerToolIcon
+          : lasso
+          ? LassoIcon
+          : extraToolsIcon}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content
+        onClickOutside={() => setOpen(false)}
+        onSelect={() => setOpen(false)}
+        className="App-toolbar__extra-tools-dropdown"
+      >
+        <DropdownMenu.Item
+          onSelect={() =>
+            app.setActiveTool({ type: "custom", customType: "magnifier" })
+          }
+          icon={MagnifierIcon}
+          data-testid="toolbar-magnifier"
+          selected={magnifier}
+          shortcut="M"
+        >
+          {t("buttons.magnifier")}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          onSelect={() =>
+            app.setActiveTool({ type: "custom", customType: "textbubble" })
+          }
+          icon={TEXT_BUBBLE_ICON}
+          data-testid="toolbar-text-bubble"
+          selected={bubble}
+          shortcut="T"
+        >
+          {t("toolBar.textBubble")}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          onSelect={() => app.setActiveTool({ type: "laser" })}
+          icon={laserPointerToolIcon}
+          data-testid="toolbar-laser"
+          selected={laser}
+          shortcut="K"
+        >
+          {t("toolBar.laser")}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          onSelect={() => app.setActiveTool({ type: "lasso" })}
+          icon={LassoIcon}
+          data-testid="toolbar-lasso"
+          selected={lasso}
+        >
+          {t("toolBar.lasso")}
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu>
+  );
+};
+
+/** the magnifier, text bubble, laser and lasso as toolbar buttons */
+const TrailingTools = ({
+  app,
+  activeTool,
+  actionManager,
+}: {
+  app: AppClassProperties;
+  activeTool: UIAppState["activeTool"];
+  actionManager: ActionManager;
+}) => {
+  const laserToolSelected = activeTool.type === "laser";
+  const lassoToolSelected = activeTool.type === "lasso";
+  return (
+    <>
       {/* Magnifier tool as standalone button */}
       {actionManager && actionManager.renderAction("magnifier")}
 

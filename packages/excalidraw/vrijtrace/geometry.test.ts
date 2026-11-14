@@ -1,4 +1,5 @@
 import {
+  polygonTouches,
   checkTree,
   computeZones,
   distanceToPolygons,
@@ -380,5 +381,41 @@ describe("fingerprint", () => {
       segments: line.segments,
     };
     expect(fingerprint(shuffled, both)).toBe(fingerprint(line, both));
+  });
+});
+
+describe("polygonTouches", () => {
+  // a 2 m wide zone along y = 0 from x = 0 to 10
+  const zone: Polygons = [
+    [
+      { x: 0, y: -1 },
+      { x: 10, y: -1 },
+      { x: 10, y: 1 },
+      { x: 0, y: 1 },
+    ],
+  ];
+  const box = (x: number, y: number, w: number, h: number) => [
+    { x, y },
+    { x: x + w, y },
+    { x: x + w, y: y + h },
+    { x, y: y + h },
+  ];
+
+  it("touches when a corner lies in the zone", () => {
+    expect(polygonTouches(box(4, 0.5, 2, 2), zone)).toBe(true);
+  });
+
+  it("touches when the zone runs right through it, no corner inside", () => {
+    // a 5 m box straddling the 2 m zone
+    expect(polygonTouches(box(3, -2.5, 5, 5), zone)).toBe(true);
+  });
+
+  it("touches when it lies wholly inside the zone", () => {
+    expect(polygonTouches(box(4, -0.5, 1, 1), zone)).toBe(true);
+  });
+
+  it("does not touch when it stays clear", () => {
+    expect(polygonTouches(box(4, 1.5, 2, 2), zone)).toBe(false);
+    expect(polygonTouches(box(4, 1.5, 2, 2), [])).toBe(false);
   });
 });

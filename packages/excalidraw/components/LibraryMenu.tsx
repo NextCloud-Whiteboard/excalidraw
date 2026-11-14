@@ -276,7 +276,7 @@ export const LibraryMenu = memo(() => {
   // too: Vrij Tracé has its check, the library still knows where it came from)
   const revealedItemId = useMemo(() => {
     const target = selectionTarget(elements, appState.selectedElementIds, {
-      trees: false,
+      vrijTrace: false,
       libraryItems,
     });
     return target?.kind === "library" ? target.itemId : null;

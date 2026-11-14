@@ -142,6 +142,13 @@ const DefaultOverwriteConfirmDialog = () => {
   );
 };
 
+/** the panel's width (App sets --right-sidebar-width to the same) */
+const RIGHT_SIDEBAR_WIDTH_PX = 302;
+/** room the toolbar needs with every tool, and with the last ones under
+ * Meer, beside the menu button and the top-right buttons */
+const TOOLBAR_FULL_WIDTH_PX = 860;
+const TOOLBAR_COMPACT_WIDTH_PX = 720;
+
 /** Vrij Tracé's bar under the toolbar: with its tool, or trench lines selected */
 const showsVrijTrace = (
   appState: UIAppState,
@@ -265,6 +272,13 @@ const LayerUI = ({
       elements,
     );
     const vrijTraceActive = showsVrijTrace(appState, elements);
+    // the room the toolbar has: the editor, less an open panel
+    const toolbarRoom =
+      appState.width - (appState.openSidebar ? RIGHT_SIDEBAR_WIDTH_PX : 0);
+    // too little for every tool: the last ones go under Meer, and below
+    // that the toolbar takes a second row rather than slide under the panel
+    const compactToolbar = toolbarRoom < TOOLBAR_FULL_WIDTH_PX;
+    const wrapToolbar = toolbarRoom < TOOLBAR_COMPACT_WIDTH_PX;
 
     const shouldShowStats =
       appState.stats.open &&
@@ -301,7 +315,15 @@ const LayerUI = ({
                           padding={1}
                           className={clsx("App-toolbar", {
                             "zen-mode": appState.zenModeEnabled,
+                            "App-toolbar--wrap": wrapToolbar,
                           })}
+                          style={
+                            // a definite width: in its min-content grid
+                            // column a wrapping row would shrink to one tool
+                            wrapToolbar
+                              ? { width: Math.max(240, toolbarRoom - 112) }
+                              : undefined
+                          }
                         >
                           {/* the Vrij Tracé bar takes the hint's place */}
                           {!vrijTraceActive && (
@@ -351,6 +373,7 @@ const LayerUI = ({
                               UIOptions={UIOptions}
                               app={app}
                               actionManager={actionManager}
+                              compact={compactToolbar}
                             />
                           </Stack.Row>
                         </Island>
@@ -601,11 +624,13 @@ const LayerUI = ({
       {!device.editor.isMobile && (
         <>
           <div
-            className="layer-ui__wrapper"
+            className={clsx("layer-ui__wrapper", {
+              "layer-ui__wrapper--beside-panel": !!appState.openSidebar,
+            })}
             style={
-              appState.openSidebar &&
-              isSidebarDocked &&
-              device.editor.canFitSidebar
+              // the toolbar and the Vrij Tracé bar keep left of an open
+              // panel, also where it cannot dock and lies over the drawing
+              appState.openSidebar
                 ? { width: `calc(100% - var(--right-sidebar-width))` }
                 : {}
             }

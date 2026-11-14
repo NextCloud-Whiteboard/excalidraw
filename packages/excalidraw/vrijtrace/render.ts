@@ -1,3 +1,5 @@
+import { VRIJTRACE_SIDEBAR_TAB } from "@excalidraw/common";
+
 import type {
   ElementsMap,
   ExcalidrawElement,
@@ -27,9 +29,11 @@ import {
   sceneToPage,
   treeRingM,
 } from "./model";
+import { planLabels } from "./labels";
 import { STR } from "./strings";
 
 import type { NetworkGeometry, Polygons, Pt, Zones } from "./geometry";
+import type { PlanLabel } from "./labels";
 import type { PageState } from "./model";
 import type {
   InteractiveCanvasAppState,
@@ -553,6 +557,76 @@ const drawTreeDistances = (
   }
 };
 
+export const LABEL_COLORS: Record<PlanLabel["kind"], string> = {
+  line: "#315d97",
+  tree: "#2f6b33",
+  "tree-bad": "#c22b2b",
+  element: "#5f5a6e",
+};
+
+/**
+ * A label of a fixed size on screen, centred on its point: a sleuf a rounded
+ * square, a tree round, another element square, each in its row's colour.
+ */
+const drawPlanLabel = (
+  ctx: CanvasRenderingContext2D,
+  label: PlanLabel,
+  z: number,
+) => {
+  const text = String(label.n);
+  ctx.font = `700 ${12 / z}px sans-serif`;
+  const h = 20 / z;
+  const w = Math.max(h, ctx.measureText(text).width + 10 / z);
+  const r =
+    label.kind === "line" ? 5 / z : label.kind === "element" ? 2 / z : h / 2;
+  const x = label.x - w / 2;
+  const y = label.y - h / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fillStyle = LABEL_COLORS[label.kind];
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2 / z;
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, label.x, label.y + 0.5 / z);
+};
+
+/**
+ * While Vrij Tracé is in use (its tab open, or its tool picked), the current
+ * page's sleuven, trees and other elements carry their number from the
+ * panel's lists. Drawn on the editing layer, so never exported.
+ */
+const drawPlanLabels = (
+  ctx: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  elementsMap: ElementsMap,
+) => {
+  const inUse =
+    appState.openSidebar?.tab === VRIJTRACE_SIDEBAR_TAB ||
+    (appState.activeTool.type === "custom" &&
+      appState.activeTool.customType === "vrijtrace");
+  const page = appState.vrijTrace.pageId
+    ? elementsMap.get(appState.vrijTrace.pageId)
+    : null;
+  if (!inUse || !isPdfPage(page)) {
+    return;
+  }
+  const z = appState.zoom.value;
+  ctx.save();
+  for (const label of planLabels([...elementsMap.values()], page)) {
+    drawPlanLabel(ctx, label, z);
+  }
+  ctx.restore();
+};
+
 export const renderVrijTraceInteractive = (
   ctx: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -581,6 +655,7 @@ export const renderVrijTraceInteractive = (
   }
   drawSelectedPreview(ctx, appState, elementsMap);
   drawTreeDistances(ctx, appState, elementsMap);
+  drawPlanLabels(ctx, appState, elementsMap);
   const ui = appState.vrijTrace;
   // the tree whose row in the Boomcontrole table is pointed at
   const hot = ui.hotTreeId ? elementsMap.get(ui.hotTreeId) : null;

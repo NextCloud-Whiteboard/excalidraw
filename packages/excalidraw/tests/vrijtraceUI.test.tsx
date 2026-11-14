@@ -245,14 +245,14 @@ describe("Vrij Tracé UI", () => {
   });
 
   const zones = () =>
-    [...byId("vt-rows").querySelectorAll("tr")].map((tr) =>
-      [...tr.querySelectorAll(".vt-z")].map((z) =>
+    [...byId("vt-rows").querySelectorAll("li")].map((li) =>
+      [...li.querySelectorAll(".vt-z")].map((z) =>
         z.getAttribute("aria-label"),
       ),
     );
   const rows = () =>
-    [...byId("vt-rows").querySelectorAll("tr")].map((tr) =>
-      [...tr.querySelectorAll("td")].map((td) => td.textContent),
+    [...byId("vt-rows").querySelectorAll("li")].map((li) =>
+      [...li.querySelectorAll(".vt-c")].map((c) => c.textContent),
     );
 
   it("lists the library trees on the page, numbered, measured from their ring", () => {
@@ -311,7 +311,7 @@ describe("Vrij Tracé UI", () => {
     API.updateScene({
       elements: [...h.elements, libraryTree("t1", 250, 200, 60)],
     });
-    const [row] = byId("vt-rows").querySelectorAll("tr");
+    const [row] = byId("vt-rows").querySelectorAll("li");
     fireEvent.pointerEnter(row);
     expect(h.state.vrijTrace.hotTreeId).toBe("t1");
     fireEvent.pointerLeave(row);
@@ -763,6 +763,8 @@ describe("Vrij Tracé UI", () => {
   });
 
   it("puts the PDF uploader, Liniaal and Vrij Tracé first in the toolbar", () => {
+    // room for every tool (a narrow one folds the last ones under Meer)
+    act(() => h.setState({ width: 1440, openSidebar: null }));
     const ids = [
       ...container.querySelectorAll(".App-toolbar [data-testid^='toolbar-']"),
     ].map((el) => el.getAttribute("data-testid"));

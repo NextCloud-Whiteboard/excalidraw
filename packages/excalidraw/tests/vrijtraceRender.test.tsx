@@ -8,6 +8,7 @@ import {
   COLORS,
   renderVrijTraceInteractive,
   renderVrijTraceStatic,
+  LABEL_COLORS,
 } from "../vrijtrace/render";
 
 import { API } from "./helpers/api";
@@ -113,13 +114,19 @@ const countingContext = () => {
           if (key === "setLineDash") {
             dashed = args[0].length > 0;
           }
-          if (key === "fillText") {
+          // a bare number is a sleuf, tree or element label (labels.test.ts
+          // covers those); distances and notes are words or "x,xx m"
+          if (key === "fillText" && !/^\d+$/.test(args[0])) {
             texts.push(args[0]);
           }
           if (key === "arc") {
             arcs.push({ x: args[0], y: args[1], r: args[2], stroke });
           }
-          if (key === "fill") {
+          // the plan's number labels are no zone fill (labels.test.ts)
+          if (
+            key === "fill" &&
+            !Object.values(LABEL_COLORS).includes(fill as string)
+          ) {
             fills.push(fill);
           }
           if (key === "moveTo" || key === "lineTo") {
