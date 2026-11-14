@@ -25,7 +25,10 @@ import {
   pxPerMetre,
   sceneToPage,
   settingsOf,
-  sideForReference,
+  directionOf,
+  fitReference,
+  fitSide,
+  linePagePoints,
   trenchLineReference,
   trenchLineWidth,
   trenchLineZone,
@@ -154,19 +157,38 @@ export const VrijTraceSidebar = () => {
   const line = vt.shownLineSettings();
   const pageZone = settingsOf(s.parts.network);
 
+  // each sleuf's edge and sides named for its direction, as drawn
   const lines = s.parts.lines.map((l) => {
-    const reference = trenchLineReference(l);
+    const pts = linePagePoints(l as ExcalidrawLinearElement, s.frame);
     const zone = { ...pageZone, ...trenchLineZone(l) };
     return {
       l,
+      direction: directionOf(pts),
       widthM: trenchLineWidth(l),
       lengthM: lineLengthM(l as ExcalidrawLinearElement, s.frame),
-      reference,
-      redSide: sideForReference(zone.redSide, reference),
+      reference: fitReference(trenchLineReference(l), pts),
+      redSide: fitSide(zone.redSide, pts),
       workWidthM: zone.workWidthM,
-      workSide: sideForReference(zone.workSide, reference),
+      workSide: fitSide(zone.workSide, pts),
     };
   });
+  // the bar's settings: pairs while no direction is known (the next sleuf,
+  // or sleuven of both directions)
+  const shownDir = vt.shownDirection();
+  const asPair = shownDir === null || shownDir === "mixed";
+  const referenceText = (r: keyof typeof REFERENCE_TEXT) =>
+    asPair && r !== "midden"
+      ? r === "boven" || r === "links"
+        ? STR.pairs.edgeTop
+        : STR.pairs.edgeBottom
+      : REFERENCE_TEXT[r];
+  const sideText = (v: VrijTraceSide) =>
+    asPair && v !== "beide"
+      ? (v === "boven" || v === "links"
+          ? STR.pairs.sideTop
+          : STR.pairs.sideBottom
+        ).toLowerCase()
+      : SIDE_TEXT[v];
   const totalM = lines.reduce((m, x) => m + x.lengthM, 0);
   const trees = s.parts.trees.map((t) => ({
     t,
@@ -281,6 +303,10 @@ export const VrijTraceSidebar = () => {
             <Num n={lineIndex + 1} kind="line" />
           </div>
           <div className="vt-sets">
+            <div className="vt-set">
+              <span>{STR.selectedLine.direction}</span>
+              <b>{STR.direction[selectedLine.direction]}</b>
+            </div>
             <div className="vt-set">
               <span>{STR.labels.width}</span>
               <b>{fmt(selectedLine.widthM)} m</b>
@@ -405,7 +431,11 @@ export const VrijTraceSidebar = () => {
                   <Num n={i + 1} kind="line" />
                 </span>
                 <span className="vt-c vt-c--name">
-                  {STR.lists.lineMain(fmt(x.widthM), fmt(x.lengthM))}
+                  {STR.lists.lineMain(
+                    STR.direction[x.direction],
+                    fmt(x.widthM),
+                    fmt(x.lengthM),
+                  )}
                 </span>
                 <span className="vt-c vt-c--sub">
                   {STR.lists.lineSub(
@@ -536,18 +566,18 @@ export const VrijTraceSidebar = () => {
           </div>
           <div className="vt-set">
             <span>{STR.labels.reference}</span>
-            <b>{REFERENCE_TEXT[line.reference]}</b>
+            <b>{referenceText(line.reference)}</b>
           </div>
           <div className="vt-set">
             <span>{STR.summary.red}</span>
-            <b>{STR.summary.redValue(SIDE_TEXT[line.redSide])}</b>
+            <b>{STR.summary.redValue(sideText(line.redSide))}</b>
           </div>
           <div className="vt-set">
             <span>{STR.summary.work}</span>
             <b>
               {STR.summary.workValue(
                 fmt(line.workWidthM),
-                SIDE_TEXT[line.workSide],
+                sideText(line.workSide),
               )}
             </b>
           </div>

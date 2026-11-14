@@ -39,9 +39,15 @@ import {
   lineWidthOf,
   networkIdForPage,
   pageState,
+  directionOf,
+  fitReference,
+  fitSide,
+  forDirection,
+  linePagePoints,
+  pairChoice,
   pointsForReference,
+  sceneToPage,
   settingsOf,
-  sideForReference,
   trenchLinePoints,
   trenchLineReference,
   trenchLineTreeMin,
@@ -52,7 +58,7 @@ import { STR } from "./strings";
 
 import type { AppState, ExcalidrawProps, VrijTraceUIState } from "../types";
 import type { Pt, ZoneSettings } from "./geometry";
-import type { TrenchReference } from "./model";
+import type { LineDirection, TrenchReference } from "./model";
 
 /** the slice of App the controller needs (kept small for testing) */
 export interface VrijTraceHost {
@@ -278,8 +284,14 @@ export class VrijTraceController {
       points[points.length - 1],
     );
     this.ensureNetwork(page);
-    const { lineWidthPx, reference, treeMinM, ...zone } =
-      this.nextLineSettings(pageId);
+    const next = this.nextLineSettings(pageId);
+    const { lineWidthPx, treeMinM } = next;
+    // chosen as a pair before the direction was known: now it is
+    const frame = getPageFrame(page);
+    const dir = directionOf(points.map((q) => sceneToPage(frame, q)));
+    const reference = forDirection(next.reference, dir);
+    const redSide = forDirection(next.redSide, dir);
+    const workSide = forDirection(next.workSide, dir);
     this.app.scene.insertElement(
       newTrenchLine({
         points,
@@ -287,11 +299,22 @@ export class VrijTraceController {
         reference,
         pdfParentId: pageId,
         strokeWidth: lineWidthPx,
-        zone,
+        zone: { redSide, workWidthM: next.workWidthM, workSide },
         treeMinM,
       }),
     );
     this.app.scheduleCapture();
+    // say which edge and sides that made, if any were chosen
+    const parts = [
+      reference !== "midden" && STR.drawn.edge(STR.drawn.edges[reference]),
+      redSide !== "beide" && STR.drawn.red(redSide),
+      workSide !== "beide" && STR.drawn.work(workSide),
+    ].filter((x): x is string => !!x);
+    if (parts.length) {
+      const n = getPageParts(this.app.scene.getNonDeletedElements(), pageId)
+        .lines.length;
+      this.app.setToast({ message: STR.drawn.message(n, dir, parts) });
+    }
   }
 
   pointerDown(p: Pt) {
@@ -397,37 +420,86 @@ export class VrijTraceController {
     };
   }
 
-  /** what the next line drawn on a page gets */
+  /**
+   * What the next line drawn on a page gets. Its direction is not known yet,
+   * so an edge or side is a pair, named as on a horizontal line (Boven for
+   * Boven or Links); drawing it picks the one of its direction.
+   */
   nextLineSettings(pageId: string | null = this.ui.pageId): LineSettings {
     const page = this.pageZone(pageId);
     return {
       lineWidthPx: this.ui.lineWidthPx ?? page.lineWidthPx,
-      redSide: this.ui.redSide ?? page.redSide,
+      redSide: pairChoice(this.ui.redSide ?? page.redSide),
       workWidthM: this.ui.workWidthM ?? page.workWidthM,
-      workSide: this.ui.workSide ?? page.workSide,
+      workSide: pairChoice(this.ui.workSide ?? page.workSide),
       treeMinM: this.ui.treeMinM ?? page.treeMinM,
-      reference: this.ui.reference,
+      reference: pairChoice(this.ui.reference),
     };
   }
 
-  /** a line's own settings, completed with its page's where it has none */
+  /** a line's points in its page's metres: the frame its direction is in */
+  private pagePoints(line: ExcalidrawLinearElement) {
+    const page = this.page(line.customData?.pdfParentId ?? null);
+    return page
+      ? linePagePoints(line, getPageFrame(page))
+      : trenchLinePoints(line);
+  }
+
+  /** horizontaal or verticaal */
+  lineDirection(line: ExcalidrawLinearElement): LineDirection {
+    return directionOf(this.pagePoints(line));
+  }
+
+  /**
+   * A line's own settings, completed with its page's where it has none, its
+   * edge and sides named for its direction (as drawn, for a choice saved
+   * before choices followed the direction).
+   */
   private lineSettings(line: ExcalidrawLinearElement): LineSettings {
     const { lineWidthPx, ...page } = this.pageZone(
       line.customData?.pdfParentId ?? null,
     );
+    const zone = { ...page, ...trenchLineZone(line) };
+    const pts = this.pagePoints(line);
     return {
-      ...page,
-      ...trenchLineZone(line),
+      ...zone,
+      redSide: fitSide(zone.redSide, pts),
+      workSide: fitSide(zone.workSide, pts),
       treeMinM: trenchLineTreeMin(line) ?? page.treeMinM,
       lineWidthPx: line.strokeWidth,
-      reference: trenchLineReference(line),
+      reference: fitReference(trenchLineReference(line), pts),
     };
   }
 
-  /** what the panel shows: the selected line's settings, else the next line's */
+  /**
+   * The direction the bar offers choices for: the selected lines', "mixed"
+   * when they run both ways, null for the next line (not drawn yet).
+   */
+  shownDirection(): LineDirection | "mixed" | null {
+    const dirs = new Set(
+      this.selectedLines().map((l) => this.lineDirection(l)),
+    );
+    return dirs.size === 0 ? null : dirs.size === 1 ? [...dirs][0] : "mixed";
+  }
+
+  /**
+   * What the panel shows: the selected line's settings, else the next
+   * line's; for lines of both directions, as pairs like the next line's.
+   */
   shownLineSettings(): LineSettings {
     const [line] = this.selectedLines();
-    return line ? this.lineSettings(line) : this.nextLineSettings();
+    if (!line) {
+      return this.nextLineSettings();
+    }
+    const settings = this.lineSettings(line);
+    return this.shownDirection() === "mixed"
+      ? {
+          ...settings,
+          reference: pairChoice(settings.reference),
+          redSide: pairChoice(settings.redSide),
+          workSide: pairChoice(settings.workSide),
+        }
+      : settings;
   }
 
   /**
@@ -458,12 +530,27 @@ export class VrijTraceController {
    */
   setLineZone(patch: Partial<ZoneSettings>, commit: boolean) {
     const lines = this.selectedLines();
+    // a side applies to each line in its own direction (Boven or Links)
+    const sidesFor = (dir: LineDirection | null) => {
+      const out: Partial<ZoneSettings> = { ...patch };
+      for (const key of ["redSide", "workSide"] as const) {
+        const v = patch[key];
+        if (v !== undefined) {
+          out[key] = dir ? forDirection(v, dir) : pairChoice(v);
+        }
+      }
+      return out;
+    };
     for (const line of lines) {
       // Minimale afstand keeps following the page until it is changed itself
       const { lineWidthPx, reference, treeMinM, ...zone } =
         this.lineSettings(line);
       this.app.scene.mutateElement(line, {
-        customData: { ...line.customData, ...zone, ...patch },
+        customData: {
+          ...line.customData,
+          ...zone,
+          ...sidesFor(this.lineDirection(line)),
+        },
       });
     }
     if (lines.length && commit) {
@@ -471,24 +558,17 @@ export class VrijTraceController {
     }
     // also the next line's; and it redraws the panel, or a dragged slider
     // snaps back to the old value until something else repaints
-    this.setUI(patch);
+    this.setUI(sidesFor(null));
   }
 
-  /** Tekenreferentie of the selected trench lines, and of the next one drawn */
-  setReference(reference: TrenchReference) {
+  /**
+   * Tekenreferentie of the selected trench lines, each in its own direction
+   * (Bovenrand or Linker rand), and of the next one drawn
+   */
+  setReference(choice: TrenchReference) {
     const lines = this.selectedLines();
     for (const line of lines) {
-      // a Zijde the new reference doesn't offer goes back to both sides
-      const {
-        lineWidthPx,
-        treeMinM,
-        reference: _,
-        ...zone
-      } = this.lineSettings(line);
-      const redSide = sideForReference(zone.redSide, reference);
-      const workSide = sideForReference(zone.workSide, reference);
-      const sidesChanged =
-        redSide !== zone.redSide || workSide !== zone.workSide;
+      const reference = forDirection(choice, this.lineDirection(line));
       // the trench and its zones stay put: the line moves onto the new edge
       const page = this.page(line.customData?.pdfParentId ?? null);
       const scene = trenchLinePoints(line);
@@ -503,11 +583,7 @@ export class VrijTraceController {
         : scene;
       this.app.scene.mutateElement(line, {
         ...(moved !== scene && trenchLinePlacement(moved)),
-        customData: {
-          ...line.customData,
-          ...(sidesChanged && { ...zone, redSide, workSide }),
-          reference,
-        },
+        customData: { ...line.customData, reference },
         // the centre is dashed, an edge solid
         strokeStyle: trenchLineStyle(reference).strokeStyle,
       });
@@ -516,16 +592,7 @@ export class VrijTraceController {
     if (lines.length) {
       this.app.scheduleCapture();
     }
-    const next = this.nextLineSettings();
-    this.setUI({
-      reference,
-      ...(next.redSide !== sideForReference(next.redSide, reference) && {
-        redSide: "beide",
-      }),
-      ...(next.workSide !== sideForReference(next.workSide, reference) && {
-        workSide: "beide",
-      }),
-    });
+    this.setUI({ reference: pairChoice(choice) });
   }
 
   /** the width the slider shows */

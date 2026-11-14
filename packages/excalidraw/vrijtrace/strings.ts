@@ -72,6 +72,33 @@ export const STR = {
     redValue: (side: string) => `2,00 m · ${side}`,
     workValue: (m: string, side: string) => `${m} m · ${side}`,
   },
+  /** a sleuf runs one way or the other; the next one is not drawn yet */
+  direction: {
+    horizontaal: "horizontaal",
+    verticaal: "verticaal",
+    mixed: "beide richtingen",
+  },
+  /** an edge or side chosen before the direction is known */
+  pairs: {
+    edgeTop: "Bovenrand / linker rand",
+    edgeBottom: "Onderrand / rechter rand",
+    sideTop: "Boven / links",
+    sideBottom: "Onder / rechts",
+  },
+  /** after drawing: what the chosen pair became */
+  drawn: {
+    edges: {
+      boven: "bovenrand",
+      onder: "onderrand",
+      links: "linker rand",
+      rechts: "rechter rand",
+    } as Record<string, string>,
+    edge: (name: string) => `getekend met de ${name}`,
+    red: (side: string) => `schadepreventie ${side}`,
+    work: (side: string) => `werkruimte ${side}`,
+    message: (n: number, direction: string, parts: string[]) =>
+      `Sleuf ${n} loopt ${direction}: ${parts.join(", ")}.`,
+  },
   /** the panel's lists, numbered like the labels on the plan */
   lists: {
     lines: "Sleuven",
@@ -80,8 +107,8 @@ export const STR = {
     linesTotal: (n: number, m: string) => `${n} · ${m} m`,
     distance: "afstand ring",
     noLines: "Nog geen sleuven. Teken er een met Vrij Tracé.",
-    lineMain: (width: string, length: string) =>
-      `${width} m breed · ${length} m`,
+    lineMain: (direction: string, width: string, length: string) =>
+      `${direction} · ${width} m · ${length} m`,
     lineSub: (reference: string, red: string, work: string, side: string) =>
       `${reference} · schadepr. ${red} · werkr. ${work} m ${side}`,
     unnamed: "Bibliotheekitem",
@@ -89,6 +116,7 @@ export const STR = {
   /** a trench line or another element selected on the plan */
   selectedLine: {
     title: "Geselecteerde sleuf",
+    direction: "Richting",
     length: "Lengte",
   },
   selectedElement: {

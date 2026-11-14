@@ -20,13 +20,14 @@ import {
   WORK_WIDTH_MIN_M,
   isPdfPage,
   pageState,
-  sidesForReference,
+  REFERENCES_FOR,
+  SIDES_FOR,
 } from "./model";
 import { STR } from "./strings";
 
 import "./vrijtrace.scss";
 
-import type { TrenchReference } from "./model";
+import type { LineDirection, TrenchReference } from "./model";
 import type { UIAppState } from "../types";
 
 const fmt = (n: number) => n.toFixed(2).replace(".", ",");
@@ -39,26 +40,56 @@ const SIDE_LABELS: Record<VrijTraceSide, string> = {
   rechts: STR.labels.sideRight,
 };
 
-const REFERENCES: readonly (readonly [TrenchReference, string])[] = [
-  ["midden", STR.labels.middle],
-  ["boven", STR.labels.top],
-  ["onder", STR.labels.bottom],
-  ["links", STR.labels.left],
-  ["rechts", STR.labels.right],
-];
+const REFERENCE_LABELS: Record<TrenchReference, string> = {
+  midden: STR.labels.middle,
+  boven: STR.labels.top,
+  onder: STR.labels.bottom,
+  links: STR.labels.left,
+  rechts: STR.labels.right,
+};
 
-/** the Zijde choices the line's Tekenreferentie offers */
+type ShownDirection = LineDirection | "mixed" | null;
+
+/**
+ * The Tekenreferenties a sleuf's direction has; before it is drawn (or for
+ * sleuven of both directions) an edge is a pair, Boven or Links, Onder or
+ * Rechts, and drawing picks the one of its direction.
+ */
+const referenceChoices = (
+  dir: ShownDirection,
+): readonly (readonly [TrenchReference, string])[] =>
+  dir === "horizontaal" || dir === "verticaal"
+    ? REFERENCES_FOR[dir].map((r) => [r, REFERENCE_LABELS[r]] as const)
+    : [
+        ["midden", STR.labels.middle],
+        ["boven", STR.pairs.edgeTop],
+        ["onder", STR.pairs.edgeBottom],
+      ];
+
+/** the zone sides a sleuf's direction has, as referenceChoices */
+const sideChoices = (
+  dir: ShownDirection,
+): readonly (readonly [VrijTraceSide, string])[] =>
+  dir === "horizontaal" || dir === "verticaal"
+    ? SIDES_FOR[dir].map((v) => [v, SIDE_LABELS[v]] as const)
+    : [
+        ["beide", STR.labels.both],
+        ["boven", STR.pairs.sideTop],
+        ["onder", STR.pairs.sideBottom],
+      ];
+
+/** the Zijde choices the sleuf's direction offers */
 const SideSelect = ({
   id,
   label,
   value,
-  reference,
+  direction,
   onChange,
 }: {
   id: string;
   label: string;
   value: VrijTraceSide;
-  reference: TrenchReference;
+  direction: ShownDirection;
   onChange: (side: VrijTraceSide) => void;
 }) => (
   <select
@@ -69,9 +100,9 @@ const SideSelect = ({
     value={value}
     onChange={(e) => onChange(e.target.value as VrijTraceSide)}
   >
-    {sidesForReference(reference).map((side) => (
+    {sideChoices(direction).map(([side, text]) => (
       <option key={side} value={side}>
-        {SIDE_LABELS[side]}
+        {text}
       </option>
     ))}
   </select>
@@ -184,15 +215,19 @@ const RangeField = ({
 const Group = ({
   caption,
   title,
+  extra,
   children,
 }: {
   caption: string;
   title?: string;
+  /** shown after the caption, e.g. the sleuf's direction */
+  extra?: React.ReactNode;
   children: React.ReactNode;
 }) => (
   <div className="vt-group" role="group" aria-label={caption}>
     <span className="vt-cap" title={title}>
       {caption}
+      {extra}
     </span>
     <div className="vt-row">{children}</div>
   </div>
@@ -249,6 +284,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
   const vt = app.vrijTrace;
   const width = vt.shownWidth();
   const line = vt.shownLineSettings();
+  const direction = vt.shownDirection();
   const elements = app.scene.getNonDeletedElements();
   const page = elements.find((el) => el.id === ui.pageId);
   const active = isPdfPage(page) && !!pageState(elements, page)?.active;
@@ -277,7 +313,16 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
           </div>
         </Group>
         <span className="vt-sep" />
-        <Group caption={STR.bar.trench}>
+        <Group
+          caption={STR.bar.trench}
+          extra={
+            direction && (
+              <span className="vt-dir" data-testid="vt-direction">
+                {STR.direction[direction]}
+              </span>
+            )
+          }
+        >
           <RangeField
             id="vt-width"
             label={STR.labels.width}
@@ -297,7 +342,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
             value={line.reference}
             onChange={(e) => vt.setReference(e.target.value as TrenchReference)}
           >
-            {REFERENCES.map(([ref, label]) => (
+            {referenceChoices(direction).map(([ref, label]) => (
               <option key={ref} value={ref}>
                 {label}
               </option>
@@ -323,7 +368,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
             id="vt-red-side"
             label={`${STR.labels.side} ${STR.legend.red.toLowerCase()}`}
             value={line.redSide}
-            reference={line.reference}
+            direction={direction}
             onChange={(redSide) => vt.setLineZone({ redSide }, true)}
           />
         </Group>
@@ -345,7 +390,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
             id="vt-work-side"
             label={`${STR.labels.side} ${STR.legend.work.toLowerCase()}`}
             value={line.workSide}
-            reference={line.reference}
+            direction={direction}
             onChange={(workSide) => vt.setLineZone({ workSide }, true)}
           />
         </Group>

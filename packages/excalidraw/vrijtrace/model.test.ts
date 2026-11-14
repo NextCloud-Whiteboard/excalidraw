@@ -20,6 +20,13 @@ import {
   toGeometry,
   treeName,
   treeRingM,
+  directionOf,
+  fitReference,
+  fitSide,
+  forDirection,
+  pairChoice,
+  REFERENCES_FOR,
+  SIDES_FOR,
 } from "./model";
 
 const page = (over: any = {}) =>
@@ -658,5 +665,66 @@ describe("trench outline", () => {
       { x: 10, y: 2 },
       { x: 0, y: 2 },
     ]);
+  });
+});
+
+describe("a sleuf's direction", () => {
+  const h = [
+    { x: 0, y: 0 },
+    { x: 10, y: 2 },
+  ];
+  const v = [
+    { x: 0, y: 0 },
+    { x: -1, y: -8 },
+  ];
+
+  it("is horizontal within 45° of horizontal, else vertical, from start to end", () => {
+    expect(directionOf(h)).toBe("horizontaal");
+    expect(directionOf(v)).toBe("verticaal");
+    // an L: the overall direction counts
+    expect(
+      directionOf([
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 4 },
+      ]),
+    ).toBe("horizontaal");
+  });
+
+  it("offers the edges and sides that exist in that direction", () => {
+    expect(REFERENCES_FOR.horizontaal).toEqual(["midden", "boven", "onder"]);
+    expect(REFERENCES_FOR.verticaal).toEqual(["midden", "links", "rechts"]);
+    expect(SIDES_FOR.horizontaal).toEqual(["beide", "boven", "onder"]);
+    expect(SIDES_FOR.verticaal).toEqual(["beide", "links", "rechts"]);
+  });
+
+  it("names a saved choice that does not fit by what is drawn", () => {
+    // on a horizontal line the left edge was always drawn as the bottom one
+    expect(fitReference("links", h)).toBe("onder");
+    expect(fitReference("rechts", h)).toBe("boven");
+    expect(fitReference("boven", h)).toBe("boven");
+    expect(fitReference("midden", h)).toBe("midden");
+    // and on a vertical one the top edge as the right one
+    expect(fitReference("boven", v)).toBe("rechts");
+    expect(fitReference("onder", v)).toBe("links");
+    // zone sides alike
+    expect(fitSide("links", h)).toBe("onder");
+    expect(fitSide("boven", v)).toBe("rechts");
+    expect(fitSide("beide", v)).toBe("beide");
+    expect(fitSide("links", v)).toBe("links");
+  });
+
+  it("turns a choice made before drawing into the edge or side of the direction drawn", () => {
+    expect(forDirection("boven", "verticaal")).toBe("links");
+    expect(forDirection("onder", "verticaal")).toBe("rechts");
+    expect(forDirection("links", "horizontaal")).toBe("boven");
+    expect(forDirection("rechts", "horizontaal")).toBe("onder");
+    expect(forDirection("boven", "horizontaal")).toBe("boven");
+    expect(forDirection("midden", "verticaal")).toBe("midden");
+    expect(forDirection("beide", "verticaal")).toBe("beide");
+    // the pair a choice belongs to, named as on a horizontal line
+    expect(pairChoice("links")).toBe("boven");
+    expect(pairChoice("rechts")).toBe("onder");
+    expect(pairChoice("beide")).toBe("beide");
   });
 });

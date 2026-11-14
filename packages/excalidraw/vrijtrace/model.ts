@@ -156,27 +156,6 @@ export const trenchLineReference = (
     : "midden";
 };
 
-/**
- * The Zijde choices a reference offers for the zones: an edge along the top
- * or bottom only boven/onder, an edge along the left or right only
- * links/rechts, the centre line all of them.
- */
-export const sidesForReference = (
-  reference: TrenchReference,
-): readonly VrijTraceSide[] =>
-  reference === "boven" || reference === "onder"
-    ? ["beide", "boven", "onder"]
-    : reference === "links" || reference === "rechts"
-    ? ["beide", "links", "rechts"]
-    : ["beide", "boven", "onder", "links", "rechts"];
-
-/** a side the reference offers, else both sides */
-export const sideForReference = (
-  side: VrijTraceSide,
-  reference: TrenchReference,
-): VrijTraceSide =>
-  sidesForReference(reference).includes(side) ? side : "beide";
-
 const isSide = (v: unknown): v is VrijTraceSide =>
   v === "beide" ||
   v === "boven" ||
@@ -422,6 +401,115 @@ const edgeOffset = (
   const last = metres[metres.length - 1];
   const dir = { x: last.x - first.x, y: last.y - first.y };
   return leftFaces(dir, TRENCH_SIDE[ref]) ? widthM / 2 : -widthM / 2;
+};
+
+/**
+ * A sleuf runs horizontally or vertically: from its first to its last point,
+ * within 45° of horizontal is horizontal. Its edges and zone sides are named
+ * for that direction: Boven/Onder along a horizontal sleuf, Links/Rechts
+ * along a vertical one.
+ */
+export type LineDirection = "horizontaal" | "verticaal";
+
+export const directionOf = (pts: readonly Pt[]): LineDirection => {
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  return a && b && Math.abs(b.y - a.y) > Math.abs(b.x - a.x)
+    ? "verticaal"
+    : "horizontaal";
+};
+
+/** a trench line's points in page metres (its direction's frame) */
+export const linePagePoints = (
+  line: ExcalidrawLinearElement,
+  frame: PageFrame,
+) => trenchLinePoints(line).map((p) => sceneToPage(frame, p));
+
+/** the Tekenreferenties and zone sides a direction has */
+export const REFERENCES_FOR: Record<LineDirection, readonly TrenchReference[]> =
+  {
+    horizontaal: ["midden", "boven", "onder"],
+    verticaal: ["midden", "links", "rechts"],
+  };
+export const SIDES_FOR: Record<LineDirection, readonly VrijTraceSide[]> = {
+  horizontaal: ["beide", "boven", "onder"],
+  verticaal: ["beide", "links", "rechts"],
+};
+
+const overallDirection = (pts: readonly Pt[]) => ({
+  x: pts[pts.length - 1].x - pts[0].x,
+  y: pts[pts.length - 1].y - pts[0].y,
+});
+
+/**
+ * A line's saved Tekenreferentie named for its direction: one that does not
+ * exist there (Linker rand on a horizontal line, saved before choices
+ * followed the direction) is the edge it has always been drawn as.
+ */
+export const fitReference = (
+  ref: TrenchReference,
+  pts: readonly Pt[],
+): TrenchReference => {
+  const options = REFERENCES_FOR[directionOf(pts)];
+  if (ref === "midden" || options.includes(ref) || pts.length < 2) {
+    return ref;
+  }
+  const v = overallDirection(pts);
+  const drawn = leftFaces(v, TRENCH_SIDE[ref]);
+  return (
+    options.find(
+      (c) => c !== "midden" && leftFaces(v, TRENCH_SIDE[c]) === drawn,
+    ) ?? ref
+  );
+};
+
+/** a zone side named for the line's direction, as fitReference */
+export const fitSide = (
+  side: VrijTraceSide,
+  pts: readonly Pt[],
+): VrijTraceSide => {
+  const options = SIDES_FOR[directionOf(pts)];
+  if (side === "beide" || options.includes(side) || pts.length < 2) {
+    return side;
+  }
+  const v = overallDirection(pts);
+  const drawn = leftFaces(v, side);
+  return (
+    options.find(
+      (c): c is PlanSide => c !== "beide" && leftFaces(v, c) === drawn,
+    ) ?? side
+  );
+};
+
+/**
+ * Before a sleuf is drawn its direction is not known: an edge or side is
+ * chosen as a pair, Boven or Links, Onder or Rechts. `pairChoice` names the
+ * pair as on a horizontal line; `forDirection` gives the one of the
+ * direction drawn.
+ */
+const PAIR = {
+  boven: "boven",
+  links: "boven",
+  onder: "onder",
+  rechts: "onder",
+} as const;
+
+export const pairChoice = <T extends TrenchReference | VrijTraceSide>(
+  c: T,
+): T =>
+  c === "midden" || c === "beide" ? c : (PAIR[c as keyof typeof PAIR] as T);
+
+export const forDirection = <T extends TrenchReference | VrijTraceSide>(
+  c: T,
+  dir: LineDirection,
+): T => {
+  if (c === "midden" || c === "beide") {
+    return c;
+  }
+  const pair = PAIR[c as keyof typeof PAIR];
+  return (
+    dir === "horizontaal" ? pair : pair === "boven" ? "links" : "rechts"
+  ) as T;
 };
 
 /**

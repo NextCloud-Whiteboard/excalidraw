@@ -456,26 +456,126 @@ describe("Vrij Tracé UI", () => {
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(2);
   });
 
-  it("offers Bovenrand and Onderrand as drawing references", () => {
+  /** a select's options as [value, text] */
+  const options = (id: string) =>
+    [...(byId(id) as HTMLSelectElement).options].map((o) => [
+      o.value,
+      o.textContent,
+    ]);
+  const lines = () => getPageParts(h.elements, "pdf1").lines;
+
+  it("the next sleuf offers Middenlijn and an edge for each direction", () => {
     pickTool();
-    expect(
-      [...(byId("vt-reference") as HTMLSelectElement).options].map((o) => [
-        o.value,
-        o.textContent,
-      ]),
-    ).toEqual([
+    expect(options("vt-reference")).toEqual([
+      ["midden", "Middenlijn"],
+      ["boven", "Bovenrand / linker rand"],
+      ["onder", "Onderrand / rechter rand"],
+    ]);
+    for (const id of ["vt-red-side", "vt-work-side"]) {
+      expect(options(id)).toEqual([
+        ["beide", "Beide zijden"],
+        ["boven", "Boven / links"],
+        ["onder", "Onder / rechts"],
+      ]);
+    }
+    // not drawn yet: no direction to show
+    expect(byId("vt-direction")).toBeNull();
+    setRef("boven");
+    drawLine([100, 100], [400, 100]);
+    const [line] = lines();
+    expect(line.customData?.reference).toBe("boven");
+    expect(line.strokeStyle).toBe("solid");
+  });
+
+  it("drawn vertically, the choice becomes that direction's edge and side, and it says so", () => {
+    pickTool();
+    setRef("boven");
+    fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
+    drawLine([200, 100], [200, 400]);
+    expect(lines()[0].customData).toMatchObject({
+      reference: "links",
+      redSide: "rechts",
+    });
+    expect(h.state.toast?.message).toBe(
+      "Sleuf 1 loopt verticaal: getekend met de linker rand, schadepreventie rechts.",
+    );
+  });
+
+  it("a selected sleuf offers only the edges and sides of its direction", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([200, 150], [200, 450]);
+    const [across, down] = lines();
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([across]);
+    expect(byId("vt-direction")!.textContent).toBe("horizontaal");
+    expect(options("vt-reference")).toEqual([
       ["midden", "Middenlijn"],
       ["boven", "Bovenrand"],
       ["onder", "Onderrand"],
+    ]);
+    expect(options("vt-red-side").map(([v]) => v)).toEqual([
+      "beide",
+      "boven",
+      "onder",
+    ]);
+    API.setSelectedElements([down]);
+    expect(byId("vt-direction")!.textContent).toBe("verticaal");
+    expect(options("vt-reference")).toEqual([
+      ["midden", "Middenlijn"],
       ["links", "Linker rand"],
       ["rechts", "Rechter rand"],
     ]);
-    setRef("boven");
-    expect(reference()).toBe("boven");
+    expect(options("vt-work-side").map(([v]) => v)).toEqual([
+      "beide",
+      "links",
+      "rechts",
+    ]);
+  });
+
+  it("a sleuf saved with an edge its direction lacks shows the edge it is drawn with", () => {
     drawLine([100, 100], [400, 100]);
-    const [line] = getPageParts(h.elements, "pdf1").lines;
-    expect(line.customData?.reference).toBe("boven");
-    expect(line.strokeStyle).toBe("solid");
+    const [line] = lines();
+    const y = line.y;
+    // saved before the choices followed the direction
+    API.updateScene({
+      elements: h.elements.map((e) =>
+        e.id === line.id
+          ? {
+              ...e,
+              customData: {
+                ...e.customData,
+                reference: "links",
+                redSide: "links",
+              },
+            }
+          : e,
+      ),
+    });
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements([lines()[0]]);
+    // a horizontal line has always drawn Linker rand as its bottom edge
+    expect(reference()).toBe("onder");
+    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("onder");
+    expect(lines()[0].y).toBe(y);
+  });
+
+  it("with sleuven of both directions selected, a choice applies to each in its own direction", () => {
+    drawLine([100, 100], [400, 100]);
+    drawLine([200, 150], [200, 450]);
+    act(() => h.app.setActiveTool({ type: "selection" }));
+    API.setSelectedElements(lines());
+    expect(byId("vt-direction")!.textContent).toBe("beide richtingen");
+    setRef("onder");
+    fireEvent.change(byId("vt-work-side"), { target: { value: "boven" } });
+    const [across, down] = lines();
+    expect(across.customData).toMatchObject({
+      reference: "onder",
+      workSide: "boven",
+    });
+    expect(down.customData).toMatchObject({
+      reference: "rechts",
+      workSide: "links",
+    });
   });
 
   it("sets widths from 0,30 to 10 m, by slider or typed", () => {
@@ -536,67 +636,6 @@ describe("Vrij Tracé UI", () => {
     fireEvent.change(byId("vt-line-width"), { target: { value: "3" } });
     // the cached drawing had the old width baked in
     expect(ShapeCache.get(line)).toBeUndefined();
-  });
-
-  it("offers the sides of the plan for both zones", () => {
-    pickTool();
-    for (const id of ["vt-red-side", "vt-work-side"]) {
-      const options = [...(byId(id) as HTMLSelectElement).options];
-      expect(options.map((o) => [o.value, o.textContent])).toEqual([
-        ["beide", "Beide zijden"],
-        ["boven", "Boven"],
-        ["onder", "Onder"],
-        ["links", "Links"],
-        ["rechts", "Rechts"],
-      ]);
-    }
-  });
-
-  it("an edge reference offers only the sides across that edge", () => {
-    pickTool();
-    const sides = (id: string) =>
-      [...(byId(id) as HTMLSelectElement).options].map((o) => o.value);
-    const expected = {
-      midden: ["beide", "boven", "onder", "links", "rechts"],
-      boven: ["beide", "boven", "onder"],
-      onder: ["beide", "boven", "onder"],
-      links: ["beide", "links", "rechts"],
-      rechts: ["beide", "links", "rechts"],
-    };
-    for (const [ref, values] of Object.entries(expected)) {
-      setRef(ref);
-      expect(sides("vt-red-side")).toEqual(values);
-      expect(sides("vt-work-side")).toEqual(values);
-    }
-  });
-
-  it("an edge reference puts a side it does not offer back to both sides", () => {
-    drawLine([100, 100], [400, 100]);
-    const [line] = getPageParts(h.elements, "pdf1").lines;
-    act(() => h.app.setActiveTool({ type: "selection" }));
-    API.setSelectedElements([line]);
-    fireEvent.change(byId("vt-red-side"), { target: { value: "boven" } });
-    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
-    setRef("links");
-    expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
-      reference: "links",
-      redSide: "beide",
-      workSide: "rechts",
-    });
-    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
-    expect((byId("vt-work-side") as HTMLSelectElement).value).toBe("rechts");
-  });
-
-  it("the next line's sides follow its reference too", () => {
-    openOnPage();
-    fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
-    setRef("rechts");
-    expect((byId("vt-red-side") as HTMLSelectElement).value).toBe("beide");
-    drawLine([100, 300], [400, 300]);
-    expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
-      reference: "rechts",
-      redSide: "beide",
-    });
   });
 
   it("Rode zone and Werkruimte change the selected line only", () => {
@@ -665,7 +704,6 @@ describe("Vrij Tracé UI", () => {
     const steps: [string, number][] = [
       ["boven", 90],
       ["onder", 110],
-      ["links", 110], // a horizontal line keeps its fixed side: as Onderrand
       ["midden", 100],
     ];
     for (const [ref, y] of steps) {
@@ -693,7 +731,8 @@ describe("Vrij Tracé UI", () => {
     );
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
     fireEvent.change(byId("vt-line-width"), { target: { value: "2" } });
-    fireEvent.change(byId("vt-red-side"), { target: { value: "rechts" } });
+    // before drawing, a side is a pair: Onder or Rechts
+    fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
     const [first] = getPageParts(h.elements, "pdf1").lines;
     expect(first.strokeWidth).toBe(0.5);
     expect(first.customData).toMatchObject({
@@ -703,9 +742,10 @@ describe("Vrij Tracé UI", () => {
     drawLine([100, 300], [400, 300]);
     const second = getPageParts(h.elements, "pdf1").lines[1];
     expect(second.strokeWidth).toBe(2);
+    // drawn horizontally: Onder
     expect(second.customData).toMatchObject({
       workWidthM: 3,
-      redSide: "rechts",
+      redSide: "onder",
       workSide: "beide",
     });
   });
@@ -745,11 +785,13 @@ describe("Vrij Tracé UI", () => {
     act(() => h.app.setActiveTool({ type: "selection" }));
     API.setSelectedElements([getPageParts(h.elements, "pdf1").lines[0]]);
     expect((byId("vt-work-width") as HTMLInputElement).value).toBe("2.5");
-    fireEvent.change(byId("vt-work-side"), { target: { value: "rechts" } });
+    fireEvent.change(byId("vt-work-side"), { target: { value: "onder" } });
+    // the page's Links, on a horizontal line always drawn below it, is kept
+    // as the side it is drawn on
     expect(getPageParts(h.elements, "pdf1").lines[0].customData).toMatchObject({
       workWidthM: 2.5,
-      redSide: "links",
-      workSide: "rechts",
+      redSide: "onder",
+      workSide: "onder",
     });
   });
 

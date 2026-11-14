@@ -555,7 +555,7 @@ describe("a selection opens its sidebar tab", () => {
     expect(card).toContain("10,00 m");
     const [row] = queryByTestId(container, "vt-lines")!.querySelectorAll("li");
     expect(row.classList.contains("vt-selected")).toBe(true);
-    expect(row.textContent).toContain("1,50 m breed · 10,00 m");
+    expect(row.textContent).toContain("horizontaal · 1,50 m · 10,00 m");
   });
 
   it("on a phone, a selection leaves the sidebar closed", () => {

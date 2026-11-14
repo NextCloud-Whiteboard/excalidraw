@@ -181,9 +181,11 @@ describe("Vrij Tracé tool", () => {
       h.app.vrijTrace.setUI({ reference: "links" });
     });
     stroke(line_([100, 100], [300, 100]));
+    // chosen before drawing, Links is the pair Boven or Links: drawn
+    // horizontally, the top edge
     expect(lines()[0].customData).toMatchObject({
       widthM: 1.5,
-      reference: "links",
+      reference: "boven",
     });
     // an edge reference draws the edge itself: solid, not the dashed centre
     expect(lines()[0].strokeStyle).toBe("solid");
