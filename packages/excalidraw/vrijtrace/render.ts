@@ -8,6 +8,8 @@ import type {
 } from "@excalidraw/element/types";
 
 import { getClientColor } from "../clients";
+import { libraryItemsAtom } from "../data/library";
+import { editorJotaiStore } from "../editor-jotai";
 
 import { SMOOTH_PX, simplify } from "./editing";
 import {
@@ -621,7 +623,12 @@ const drawPlanLabels = (
   }
   const z = appState.zoom.value;
   ctx.save();
-  for (const label of planLabels([...elementsMap.values()], page)) {
+  const { libraryItems } = editorJotaiStore.get(libraryItemsAtom);
+  for (const label of planLabels(
+    [...elementsMap.values()],
+    page,
+    libraryItems,
+  )) {
     drawPlanLabel(ctx, label, z);
   }
   ctx.restore();

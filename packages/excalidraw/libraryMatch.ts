@@ -11,6 +11,14 @@ import type { LibraryItem } from "./types";
 const isValidCmPerPx = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 
+/**
+ * An item of the bundled In Zicht library (AVP, mantelbuizen, gevelinvoer,
+ * boring/zinker, bomen): those take part in Vrij Tracé. Their ids start with
+ * "inzicht-"; the user's own (personal library) items never do.
+ */
+export const isInZichtItem = (itemId: string | null | undefined) =>
+  !!itemId && itemId.startsWith("inzicht-");
+
 /** the library item an element was placed from, if any */
 export const libraryItemIdOf = (el: ExcalidrawElement) =>
   typeof el.customData?.libraryItemId === "string"

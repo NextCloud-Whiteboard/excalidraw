@@ -55,7 +55,7 @@ const placedTree = (id: string, cx: number, cy: number, group = `g-${id}`) => [
     customData: {
       treeRing: { klasse: "C1", scherm: false },
       pdfParentId: "pdf1",
-      libraryItemId: "c1z",
+      libraryItemId: "inzicht-c1z",
     },
   },
   {
@@ -68,7 +68,7 @@ const placedTree = (id: string, cx: number, cy: number, group = `g-${id}`) => [
       height: 20,
       groupIds: [group],
     }),
-    customData: { pdfParentId: "pdf1", libraryItemId: "c1z" },
+    customData: { pdfParentId: "pdf1", libraryItemId: "inzicht-c1z" },
   },
 ];
 
@@ -77,27 +77,27 @@ const ids = (...list: string[]) =>
 
 describe("selectionTarget", () => {
   it("is the library item of a single placed element", () => {
-    expect(selectionTarget([placed("e1", "avp")], ids("e1"))).toEqual({
+    expect(selectionTarget([placed("e1", "inzicht-avp")], ids("e1"))).toEqual({
       kind: "library",
-      itemId: "avp",
+      itemId: "inzicht-avp",
     });
   });
 
   it("is the library item of one placed group", () => {
     const els = [
-      placed("e1", "avp", {}, ["g1"]),
-      placed("e2", "avp", {}, ["g1"]),
+      placed("e1", "inzicht-avp", {}, ["g1"]),
+      placed("e2", "inzicht-avp", {}, ["g1"]),
     ];
     expect(selectionTarget(els, ids("e1", "e2"))).toEqual({
       kind: "library",
-      itemId: "avp",
+      itemId: "inzicht-avp",
     });
   });
 
   it("is nothing for two placements, even of the same item", () => {
     const els = [
-      placed("e1", "avp", {}, ["g1"]),
-      placed("e2", "avp", {}, ["g2"]),
+      placed("e1", "inzicht-avp", {}, ["g1"]),
+      placed("e2", "inzicht-avp", {}, ["g2"]),
     ];
     expect(selectionTarget(els, ids("e1", "e2"))).toBeNull();
   });
@@ -115,34 +115,50 @@ describe("selectionTarget", () => {
     const els = placedTree("t1", 200, 200);
     expect(selectionTarget(els, ids("t1", "t1-trunk"))).toEqual({
       kind: "library",
-      itemId: "c1z",
+      itemId: "inzicht-c1z",
     });
   });
 
   it("an item placed on a calibrated page is a Vrij Tracé element", () => {
     const els = [
       pdfPage(),
-      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
-      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e1", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
     ];
     expect(selectionTarget(els, ids("e1", "e2"))).toEqual({
       kind: "element",
       key: "g1",
       pageId: "pdf1",
-      itemId: "avp",
+      itemId: "inzicht-avp",
     });
     // the library only wants the item
     expect(selectionTarget(els, ids("e1", "e2"), { vrijTrace: false })).toEqual(
-      { kind: "library", itemId: "avp" },
+      { kind: "library", itemId: "inzicht-avp" },
     );
+  });
+
+  it("an item from the personal library is its library item, on a page too", () => {
+    const els = [pdfPage(), placed("e1", "mine", { pdfParentId: "pdf1" })];
+    expect(selectionTarget(els, ids("e1"))).toEqual({
+      kind: "library",
+      itemId: "mine",
+    });
+  });
+
+  it("a placement nothing in the library matches points nowhere, on a page too", () => {
+    const old = {
+      ...API.createElement({ type: "rectangle", id: "o1", x: 600, y: 500 }),
+      customData: { pdfParentId: "pdf1", libraryCmPerPx: 1.5 },
+    };
+    expect(selectionTarget([pdfPage(), old], ids("o1"))).toBeNull();
   });
 
   it("an item on a page not yet calibrated is its library item", () => {
     const page = { ...pdfPage(), customData: { isPdf: true } };
-    const els = [page, placed("e1", "avp", { pdfParentId: "pdf1" })];
+    const els = [page, placed("e1", "inzicht-avp", { pdfParentId: "pdf1" })];
     expect(selectionTarget(els, ids("e1"))).toEqual({
       kind: "library",
-      itemId: "avp",
+      itemId: "inzicht-avp",
     });
   });
 
@@ -166,7 +182,7 @@ describe("selectionTarget", () => {
     ];
     expect(selectionTarget(els, ids("t1", "t1-trunk"))).toEqual({
       kind: "library",
-      itemId: "c1z",
+      itemId: "inzicht-c1z",
     });
   });
 
@@ -190,7 +206,7 @@ describe("selectionTarget", () => {
       elements,
     });
     // a box with a smaller box inside, as drawn in the library
-    const avp = libItem("avp", [
+    const avp = libItem("inzicht-avp", [
       shape("a", "rectangle", 0, 0, 100, 100),
       shape("b", "rectangle", 30, 40, 40, 20, { backgroundColor: "#343a40" }),
     ]);
@@ -216,7 +232,7 @@ describe("selectionTarget", () => {
     it("are recognised by their drawing, at any scale", () => {
       expect(target(placedCopy(avp, 3.25), [duct("d", "#000"), avp])).toEqual({
         kind: "library",
-        itemId: "avp",
+        itemId: "inzicht-avp",
       });
     });
 
@@ -237,8 +253,8 @@ describe("selectionTarget", () => {
           }),
           shape(`${id}-trunk`, "ellipse", 55, 55, 20, 20),
         ]);
-      const zonder = tree("c3z", false);
-      const met = tree("c3m", true);
+      const zonder = tree("inzicht-c3z", false);
+      const met = tree("inzicht-c3m", true);
       const placedMet = placedCopy(met, 1).map((e, i) =>
         i === 0
           ? {
@@ -249,12 +265,12 @@ describe("selectionTarget", () => {
       );
       expect(target(placedMet, [zonder, met])).toEqual({
         kind: "library",
-        itemId: "c3m",
+        itemId: "inzicht-c3m",
       });
     });
 
     it("a tree placed before trees carried their data still matches", () => {
-      const tree = libItem("c1z", [
+      const tree = libItem("inzicht-c1z", [
         shape("ring", "ellipse", 0, 0, 390, 390, {
           customData: { treeRing: { klasse: "C1", scherm: false } },
         }),
@@ -265,7 +281,7 @@ describe("selectionTarget", () => {
       // as placed then: the drawing, without the tree data
       expect(target(placedCopy(tree, 0.5), [avp, tree])).toEqual({
         kind: "library",
-        itemId: "c1z",
+        itemId: "inzicht-c1z",
       });
     });
 
@@ -359,7 +375,7 @@ describe("selectionTarget", () => {
   it("is nothing for a plain shape or an empty selection", () => {
     const rect = API.createElement({ type: "rectangle", id: "r1" });
     expect(selectionTarget([rect], ids("r1"))).toBeNull();
-    expect(selectionTarget([placed("e1", "avp")], {})).toBeNull();
+    expect(selectionTarget([placed("e1", "inzicht-avp")], {})).toBeNull();
   });
 });
 
@@ -387,8 +403,11 @@ describe("a selection opens its sidebar tab", () => {
     await act(() =>
       h.app.library.updateLibrary({
         libraryItems: [
-          item("avp", { group: "aVP", name: "aVP buiten 5 × 5 m" }),
-          item("duct", { group: "Mantelbuizen", name: "Mantelbuis Ø110" }),
+          item("inzicht-avp", { group: "aVP", name: "aVP buiten 5 × 5 m" }),
+          item("inzicht-duct", {
+            group: "Mantelbuizen",
+            name: "Mantelbuis Ø110",
+          }),
         ],
         merge: false,
       }),
@@ -400,7 +419,7 @@ describe("a selection opens its sidebar tab", () => {
     container.querySelector(".layer-ui__library") as HTMLElement;
 
   it("a placed library item opens the library on that item", async () => {
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
     expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
     await waitFor(() =>
@@ -416,7 +435,7 @@ describe("a selection opens its sidebar tab", () => {
   it("a click on a placed item opens the library, and it stays open", async () => {
     // the library is not docked: a canvas click closes it, so it must open
     // after the click, not during it
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     new Pointer("mouse").clickOn(h.elements.find((e) => e.id === "e1")!);
     expect(h.state.selectedElementIds.e1).toBe(true);
     await waitFor(() =>
@@ -430,7 +449,7 @@ describe("a selection opens its sidebar tab", () => {
   it("opens the tab when the pointer is released, not while it is held", () => {
     // an undocked sidebar closes on a canvas pointerdown, so opening during
     // the press would close again at once; and a drag should not open it
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     const el = h.elements.find((e) => e.id === "e1")!;
     const mouse = new Pointer("mouse");
     mouse.downAt(el.x + 1, el.y + el.height / 2);
@@ -450,7 +469,7 @@ describe("a selection opens its sidebar tab", () => {
     )!;
     fireEvent.click(header); // fold aVP
     expect(header.getAttribute("aria-expanded")).toBe("false");
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
     await waitFor(() =>
       expect(
@@ -481,8 +500,8 @@ describe("a selection opens its sidebar tab", () => {
   it("an item on a PDF page opens Vrij Tracé on it, and leads on to the library", async () => {
     API.setElements([
       pdfPage(),
-      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
-      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e1", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
     ]);
     API.setSelectedElements(
       h.elements.filter((e) => e.id === "e1" || e.id === "e2"),
@@ -506,12 +525,44 @@ describe("a selection opens its sidebar tab", () => {
     );
   });
 
+  it("an item from the personal library on a PDF page opens the library on it", async () => {
+    await act(() =>
+      h.app.library.updateLibrary({
+        libraryItems: [
+          item("mine", { status: "unpublished" }),
+          item("inzicht-avp", { group: "aVP", name: "aVP buiten 5 × 5 m" }),
+        ],
+        merge: false,
+      }),
+    );
+    API.setElements([
+      pdfPage(),
+      placed("p1", "mine", { pdfParentId: "pdf1" }),
+      placed("e1", "inzicht-avp", { pdfParentId: "pdf1" }),
+    ]);
+    API.setSelectedElements([h.elements.find((e) => e.id === "p1")!]);
+    expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
+    await waitFor(() =>
+      expect(lib().querySelectorAll(".library-unit--revealed")).toHaveLength(1),
+    );
+    // and Vrij Tracé lists only the In Zicht item
+    act(() => h.app.vrijTrace.setUI({ pageId: "pdf1" }));
+    act(() =>
+      h.setState({ openSidebar: { name: "default", tab: "vrijtrace" } }),
+    );
+    await waitFor(() =>
+      expect(
+        queryByTestId(container, "vt-elements")?.querySelectorAll("li"),
+      ).toHaveLength(1),
+    );
+  });
+
   it("a row in Elementen selects its item on the plan", async () => {
     API.setElements([
       pdfPage(),
-      placed("e1", "avp", { pdfParentId: "pdf1" }, ["g1"]),
-      placed("e2", "avp", { pdfParentId: "pdf1" }, ["g1"]),
-      placed("d1", "duct", { pdfParentId: "pdf1" }),
+      placed("e1", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("e2", "inzicht-avp", { pdfParentId: "pdf1" }, ["g1"]),
+      placed("d1", "inzicht-duct", { pdfParentId: "pdf1" }),
     ]);
     act(() => h.app.vrijTrace.setUI({ pageId: "pdf1" }));
     await waitFor(() =>
@@ -563,7 +614,7 @@ describe("a selection opens its sidebar tab", () => {
       ...h.app.device,
       editor: { ...h.app.device.editor, isMobile: true, canFitSidebar: false },
     };
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
     expect(h.state.openSidebar).toBeNull();
   });
@@ -574,14 +625,16 @@ describe("a selection opens its sidebar tab", () => {
       ...h.app.device,
       editor: { ...h.app.device.editor, isMobile: false, canFitSidebar: false },
     };
-    API.setElements([pdfPage(), placed("e1", "avp")]);
+    API.setElements([pdfPage(), placed("e1", "inzicht-avp")]);
     API.setSelectedElements([h.elements.find((e) => e.id === "e1")!]);
     expect(h.state.openSidebar).toEqual({ name: "default", tab: "library" });
   });
 
   it("an item placed before items were tagged still opens the library", async () => {
     const [avpItem] = h.app.library.getLatestLibrary
-      ? (await h.app.library.getLatestLibrary()).filter((i) => i.id === "avp")
+      ? (await h.app.library.getLatestLibrary()).filter(
+          (i) => i.id === "inzicht-avp",
+        )
       : [];
     const copy = {
       ...avpItem.elements[0],
@@ -615,7 +668,7 @@ describe("a selection opens its sidebar tab", () => {
     await act(() =>
       h.app.library.updateLibrary({
         libraryItems: [
-          item("c1z", {
+          item("inzicht-c1z", {
             group: "Bomen",
             name: "C1 3,00 m",
             elements: [
@@ -642,7 +695,7 @@ describe("a selection opens its sidebar tab", () => {
     await waitFor(() => expect(h.elements).toHaveLength(2));
     const ring = h.elements.find((e) => e.type === "ellipse")!;
     // the placed tree remembers its library item, and landed on the page
-    expect(ring.customData?.libraryItemId).toBe("c1z");
+    expect(ring.customData?.libraryItemId).toBe("inzicht-c1z");
     expect(ring.customData?.pdfParentId).toBe("pdf1");
     expect(h.state.selectedElementIds[ring.id]).toBe(true);
     // whether the sidebar stays docked open is the library's own business;

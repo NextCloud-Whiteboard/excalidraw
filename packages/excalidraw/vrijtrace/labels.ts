@@ -16,6 +16,7 @@ import {
 } from "./model";
 
 import type { Pt } from "./geometry";
+import type { LibraryItem } from "../types";
 
 /** a number on the plan, matching its row in the panel's lists */
 export type PlanLabel = {
@@ -53,6 +54,8 @@ const halfway = (pts: Pt[]): Pt => {
 export const planLabels = (
   elements: readonly ExcalidrawElement[],
   page: ExcalidrawImageElement,
+  /** to recognise placements from before items were tagged */
+  libraryItems: readonly LibraryItem[] = [],
 ): PlanLabel[] => {
   const s = pageState(elements, page);
   if (!s) {
@@ -79,7 +82,7 @@ export const planLabels = (
       y: c.y - r * Math.SQRT1_2,
     };
   });
-  const others = pageElements(elements, page.id).map((e, i) => {
+  const others = pageElements(elements, page.id, libraryItems).map((e, i) => {
     const [, y1, x2] = getCommonBounds(e.elements);
     return { kind: "element" as const, n: i + 1, x: x2, y: y1 };
   });

@@ -48,7 +48,7 @@ const avp = {
   customData: {
     pdfParentId: "pdf1",
     libraryCmPerPx: 5,
-    libraryItemId: "avp",
+    libraryItemId: "inzicht-avp",
   },
 };
 
@@ -116,6 +116,15 @@ describe("planLabels", () => {
     expect(labels.find((l) => l.kind.startsWith("tree"))!.kind).toBe(
       "tree-bad",
     );
+  });
+
+  it("labels no item from the personal library", () => {
+    const mine = {
+      ...avp,
+      id: "m1",
+      customData: { ...avp.customData, libraryItemId: "mine" },
+    };
+    expect(planLabels([page, mine], page)).toEqual([]);
   });
 
   it("has nothing for a page not yet calibrated", () => {

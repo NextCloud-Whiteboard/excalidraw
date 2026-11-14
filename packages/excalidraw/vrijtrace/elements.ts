@@ -5,7 +5,12 @@ import type {
   ExcalidrawLinearElement,
 } from "@excalidraw/element/types";
 
-import { isFromLibrary, libraryItemIdOf, placedItemId } from "../libraryMatch";
+import {
+  isFromLibrary,
+  isInZichtItem,
+  libraryItemIdOf,
+  placedItemId,
+} from "../libraryMatch";
 
 import { polygonTouches } from "./geometry";
 import {
@@ -34,9 +39,10 @@ export type PageElement = {
 };
 
 /**
- * The library items placed on a page other than trees and trench lines, one
- * per placement, in drawing order (the order the Elementen list numbers
- * them). The user's own shapes carry no library mark and are left out.
+ * The In Zicht library items placed on a page other than trees and trench
+ * lines, one per placement, in drawing order (the order the Elementen list
+ * numbers them). The user's own shapes and personal library items are left
+ * out.
  */
 export const pageElements = (
   elements: readonly ExcalidrawElement[],
@@ -63,15 +69,20 @@ export const pageElements = (
       byKey.get(elementKey(el))?.push(el);
     }
   }
-  return keys
-    .map((key) => ({ key, elements: byKey.get(key)! }))
-    .filter(({ elements: els }) => !els.some(isTreeRing))
-    .map(({ key, elements: els }) => ({
-      key,
-      ids: els.map((el) => el.id),
-      elements: els,
-      itemId: placedItemId(els, libraryItems),
-    }));
+  return (
+    keys
+      .map((key) => ({ key, elements: byKey.get(key)! }))
+      .filter(({ elements: els }) => !els.some(isTreeRing))
+      .map(({ key, elements: els }) => ({
+        key,
+        ids: els.map((el) => el.id),
+        elements: els,
+        itemId: placedItemId(els, libraryItems),
+      }))
+      // only In Zicht items take part; the user's own items and placements
+      // nothing in the library matches are not Vrij Tracé's
+      .filter((e) => isInZichtItem(e.itemId))
+  );
 };
 
 export type ElementZones = {

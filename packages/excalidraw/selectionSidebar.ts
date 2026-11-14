@@ -1,6 +1,11 @@
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { isFromLibrary, libraryItemIdOf, placedItemId } from "./libraryMatch";
+import {
+  isFromLibrary,
+  isInZichtItem,
+  libraryItemIdOf,
+  placedItemId,
+} from "./libraryMatch";
 import { elementKey } from "./vrijtrace/elements";
 import {
   getPageFrame,
@@ -13,8 +18,9 @@ import type { AppState, LibraryItem } from "./types";
 
 /**
  * What a selection on the canvas points the sidebar at. On a calibrated PDF
- * page, Vrij Tracé: a tree, a trench line, or another placed library item (an
- * element). Anywhere else, a placed library item's tile in the library.
+ * page, Vrij Tracé: a tree, a trench line, or another placed In Zicht library
+ * item (an element). Anywhere else, and for the user's own (personal
+ * library) items, a placed library item's tile in the library.
  */
 export type SelectionTarget =
   | { kind: "tree"; ringId: string; pageId: string }
@@ -82,6 +88,7 @@ export const selectionTarget = (
         return { kind: "line", lineId: selected[0].id, pageId };
       }
     }
+    // an In Zicht item on the page; the user's own items stay the library's
     const pageId = calibrated(selected[0].customData?.pdfParentId);
     if (
       pageId &&
@@ -92,12 +99,15 @@ export const selectionTarget = (
           (isFromLibrary(el) || libraryItemIdOf(el)),
       )
     ) {
-      return {
-        kind: "element",
-        key: elementKey(selected[0]),
-        pageId,
-        itemId: placedItemId(selected, libraryItems),
-      };
+      const itemId = placedItemId(selected, libraryItems);
+      if (isInZichtItem(itemId)) {
+        return {
+          kind: "element",
+          key: elementKey(selected[0]),
+          pageId,
+          itemId,
+        };
+      }
     }
   }
   const itemId = placedItemId(selected, libraryItems);

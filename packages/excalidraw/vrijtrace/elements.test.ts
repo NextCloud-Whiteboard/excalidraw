@@ -54,31 +54,31 @@ describe("pageElements", () => {
   it("lists the placed library items on a page, one per placement, in drawing order", () => {
     const els = [
       page,
-      placed("a1", "avp", [100, 100, 40, 40], ["gA"]),
-      placed("d1", "duct", [300, 100, 60, 10]),
-      placed("a2", "avp", [110, 110, 20, 20], ["gA"]),
+      placed("a1", "inzicht-avp", [100, 100, 40, 40], ["gA"]),
+      placed("d1", "inzicht-duct", [300, 100, 60, 10]),
+      placed("a2", "inzicht-avp", [110, 110, 20, 20], ["gA"]),
     ];
     expect(
       pageElements(els, "pdf1").map((e) => [e.key, e.ids, e.itemId]),
     ).toEqual([
-      ["gA", ["a1", "a2"], "avp"],
-      ["d1", ["d1"], "duct"],
+      ["gA", ["a1", "a2"], "inzicht-avp"],
+      ["d1", ["d1"], "inzicht-duct"],
     ]);
   });
 
   it("leaves out trees, trench lines, other pages and the user's own shapes", () => {
     const tree = {
-      ...placed("ring", "c1z", [500, 100, 100, 100], ["gT"], {
+      ...placed("ring", "inzicht-c1z", [500, 100, 100, 100], ["gT"], {
         treeRing: { klasse: "C1", scherm: false },
       }),
       type: "ellipse" as const,
     };
-    const trunk = placed("trunk", "c1z", [540, 140, 20, 20], ["gT"]);
+    const trunk = placed("trunk", "inzicht-c1z", [540, 140, 20, 20], ["gT"]);
     const trench = {
       ...API.createElement({ type: "line", id: "l1" }),
       customData: { tool: "trench", pdfParentId: "pdf1" },
     };
-    const elsewhere = { ...placed("o1", "avp", [0, 0, 10, 10]) };
+    const elsewhere = { ...placed("o1", "inzicht-avp", [0, 0, 10, 10]) };
     (elsewhere as any).customData = {
       ...elsewhere.customData,
       pdfParentId: "pdf2",
@@ -92,9 +92,15 @@ describe("pageElements", () => {
     ).toEqual([]);
   });
 
+  it("leaves out items from the personal library, and placements it cannot name", () => {
+    const mine = placed("p1", "mine", [10, 10, 40, 40]);
+    const unknown = placed("u1", null, [100, 10, 40, 40]);
+    expect(pageElements([page, mine, unknown], "pdf1")).toEqual([]);
+  });
+
   it("names a placement from before items were tagged by its drawing", () => {
     const item: LibraryItem = {
-      id: "gevel",
+      id: "inzicht-gevel",
       status: "published",
       created: 1,
       elements: [
@@ -108,7 +114,9 @@ describe("pageElements", () => {
       libraryCmPerPx: undefined,
       librarySymbol: true,
     });
-    expect(pageElements([page, old], "pdf1", [item])[0].itemId).toBe("gevel");
+    expect(pageElements([page, old], "pdf1", [item])[0].itemId).toBe(
+      "inzicht-gevel",
+    );
   });
 
   it("keys a placement by its outermost group, else by itself", () => {
