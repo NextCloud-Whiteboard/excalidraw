@@ -50,12 +50,14 @@ export const STR = {
     sideRight: "Rechts",
   },
   applies: {
-    next: "Geen sleuf geselecteerd: instellingen voor de volgende sleuf.",
+    next: "Geen sleuf geselecteerd: een nieuwe sleuf krijgt deze instellingen.",
     selected: (n: number) =>
       n === 1
         ? "Wijzigingen gelden voor de geselecteerde sleuf."
         : `Wijzigingen gelden voor de ${n} geselecteerde sleuven.`,
   },
+  /** over the bar's sleuf settings while no sleuf is selected */
+  selectHint: "Selecteer een sleuf om breedte, rand en zones te wijzigen",
   actions: {
     activate: "Activeer zones",
     deactivate: "Deactiveer zones",
@@ -112,6 +114,8 @@ export const STR = {
     edge: (name: string) => `getekend met de ${name}`,
     red: (side: string) => `schadepreventie ${side}`,
     work: (side: string) => `werkruimte ${side}`,
+    selected: (n: number) =>
+      `Sleuf ${n} getekend en geselecteerd: wat je in de balk wijzigt, geldt voor deze sleuf.`,
     message: (n: number, direction: string, parts: string[]) =>
       `Sleuf ${n} loopt ${direction}: ${parts.join(", ")}.`,
   },

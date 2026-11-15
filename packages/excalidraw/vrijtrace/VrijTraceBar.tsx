@@ -70,12 +70,14 @@ const SideSelect = ({
   label,
   value,
   direction,
+  disabled = false,
   onChange,
 }: {
   id: string;
   label: string;
   value: VrijTraceSide;
   direction: ShownDirection;
+  disabled?: boolean;
   onChange: (side: VrijTraceSide) => void;
 }) => (
   <select
@@ -84,6 +86,7 @@ const SideSelect = ({
     className="vt-select"
     aria-label={label}
     value={value}
+    disabled={disabled}
     onChange={(e) => onChange(e.target.value as VrijTraceSide)}
   >
     {sideChoices(direction).map(([side, text]) => (
@@ -109,6 +112,7 @@ const RangeField = ({
   max,
   step,
   unit,
+  disabled = false,
   onChange,
 }: {
   id: string;
@@ -118,6 +122,7 @@ const RangeField = ({
   max: number;
   step: number;
   unit: string;
+  disabled?: boolean;
   onChange: (value: number, commit: boolean) => void;
 }) => {
   // the text being typed; null shows the current value
@@ -137,7 +142,7 @@ const RangeField = ({
   return (
     <div
       className="vt-range"
-      onFocus={() => setOpen(true)}
+      onFocus={() => setOpen(!disabled)}
       onBlur={(e) => {
         // moving between the field and its slider keeps it open
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
@@ -156,6 +161,7 @@ const RangeField = ({
           aria-label={label}
           title={`${label}: ${fmt(min)} tot ${fmt(max)} ${unit}`}
           value={text ?? fmt(value)}
+          disabled={disabled}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -165,7 +171,7 @@ const RangeField = ({
         />
         <span>{unit}</span>
       </label>
-      <div className="vt-pop Island" hidden={!open}>
+      <div className="vt-pop Island" hidden={!open || disabled}>
         <div className="vt-lbl">
           <span>{label}</span>
           <b>
@@ -181,6 +187,7 @@ const RangeField = ({
           max={max}
           step={step}
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(fromSlider(e), false)}
           onPointerUp={(e) => onChange(fromSlider(e), true)}
           onKeyUp={(e) => onChange(fromSlider(e), true)}
@@ -271,6 +278,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
   const width = vt.shownWidth();
   const line = vt.shownLineSettings();
   const direction = vt.shownDirection();
+  const editable = vt.selectedLines().length > 0;
   const elements = app.scene.getNonDeletedElements();
   const page = elements.find((el) => el.id === ui.pageId);
   const active = isPdfPage(page) && !!pageState(elements, page)?.active;
@@ -299,87 +307,108 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
           </div>
         </Group>
         <span className="vt-sep" />
-        <Group
-          caption={STR.bar.trench}
-          extra={
-            direction && (
-              <span className="vt-dir" data-testid="vt-direction">
-                {STR.direction[direction]}
-              </span>
-            )
+        {/* what changes a sleuf works on selected sleuven only: with none,
+            it is off, and a new sleuf takes the last one's settings */}
+        <div
+          className={
+            editable ? "vt-linegroups" : "vt-linegroups vt-linegroups--off"
           }
         >
-          <RangeField
-            id="vt-width"
-            label={STR.labels.width}
-            value={width}
-            min={TRENCH_WIDTH_MIN_M}
-            max={TRENCH_WIDTH_MAX_M}
-            step={0.05}
-            unit="m"
-            onChange={(v, commit) => vt.setWidth(v, commit)}
-          />
-          <select
-            id="vt-reference"
-            data-testid="vt-reference"
-            className="vt-select"
-            aria-label={STR.labels.reference}
-            title={STR.labels.reference}
-            value={line.reference}
-            onChange={(e) => vt.setReference(e.target.value as TrenchReference)}
-          >
-            {referenceChoices(direction).map(([ref, label]) => (
-              <option key={ref} value={ref}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <RangeField
-            id="vt-line-width"
-            label={STR.labels.lineWidth}
-            value={line.lineWidthPx}
-            min={LINE_WIDTH_MIN_PX}
-            max={LINE_WIDTH_MAX_PX}
-            step={0.05}
-            unit="px"
-            onChange={(v, commit) => vt.setLineWidth(v, commit)}
-          />
-        </Group>
-        <span className="vt-sep" />
-        <Group caption={STR.bar.red} title={STR.help.red}>
-          <span className="vt-ro" title={STR.labels.redDistance}>
-            2,00 m
-          </span>
-          <SideSelect
-            id="vt-red-side"
-            label={`${STR.labels.side} ${STR.legend.red.toLowerCase()}`}
-            value={line.redSide}
-            direction={direction}
-            onChange={(redSide) => vt.setLineZone({ redSide }, true)}
-          />
-        </Group>
-        <span className="vt-sep" />
-        <Group caption={STR.bar.work}>
-          <RangeField
-            id="vt-work-width"
-            label={STR.labels.workWidth}
-            value={line.workWidthM}
-            min={WORK_WIDTH_MIN_M}
-            max={WORK_WIDTH_MAX_M}
-            step={0.1}
-            unit="m"
-            onChange={(workWidthM, commit) =>
-              vt.setLineZone({ workWidthM }, commit)
+          {!editable && (
+            <span className="vt-select-hint" data-testid="vt-select-hint">
+              {STR.selectHint}
+            </span>
+          )}
+          <Group
+            caption={STR.bar.trench}
+            extra={
+              direction && (
+                <span className="vt-dir" data-testid="vt-direction">
+                  {STR.direction[direction]}
+                </span>
+              )
             }
-          />
-          <SideSelect
-            id="vt-work-side"
-            label={`${STR.labels.side} ${STR.legend.work.toLowerCase()}`}
-            value={line.workSide}
-            direction={direction}
-            onChange={(workSide) => vt.setLineZone({ workSide }, true)}
-          />
-        </Group>
+          >
+            <RangeField
+              id="vt-width"
+              label={STR.labels.width}
+              value={width}
+              min={TRENCH_WIDTH_MIN_M}
+              max={TRENCH_WIDTH_MAX_M}
+              step={0.05}
+              unit="m"
+              disabled={!editable}
+              onChange={(v, commit) => vt.setWidth(v, commit)}
+            />
+            <select
+              id="vt-reference"
+              data-testid="vt-reference"
+              className="vt-select"
+              aria-label={STR.labels.reference}
+              title={STR.labels.reference}
+              value={line.reference}
+              disabled={!editable}
+              onChange={(e) =>
+                vt.setReference(e.target.value as TrenchReference)
+              }
+            >
+              {referenceChoices(direction).map(([ref, label]) => (
+                <option key={ref} value={ref}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <RangeField
+              id="vt-line-width"
+              label={STR.labels.lineWidth}
+              value={line.lineWidthPx}
+              min={LINE_WIDTH_MIN_PX}
+              max={LINE_WIDTH_MAX_PX}
+              step={0.05}
+              unit="px"
+              disabled={!editable}
+              onChange={(v, commit) => vt.setLineWidth(v, commit)}
+            />
+          </Group>
+          <span className="vt-sep" />
+          <Group caption={STR.bar.red} title={STR.help.red}>
+            <span className="vt-ro" title={STR.labels.redDistance}>
+              2,00 m
+            </span>
+            <SideSelect
+              id="vt-red-side"
+              label={`${STR.labels.side} ${STR.legend.red.toLowerCase()}`}
+              value={line.redSide}
+              direction={direction}
+              disabled={!editable}
+              onChange={(redSide) => vt.setLineZone({ redSide }, true)}
+            />
+          </Group>
+          <span className="vt-sep" />
+          <Group caption={STR.bar.work}>
+            <RangeField
+              id="vt-work-width"
+              label={STR.labels.workWidth}
+              value={line.workWidthM}
+              min={WORK_WIDTH_MIN_M}
+              max={WORK_WIDTH_MAX_M}
+              step={0.1}
+              unit="m"
+              disabled={!editable}
+              onChange={(workWidthM, commit) =>
+                vt.setLineZone({ workWidthM }, commit)
+              }
+            />
+            <SideSelect
+              id="vt-work-side"
+              label={`${STR.labels.side} ${STR.legend.work.toLowerCase()}`}
+              value={line.workSide}
+              direction={direction}
+              disabled={!editable}
+              onChange={(workSide) => vt.setLineZone({ workSide }, true)}
+            />
+          </Group>
+        </div>
         <span className="vt-sep" />
         <button
           type="button"

@@ -108,6 +108,8 @@ export class VrijTraceController {
    * changed it (e.g. a scene reset).
    */
   private local: VrijTraceUIState | null = null;
+  /** the first sleuf drawn says it is selected; later ones need not */
+  private toldSelected = false;
   private pendingFrom: VrijTraceUIState | null = null;
 
   constructor(private app: VrijTraceHost) {}
@@ -294,18 +296,22 @@ export class VrijTraceController {
     const reference = forDirection(next.reference, dir);
     const redSide = forDirection(next.redSide, dir);
     const workSide = forDirection(next.workSide, dir);
-    this.app.scene.insertElement(
-      newTrenchLine({
-        points,
-        widthM: this.ui.widthM,
-        reference,
-        pdfParentId: pageId,
-        strokeWidth: lineWidthPx,
-        zone: { redSide, workWidthM: next.workWidthM, workSide },
-        treeMinM,
-      }),
-    );
+    const line = newTrenchLine({
+      points,
+      widthM: this.ui.widthM,
+      reference,
+      pdfParentId: pageId,
+      strokeWidth: lineWidthPx,
+      zone: { redSide, workWidthM: next.workWidthM, workSide },
+      treeMinM,
+    });
+    this.app.scene.insertElement(line);
     this.app.scheduleCapture();
+    // the sleuf just drawn is the one the bar changes now; the tool stays
+    this.app.setState({
+      selectedElementIds: { [line.id]: true },
+      selectedGroupIds: {},
+    });
     // say which edge and sides that made, if any were chosen
     const parts = [
       reference !== "midden" &&
@@ -315,9 +321,13 @@ export class VrijTraceController {
       workSide !== "beide" &&
         STR.drawn.work(sideName(dir, workSide).toLowerCase()),
     ].filter((x): x is string => !!x);
-    if (parts.length) {
-      const n = getPageParts(this.app.scene.getNonDeletedElements(), pageId)
-        .lines.length;
+    const n = getPageParts(this.app.scene.getNonDeletedElements(), pageId).lines
+      .length;
+    if (!this.toldSelected) {
+      // once: why the bar now changes this sleuf
+      this.toldSelected = true;
+      this.app.setToast({ message: STR.drawn.selected(n) });
+    } else if (parts.length) {
       this.app.setToast({
         message: STR.drawn.message(n, STR.directionWord[dir], parts),
       });

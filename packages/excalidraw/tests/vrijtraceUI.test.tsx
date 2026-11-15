@@ -216,6 +216,8 @@ describe("Vrij Tracé UI", () => {
 
   it("the toggle activates the zones and deactivates them again", () => {
     drawLine([100, 100], [400, 100]);
+    // (the first sleuf's message aside)
+    act(() => h.setState({ toast: null }));
     expect(byId("vt-activate").textContent).toBe("Activeer zones");
     fireEvent.click(byId("vt-activate"));
     expect(byId("vt-zone-state").textContent).toMatch(/^Zones geactiveerd/);
@@ -332,7 +334,8 @@ describe("Vrij Tracé UI", () => {
   });
 
   it("drops a field's slider down while the field is in use, from its minimum to its maximum", () => {
-    pickTool();
+    // a sleuf selected: the fields are its
+    drawLine([100, 100], [400, 100]);
     const pop = (id: string) => byId(id).closest(".vt-pop") as HTMLElement;
     for (const id of ["vt-width", "vt-line-width", "vt-work-width"]) {
       expect(pop(id).hidden).toBe(true);
@@ -464,40 +467,66 @@ describe("Vrij Tracé UI", () => {
     ]);
   const lines = () => getPageParts(h.elements, "pdf1").lines;
 
-  it("the next sleuf offers Middenlijn and an edge for each direction", () => {
-    pickTool();
+  it("with no sleuf selected, only what changes a sleuf is off", () => {
+    openOnPage();
+    expect(byId("vt-select-hint")!.textContent).toBe(
+      "Selecteer een sleuf om breedte, rand en zones te wijzigen",
+    );
+    for (const id of [
+      "vt-width-input",
+      "vt-reference",
+      "vt-line-width-input",
+      "vt-red-side",
+      "vt-work-width-input",
+      "vt-work-side",
+    ]) {
+      expect((byId(id) as HTMLInputElement).disabled).toBe(true);
+    }
+    // drawing and the page's zones are no sleuf's
+    expect((byId("vt-snap-90") as HTMLButtonElement).disabled).toBe(false);
+    expect((byId("vt-activate") as HTMLButtonElement).disabled).toBe(false);
+    // not drawn yet: no direction, the pair choices a new sleuf gets
+    expect(byId("vt-direction")).toBeNull();
     expect(options("vt-reference")).toEqual([
       ["midden", "Middenlijn"],
       ["boven", "Bovenrand / linker rand"],
       ["onder", "Onderrand / rechter rand"],
     ]);
-    for (const id of ["vt-red-side", "vt-work-side"]) {
-      expect(options(id)).toEqual([
-        ["beide", "Beide zijden"],
-        ["boven", "Boven / links"],
-        ["onder", "Onder / rechts"],
-      ]);
-    }
-    // not drawn yet: no direction to show
-    expect(byId("vt-direction")).toBeNull();
-    setRef("boven");
-    drawLine([100, 100], [400, 100]);
-    const [line] = lines();
-    expect(line.customData?.reference).toBe("boven");
-    expect(line.strokeStyle).toBe("solid");
   });
 
-  it("drawn vertically, the choice becomes that direction's edge and side, and it says so", () => {
-    pickTool();
+  it("a sleuf just drawn is selected, and the first one says so", () => {
+    drawLine([100, 100], [400, 100]);
+    const [first] = lines();
+    expect(h.state.selectedElementIds).toEqual({ [first.id]: true });
+    // the tool stays, to draw on
+    expect(h.state.activeTool).toMatchObject({
+      type: "custom",
+      customType: "vrijtrace",
+    });
+    expect(h.state.toast?.message).toBe(
+      "Sleuf 1 getekend en geselecteerd: wat je in de balk wijzigt, geldt voor deze sleuf.",
+    );
+    expect((byId("vt-width-input") as HTMLInputElement).disabled).toBe(false);
+    expect(byId("vt-select-hint")).toBeNull();
+    act(() => h.setState({ toast: null }));
+    drawLine([100, 300], [400, 300]);
+    const [, second] = lines();
+    expect(h.state.selectedElementIds).toEqual({ [second.id]: true });
+    // said once
+    expect(h.state.toast).toBeNull();
+  });
+
+  it("drawn vertically, the last sleuf's edge and side become that direction's, and it says so", () => {
+    drawLine([100, 100], [400, 100]); // selected: its settings go on
     setRef("boven");
     fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
-    drawLine([200, 100], [200, 400]);
-    expect(lines()[0].customData).toMatchObject({
+    drawLine([200, 150], [200, 450]);
+    expect(lines()[1].customData).toMatchObject({
       reference: "links",
       redSide: "rechts",
     });
     expect(h.state.toast?.message).toBe(
-      "Sleuf 1 loopt verticaal: getekend met de linker rand, schadepreventie rechts.",
+      "Sleuf 2 loopt verticaal: getekend met de linker rand, schadepreventie rechts.",
     );
   });
 
@@ -563,13 +592,13 @@ describe("Vrij Tracé UI", () => {
     ]);
   });
 
-  it("drawn diagonally, the choice becomes its upper edge, and it says so", () => {
-    pickTool();
+  it("drawn diagonally, the last sleuf's edge becomes its upper edge, and it says so", () => {
+    drawLine([100, 100], [400, 100]);
     setRef("boven");
-    drawLine([100, 400], [400, 100]);
-    expect(lines()[0].customData).toMatchObject({ reference: "boven" });
+    drawLine([100, 450], [400, 150]);
+    expect(lines()[1].customData).toMatchObject({ reference: "boven" });
     expect(h.state.toast?.message).toBe(
-      "Sleuf 1 loopt diagonaal: getekend met de linkerbovenrand.",
+      "Sleuf 2 loopt diagonaal: getekend met de linkerbovenrand.",
     );
   });
 
@@ -765,30 +794,26 @@ describe("Vrij Tracé UI", () => {
     expect(line.y).toBeCloseTo(100, 6);
   });
 
-  it("with no line selected, the settings are for the next line", () => {
-    drawLine([100, 100], [400, 100]);
-    expect(container.textContent).toContain(
-      "Geen sleuf geselecteerd: instellingen voor de volgende sleuf.",
-    );
+  it("a new sleuf takes the settings of the last one changed", () => {
+    drawLine([100, 100], [400, 100]); // selected
     fireEvent.change(byId("vt-work-width"), { target: { value: "3" } });
     fireEvent.change(byId("vt-line-width"), { target: { value: "2" } });
-    // before drawing, a side is a pair: Onder or Rechts
     fireEvent.change(byId("vt-red-side"), { target: { value: "onder" } });
-    const [first] = getPageParts(h.elements, "pdf1").lines;
-    expect(first.strokeWidth).toBe(0.5);
-    expect(first.customData).toMatchObject({
-      workWidthM: 1.5,
-      redSide: "beide",
-    });
+    const [first] = lines();
+    expect(first.strokeWidth).toBe(2);
+    expect(first.customData).toMatchObject({ workWidthM: 3, redSide: "onder" });
     drawLine([100, 300], [400, 300]);
-    const second = getPageParts(h.elements, "pdf1").lines[1];
+    const second = lines()[1];
     expect(second.strokeWidth).toBe(2);
-    // drawn horizontally: Onder
     expect(second.customData).toMatchObject({
       workWidthM: 3,
       redSide: "onder",
       workSide: "beide",
     });
+    act(() => h.setState({ selectedElementIds: {} }));
+    expect(byId("vt-applies").textContent).toBe(
+      "Geen sleuf geselecteerd: een nieuwe sleuf krijgt deze instellingen.",
+    );
   });
 
   it("says that changes apply to the selected line", () => {

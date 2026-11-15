@@ -439,6 +439,8 @@ describe("Vrij Tracé selected line preview", () => {
 
   it("shows a selected line's zones, faded, while its page shows none", async () => {
     await drawOnPage(1000, 700, false);
+    // a sleuf just drawn is selected: start from none
+    API.setSelectedElements([]);
     expect(renderInteractive().fills).toEqual([]);
     selectTheLine();
     const { fills, alphas } = renderInteractive();
