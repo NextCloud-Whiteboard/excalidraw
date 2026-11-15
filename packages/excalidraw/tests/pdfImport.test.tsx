@@ -132,6 +132,25 @@ describe("PDF import placeholder", () => {
     expect(placeholder()?.textContent).not.toContain("Internal Server Error");
   });
 
+  it("says why when the converter stops halfway through the pages", async () => {
+    await start();
+    act(() =>
+      FakeXHR.last.respond(
+        200,
+        JSON.stringify({
+          files: [
+            { filename: "page-1.png", content_type: "image/png", data: PNG },
+          ],
+          error: "Syntax Error on page 2",
+        }),
+        "application/json",
+      ),
+    );
+    await waitFor(() => expect(h.state.pdfImport?.stage).toBe("error"));
+    expect(placeholder()?.textContent).toContain("Syntax Error on page 2");
+    expect(h.elements.filter((el) => el.type === "image")).toHaveLength(0);
+  });
+
   it("cancel stops the upload and removes the placeholder", async () => {
     await start();
     fireEvent.click(container.querySelector(".PdfImportPlaceholder__cancel")!);
@@ -247,6 +266,30 @@ describe("PDF import size limit", () => {
     await waitFor(() => expect(FakeXHR.all).toHaveLength(1));
     expect(h.state.pdfImport?.stage).toBe("upload");
     expect(h.state.toast).toBeNull();
+  });
+
+  it("says the PDF is too large when the converter refuses it", async () => {
+    // the server keeps its own limit, also for hosts that set none
+    await render(<Excalidraw pdfApiUrl="http://pdf.test" />);
+    act(() => {
+      void h.app.importPdf(pdfOf(31.2));
+    });
+    await waitFor(() => expect(FakeXHR.all).toHaveLength(1));
+    act(() =>
+      FakeXHR.last.respond(
+        413,
+        JSON.stringify({
+          error: "PDF is too large: the limit is 30 MB",
+          max_mb: 30,
+        }),
+        "application/json",
+        "Request Entity Too Large",
+      ),
+    );
+    await waitFor(() => expect(h.state.pdfImport).toBeNull());
+    expect(h.state.toast?.message).toContain("OV-100.pdf");
+    expect(h.state.toast?.message).toContain("31.2 MB");
+    expect(h.state.toast?.message).toContain("30 MB");
   });
 
   it("has no limit unless the host sets one", async () => {

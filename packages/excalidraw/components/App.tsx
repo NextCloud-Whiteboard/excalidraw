@@ -11442,6 +11442,25 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  /** tell the user a PDF is over the limit (in MB), if one is known */
+  private pdfTooLarge = (pdfFile: File, maxMB: number | null | undefined) => {
+    const mb = (bytes: number) =>
+      (bytes / (1024 * 1024)).toLocaleString(getLanguage().code, {
+        maximumFractionDigits: 1,
+      });
+    this.setToast({
+      message: maxMB
+        ? t("pdfImport.tooLarge", {
+            name: pdfFile.name,
+            size: mb(pdfFile.size),
+            max: mb(maxMB * 1024 * 1024),
+          })
+        : t("pdfImport.failedToImport", { message: pdfFile.name }),
+      closable: true,
+      duration: 8000,
+    });
+  };
+
   /**
    * Convert a PDF and place its pages as images. A placeholder page shows
    * where they will land and what is happening: the real upload progress,
@@ -11452,19 +11471,7 @@ class App extends React.Component<AppProps, AppState> {
     // a file the converter will not finish
     const maxMB = this.props.maxPdfFileSizeMB;
     if (maxMB && maxMB > 0 && pdfFile.size > maxMB * 1024 * 1024) {
-      const mb = (bytes: number) =>
-        (bytes / (1024 * 1024)).toLocaleString(getLanguage().code, {
-          maximumFractionDigits: 1,
-        });
-      this.setToast({
-        message: t("pdfImport.tooLarge", {
-          name: pdfFile.name,
-          size: mb(pdfFile.size),
-          max: mb(maxMB * 1024 * 1024),
-        }),
-        closable: true,
-        duration: 8000,
-      });
+      this.pdfTooLarge(pdfFile, maxMB);
       return;
     }
     this.pdfImportRun?.abort();
@@ -11521,6 +11528,19 @@ class App extends React.Component<AppProps, AppState> {
       if (!current()) {
         return;
       }
+      // the converter's own limit: said the same way as the host's
+      if (response.status === 413) {
+        const json = await blobText(response.body)
+          .then((text) => JSON.parse(text))
+          .catch(() => null);
+        if (!current()) {
+          return;
+        }
+        this.pdfImportRun = null;
+        this.setState({ pdfImport: null });
+        this.pdfTooLarge(pdfFile, Number(json?.max_mb) || maxMB || null);
+        return;
+      }
       if (!response.ok) {
         throw new Error(
           (await converterReason(response.body)) ||
@@ -11535,6 +11555,11 @@ class App extends React.Component<AppProps, AppState> {
       const pages: File[] = [];
       if (response.contentType.includes("application/json")) {
         const json = JSON.parse(await blobText(response.body));
+        // the converter sends pages as it renders them, so a failure part
+        // way through comes after the pages, as { files, error }
+        if (typeof json?.error === "string" && json.error.trim()) {
+          throw new Error(json.error.trim());
+        }
         const files = Array.isArray(json?.files) ? json.files : [];
         for (let i = 0; i < files.length; i++) {
           const item = files[i];
