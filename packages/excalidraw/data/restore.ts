@@ -82,6 +82,15 @@ type RestoredAppState = Omit<
   "offsetTop" | "offsetLeft" | "width" | "height"
 >;
 
+/**
+ * Vrij Tracé and the ruler are picked on a PDF page (they are greyed out
+ * until one is selected): a board never opens with one of them active, as it
+ * would show their bar with no page to work on.
+ */
+const isPdfPageTool = (tool: { type: string; customType?: string | null }) =>
+  tool.type === "custom" &&
+  (tool.customType === "vrijtrace" || tool.customType === "ruler");
+
 export const AllowedExcalidrawActiveTools: Record<
   AppState["activeTool"]["type"],
   boolean
@@ -887,7 +896,8 @@ export const restoreAppState = (
       ...updateActiveTool(
         defaultAppState,
         nextAppState.activeTool.type &&
-          AllowedExcalidrawActiveTools[nextAppState.activeTool.type]
+          AllowedExcalidrawActiveTools[nextAppState.activeTool.type] &&
+          !isPdfPageTool(nextAppState.activeTool)
           ? nextAppState.activeTool
           : { type: "selection" },
       ),

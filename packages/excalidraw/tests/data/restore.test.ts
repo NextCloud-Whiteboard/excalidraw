@@ -352,6 +352,31 @@ describe("restoreAppState", () => {
     expect(restored.pdfImport).toBeNull();
   });
 
+  it("opens a board without Vrij Tracé or the ruler active: they are picked on a PDF page", () => {
+    for (const customType of ["vrijtrace", "ruler"]) {
+      const saved = getDefaultAppState();
+      saved.activeTool = {
+        ...saved.activeTool,
+        type: "custom",
+        customType,
+      };
+      expect(restore.restoreAppState(saved, null).activeTool.type).toBe(
+        "selection",
+      );
+    }
+    // other tools come back as saved
+    const bubble = getDefaultAppState();
+    bubble.activeTool = {
+      ...bubble.activeTool,
+      type: "custom",
+      customType: "textbubble",
+    };
+    expect(restore.restoreAppState(bubble, null).activeTool).toMatchObject({
+      type: "custom",
+      customType: "textbubble",
+    });
+  });
+
   it("should restore with imported data", () => {
     const stubImportedAppState = getDefaultAppState();
     stubImportedAppState.activeTool.type = "selection";
