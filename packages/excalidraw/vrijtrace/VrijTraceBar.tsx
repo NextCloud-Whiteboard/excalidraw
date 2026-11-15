@@ -280,7 +280,8 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
   const direction = vt.shownDirection();
   const editable = vt.selectedLines().length > 0;
   const elements = app.scene.getNonDeletedElements();
-  const page = elements.find((el) => el.id === ui.pageId);
+  // the page worked on, else the selected PDF page (as for drawing)
+  const page = vt.zonePage();
   const active = isPdfPage(page) && !!pageState(elements, page)?.active;
 
   return (

@@ -470,7 +470,7 @@ describe("Vrij Tracé UI", () => {
   it("with no sleuf selected, only what changes a sleuf is off", () => {
     openOnPage();
     expect(byId("vt-select-hint")!.textContent).toBe(
-      "Selecteer een sleuf om breedte, rand en zones te wijzigen",
+      "Selecteer of teken een sleuf om breedte, rand en zones te wijzigen",
     );
     for (const id of [
       "vt-width-input",
@@ -492,6 +492,27 @@ describe("Vrij Tracé UI", () => {
       ["boven", "Bovenrand / linker rand"],
       ["onder", "Onderrand / rechter rand"],
     ]);
+  });
+
+  it("with the PDF page selected, the zones toggle works, like the drawing buttons", () => {
+    // the page selected and the tool picked: nothing drawn or clicked yet
+    pickTool();
+    const toggle = byId("vt-activate") as HTMLButtonElement;
+    expect(toggle.disabled).toBe(false);
+    fireEvent.click(toggle);
+    expect(byId("vt-activate").textContent).toBe("Deactiveer zones");
+    fireEvent.click(byId("vt-activate"));
+    expect(byId("vt-activate").textContent).toBe("Activeer zones");
+  });
+
+  it("on a page not calibrated yet, the zones toggle asks to calibrate first", () => {
+    API.setElements([{ ...pdfPage(), customData: { isPdf: true } }]);
+    pickTool();
+    fireEvent.click(byId("vt-activate"));
+    expect(h.state.toast?.message).toBe(
+      "Kalibreer eerst de liniaal op deze pagina",
+    );
+    expect(byId("vt-activate").textContent).toBe("Activeer zones");
   });
 
   it("a sleuf just drawn is selected, and the first one says so", () => {

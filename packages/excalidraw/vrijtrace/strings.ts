@@ -57,7 +57,8 @@ export const STR = {
         : `Wijzigingen gelden voor de ${n} geselecteerde sleuven.`,
   },
   /** over the bar's sleuf settings while no sleuf is selected */
-  selectHint: "Selecteer een sleuf om breedte, rand en zones te wijzigen",
+  selectHint:
+    "Selecteer of teken een sleuf om breedte, rand en zones te wijzigen",
   actions: {
     activate: "Activeer zones",
     deactivate: "Deactiveer zones",

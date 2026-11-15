@@ -406,6 +406,22 @@ export class VrijTraceController {
     this.setUI({ widthM: v });
   }
 
+  /**
+   * The PDF page the selection is on (the page itself, or something placed on
+   * it) becomes the page worked on: picking the tool clears the selection.
+   */
+  followSelectedPage() {
+    const selected = this.app.scene
+      .getNonDeletedElements()
+      .filter((el) => this.app.state.selectedElementIds[el.id]);
+    const pageId = selected
+      .map((el) => (isPdfPage(el) ? el.id : el.customData?.pdfParentId))
+      .find((id) => typeof id === "string" && this.page(id));
+    if (pageId && pageId !== this.ui.pageId) {
+      this.setUI({ pageId, hotTreeId: null });
+    }
+  }
+
   /** selected trench lines of one page make that page the panel's page */
   followSelection() {
     const lines = this.selectedLines();
@@ -638,12 +654,37 @@ export class VrijTraceController {
     this.setUI({});
   }
 
+  /**
+   * The page the zones toggle acts on: the page worked on, else the PDF page
+   * selected (picking the tool on a selected page is enough, as for drawing)
+   */
+  zonePage() {
+    const worked = this.page();
+    if (worked) {
+      return worked;
+    }
+    const selected = this.app.scene
+      .getNonDeletedElements()
+      .filter(
+        (el) => this.app.state.selectedElementIds[el.id] && isPdfPage(el),
+      );
+    return selected.length === 1 && isPdfPage(selected[0]) ? selected[0] : null;
+  }
+
   activate() {
-    const page = this.page();
-    const state =
-      page && pageState(this.app.scene.getNonDeletedElements(), page);
-    if (!page || !state) {
+    const page = this.zonePage();
+    if (!page) {
       return;
+    }
+    const state = pageState(this.app.scene.getNonDeletedElements(), page);
+    if (!state) {
+      // zones are measured in metres: the page needs its scale first
+      this.app.setToast({ message: STR.calibrateFirst });
+      return;
+    }
+    // from now on the panel shows this page
+    if (page.id !== this.ui.pageId) {
+      this.setUI({ pageId: page.id, hotTreeId: null });
     }
     const network = this.ensureNetwork(page);
     if (network.trench.kind !== "network") {
@@ -664,7 +705,7 @@ export class VrijTraceController {
 
   /** zones of the current page are shown (activated for its current layout) */
   zonesActive() {
-    const page = this.page();
+    const page = this.zonePage();
     return !!(
       page && pageState(this.app.scene.getNonDeletedElements(), page)?.active
     );
@@ -672,7 +713,7 @@ export class VrijTraceController {
 
   /** hide the zones again for everyone; the trench and trees stay */
   deactivate() {
-    const page = this.page();
+    const page = this.zonePage();
     const network = page
       ? (this.app.scene.getElement(
           networkIdForPage(page.id),

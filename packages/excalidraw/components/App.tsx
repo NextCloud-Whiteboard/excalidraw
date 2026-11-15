@@ -5236,6 +5236,14 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     const nextActiveTool = updateActiveTool(this.state, tool);
+    // picking Vrij Tracé clears the selection: first remember the PDF page
+    // it was picked on, so the zones toggle works on it straight away
+    if (
+      nextActiveTool.type === "custom" &&
+      nextActiveTool.customType === "vrijtrace"
+    ) {
+      this.vrijTrace.followSelectedPage();
+    }
     if (nextActiveTool.type === "hand") {
       setCursor(this.interactiveCanvas, CURSOR_TYPE.GRAB);
     } else if (!isHoldingSpace) {
