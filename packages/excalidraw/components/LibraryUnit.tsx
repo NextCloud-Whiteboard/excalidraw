@@ -113,6 +113,7 @@ export const LibraryUnit = memo(
           "library-unit--revealed": revealed,
           "library-unit--skeleton": !svg,
         })}
+        data-item-id={id ?? undefined}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >

@@ -287,6 +287,7 @@ export const VrijTraceBar = ({ appState }: { appState: UIAppState }) => {
   return (
     <div
       className="vt-bar-row"
+      data-testid="vt-bar"
       ref={rowRef}
       style={top === null ? undefined : { top }}
     >

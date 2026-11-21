@@ -110,7 +110,10 @@ export const DefaultSidebar = Object.assign(
                 <Sidebar.TabTrigger tab={CANVAS_SEARCH_TAB}>
                   {searchIcon}
                 </Sidebar.TabTrigger>
-                <Sidebar.TabTrigger tab={LIBRARY_SIDEBAR_TAB}>
+                <Sidebar.TabTrigger
+                  tab={LIBRARY_SIDEBAR_TAB}
+                  data-testid="sidebar-tab-library"
+                >
                   {LibraryIcon}
                 </Sidebar.TabTrigger>
                 {props.vrijTraceEnabled && (

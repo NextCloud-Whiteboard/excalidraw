@@ -249,7 +249,7 @@ export const VrijTraceSidebar = () => {
   const selectedItem = itemIndex >= 0 ? items[itemIndex] : null;
 
   return (
-    <div className="vt-side">
+    <div className="vt-side" data-testid="vt-overview">
       {selectedTree && (
         <div className="vt-card" data-testid="vt-selected-tree">
           <div className="vt-card__head">
