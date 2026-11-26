@@ -608,20 +608,8 @@ export const VrijTraceSidebar = () => {
         </div>
       </div>
 
-      <div className="vt-legend">
-        <span>
-          <i className="vt-z vt-z--trench" />
-          {STR.table.inTrench}
-        </span>
-        <span>
-          <i className="vt-z vt-z--red" />
-          {STR.table.red}
-        </span>
-        <span>
-          <i className="vt-z vt-z--work" />
-          {STR.table.work}
-        </span>
-      </div>
+      {/* one legend for the drawing and for the zone squares in the lists,
+          which use the same colours */}
       <div className="vt-legend vt-legend--plan">
         <span>
           <i

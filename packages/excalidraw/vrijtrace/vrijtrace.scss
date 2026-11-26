@@ -606,14 +606,15 @@
     border-color: #343a40;
   }
 
+  // the drawing's zone colours (render.ts COLORS), so its legend explains these too
   .vt-z--red {
-    background: #e2707a;
-    border-color: #cf4752;
+    background: rgba(218, 54, 65, 0.41);
+    border-color: rgba(218, 54, 65, 0.8);
   }
 
   .vt-z--work {
-    background: #f1b35e;
-    border-color: #e0952f;
+    background: rgba(237, 151, 41, 0.43);
+    border-color: rgba(237, 151, 41, 0.85);
   }
 
   .vt-legend {
