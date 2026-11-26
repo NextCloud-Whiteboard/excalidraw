@@ -606,7 +606,14 @@ describe("a selection opens its sidebar tab", () => {
     expect(card).toContain("10,00 m");
     const [row] = queryByTestId(container, "vt-lines")!.querySelectorAll("li");
     expect(row.classList.contains("vt-selected")).toBe(true);
-    expect(row.textContent).toContain("horizontaal · 1,50 m · 10,00 m");
+    // which number is the width and which the length, in words
+    expect(row.textContent).toContain(
+      "horizontaal · 1,50 m breed · 10,00 m lang",
+    );
+    const head = queryByTestId(container, "vt-lines")!
+      .closest(".vt-block")!
+      .querySelector(".vt-block__head span")!.textContent;
+    expect(head).toBe("1 sleuf · samen 10,00 m");
   });
 
   it("on a phone, a selection leaves the sidebar closed", () => {

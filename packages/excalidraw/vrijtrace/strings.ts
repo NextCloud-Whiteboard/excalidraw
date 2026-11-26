@@ -125,11 +125,14 @@ export const STR = {
     lines: "Sleuven",
     trees: "Bomen",
     elements: "Elementen",
-    linesTotal: (n: number, m: string) => `${n} · ${m} m`,
+    /** "26 sleuven · samen 283,07 m": how many, and their length together */
+    linesTotal: (n: number, m: string) =>
+      `${n} ${n === 1 ? "sleuf" : "sleuven"} · samen ${m} m`,
     distance: "afstand ring",
     noLines: "Nog geen sleuven. Teken er een met Vrij Tracé.",
+    /** named so nobody takes the width for the length */
     lineMain: (direction: string, width: string, length: string) =>
-      `${direction} · ${width} m · ${length} m`,
+      `${direction} · ${width} m breed · ${length} m lang`,
     lineSub: (reference: string, red: string, work: string, side: string) =>
       `${reference} · schadepr. ${red} · werkr. ${work} m ${side}`,
     unnamed: "Bibliotheekitem",
