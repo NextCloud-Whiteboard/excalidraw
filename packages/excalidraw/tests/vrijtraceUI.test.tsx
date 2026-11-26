@@ -246,12 +246,6 @@ describe("Vrij Tracé UI", () => {
     expect(getPageParts(h.elements, "pdf1").lines).toHaveLength(0);
   });
 
-  const zones = () =>
-    [...byId("vt-rows").querySelectorAll("li")].map((li) =>
-      [...li.querySelectorAll(".vt-z")].map((z) =>
-        z.getAttribute("aria-label"),
-      ),
-    );
   const rows = () =>
     [...byId("vt-rows").querySelectorAll("li")].map((li) =>
       [...li.querySelectorAll(".vt-c")].map((c) => c.textContent),
@@ -268,23 +262,22 @@ describe("Vrij Tracé UI", () => {
         libraryTree("t2", 250, 120, 20, { klasse: "C3", scherm: true }),
       ],
     });
-    // five columns, the last three small squares: nothing to scroll
+    // number, tree, distance, verdict: the zones are on the tree's card
     expect(rows()).toEqual([
-      ["1", "C1 groot, zonder scherm", "1,50 m", "Voldoet", ""],
-      ["2", "C3 klein, met scherm", "−0,50 m", "Conflict", ""],
+      ["1", "C1 groot, zonder scherm", "1,50 m", "Voldoet"],
+      ["2", "C3 klein, met scherm", "−0,50 m", "Conflict"],
     ]);
-    // in sleuf, schadepreventie, werkruimte: zones off, so only "in sleuf"
-    // is answered (no)
-    expect(zones()).toEqual([
-      ["in sleuf: nee", "schadepreventie: —", "werkruimte: —"],
-      ["in sleuf: nee", "schadepreventie: —", "werkruimte: —"],
-    ]);
+    expect(byId("vt-rows").querySelector(".vt-z")).toBeNull();
+    // the selected tree's card names the zones it reaches, once they are
+    // activated; before that they are not answered
+    const cardZones = () =>
+      byId("vt-selected-tree").querySelector(".vt-zones")!.textContent;
+    act(() =>
+      API.setSelectedElements([h.elements.find((e) => e.id === "t2")!]),
+    );
+    expect(cardZones()).toBe("—");
     fireEvent.click(byId("vt-activate"));
-    expect(zones()[1]).toEqual([
-      "in sleuf: nee",
-      "schadepreventie: ja",
-      "werkruimte: ja",
-    ]);
+    expect(cardZones()).toBe("schadepreventie, werkruimte");
     // at a glance: two trees, one passes, one conflict
     expect(
       [...byId("vt-tiles").querySelectorAll("b")].map((b) => b.textContent),

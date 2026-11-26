@@ -64,47 +64,21 @@ const REFERENCE_TEXT = {
   rechts: STR.labels.right,
 } as const;
 
-/** one zone a tree or element reaches, as a small square: filled when it does */
-const ZoneMark = ({
-  kind,
-  on,
-}: {
-  kind: "trench" | "red" | "work";
-  on: boolean | null;
-}) => {
-  const label = STR.table[kind === "trench" ? "inTrench" : kind];
-  return (
-    <i
-      className={on ? `vt-z vt-z--${kind}` : "vt-z"}
-      data-on={on ? "true" : "false"}
-      title={`${label}: ${
-        on === null ? "—" : on ? STR.table.yes : STR.table.no
-      }`}
-      aria-label={`${label}: ${
-        on === null ? "—" : on ? STR.table.yes : STR.table.no
-      }`}
-      role="img"
-    />
-  );
-};
-
-const ZoneMarks = ({ z }: { z: ElementZones }) => (
-  <>
-    <ZoneMark kind="trench" on={z.inside} />
-    <ZoneMark kind="red" on={z.red} />
-    <ZoneMark kind="work" on={z.work} />
-  </>
-);
-
-/** the zones as words, for a card: "werkruimte", or "geen" */
-const zonesText = (z: ElementZones) =>
-  [
+/**
+ * The zones as words, for a card: "werkruimte", "geen", or "—" while they
+ * are not answered (no trench yet, or the zones not activated)
+ */
+const zonesText = (z: ElementZones) => {
+  const reached = [
     z.inside && STR.table.inTrench,
     z.red && STR.table.red,
     z.work && STR.table.work,
-  ]
-    .filter(Boolean)
-    .join(", ") || STR.selectedElement.none;
+  ].filter(Boolean);
+  if (reached.length) {
+    return reached.join(", ");
+  }
+  return z.inside === null || z.red === null ? "—" : STR.selectedElement.none;
+};
 
 /**
  * The number on a row, styled like its label on the plan: a sleuf blue, a
@@ -290,13 +264,11 @@ export const VrijTraceSidebar = () => {
             <div className="vt-set">
               <span>{STR.table.zones}</span>
               <b className="vt-zones">
-                <ZoneMarks
-                  z={{
-                    inside: selectedTree.r.inside,
-                    red: selectedTree.r.red,
-                    work: selectedTree.r.work,
-                  }}
-                />
+                {zonesText({
+                  inside: selectedTree.r.inside,
+                  red: selectedTree.r.red,
+                  work: selectedTree.r.work,
+                })}
               </b>
             </div>
           </div>
@@ -364,9 +336,7 @@ export const VrijTraceSidebar = () => {
           <div className="vt-sets">
             <div className="vt-set">
               <span>{STR.selectedElement.zones}</span>
-              <b className="vt-zones">
-                <ZoneMarks z={selectedItem.z} /> {zonesText(selectedItem.z)}
-              </b>
+              <b className="vt-zones">{zonesText(selectedItem.z)}</b>
             </div>
           </div>
           {selectedItem.e.itemId && (
@@ -518,11 +488,6 @@ export const VrijTraceSidebar = () => {
                       ? STR.table.ok
                       : STR.table.conflict}
                   </span>
-                  <span className="vt-c vt-c--zones vt-zones">
-                    <ZoneMarks
-                      z={{ inside: r.inside, red: r.red, work: r.work }}
-                    />
-                  </span>
                 </li>
               );
             })}
@@ -557,9 +522,6 @@ export const VrijTraceSidebar = () => {
                 </span>
                 <span className="vt-c vt-c--name">{x.name}</span>
                 {x.group && <span className="vt-c vt-c--sub">{x.group}</span>}
-                <span className="vt-c vt-c--zones vt-zones">
-                  <ZoneMarks z={x.z} />
-                </span>
               </li>
             ))}
           </ul>

@@ -429,10 +429,10 @@
 
   .vt-li {
     display: grid;
-    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
     grid-template-areas:
-      "n name zones"
-      "n sub zones";
+      "n name"
+      "n sub";
     align-items: center;
     column-gap: 0.5rem;
     row-gap: 0.125rem;
@@ -448,10 +448,10 @@
   }
 
   .vt-li--tree {
-    grid-template-columns: 1.75rem auto minmax(0, 1fr) auto;
+    grid-template-columns: 1.75rem auto minmax(0, 1fr);
     grid-template-areas:
-      "n name name name"
-      "n dist verdict zones";
+      "n name name"
+      "n dist verdict";
   }
 
   .vt-c {
@@ -482,12 +482,6 @@
 
   .vt-c--verdict {
     grid-area: verdict;
-  }
-
-  .vt-c--zones {
-    grid-area: zones;
-    white-space: nowrap;
-    justify-self: end;
   }
 
   .vt-li.vt-hot,
@@ -587,34 +581,6 @@
   .vt-bad {
     color: var(--color-danger);
     font-weight: 600;
-  }
-
-  // a zone a tree's ring reaches: filled; one it keeps clear of: outlined
-  .vt-z {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    margin-right: 2px;
-    box-sizing: border-box;
-    border: 1.5px solid var(--color-gray-40, #c4c4cc);
-    border-radius: 2px;
-    vertical-align: middle;
-  }
-
-  .vt-z--trench {
-    background: #343a40;
-    border-color: #343a40;
-  }
-
-  // the drawing's zone colours (render.ts COLORS), so its legend explains these too
-  .vt-z--red {
-    background: rgba(218, 54, 65, 0.41);
-    border-color: rgba(218, 54, 65, 0.8);
-  }
-
-  .vt-z--work {
-    background: rgba(237, 151, 41, 0.43);
-    border-color: rgba(237, 151, 41, 0.85);
   }
 
   .vt-legend {
