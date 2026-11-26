@@ -727,6 +727,12 @@ export interface ExcalidrawProps {
   maxPdfFileSizeMB?: number;
   /** show the Vrij Tracé tool (trench planning on imported PDF pages) */
   vrijTraceEnabled?: boolean;
+  /**
+   * `false` hides the user's own library: its section and menu in the
+   * library sidebar, and "Add to library" in the context menu. The items
+   * stay stored; only the bundled library shows. Default: shown.
+   */
+  personalLibrary?: boolean;
   /** the current user, recorded when someone activates zones */
   vrijTraceUser?: { uid: string; name: string };
   /** the trench parts this user holds (grabbed or selected) changed */

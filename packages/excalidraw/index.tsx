@@ -59,6 +59,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     pdfApiUrl,
     maxPdfFileSizeMB,
     vrijTraceEnabled,
+    personalLibrary,
     vrijTraceUser,
     onVrijTraceEditing,
   } = props;
@@ -157,6 +158,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           pdfApiUrl={pdfApiUrl}
           maxPdfFileSizeMB={maxPdfFileSizeMB}
           vrijTraceEnabled={vrijTraceEnabled}
+          personalLibrary={personalLibrary}
           vrijTraceUser={vrijTraceUser}
           onVrijTraceEditing={onVrijTraceEditing}
         >

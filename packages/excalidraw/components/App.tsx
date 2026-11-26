@@ -2230,8 +2230,6 @@ class App extends React.Component<AppProps, AppState> {
     }
   }
 
-
-
   public onMagicframeToolSelect = () => {
     const selectedElements = this.scene.getSelectedElements({
       selectedElementIds: this.state.selectedElementIds,
@@ -3036,14 +3034,20 @@ class App extends React.Component<AppProps, AppState> {
    * selection, so the user can still close the sidebar or switch tabs.
    */
   private openSidebarForSelection() {
-    const target = selectionTarget(
+    const { libraryItems } = editorJotaiStore.get(libraryItemsAtom);
+    const found = selectionTarget(
       this.scene.getNonDeletedElements(),
       this.state.selectedElementIds,
-      {
-        vrijTrace: !!this.props.vrijTraceEnabled,
-        libraryItems: editorJotaiStore.get(libraryItemsAtom).libraryItems,
-      },
+      { vrijTrace: !!this.props.vrijTraceEnabled, libraryItems },
     );
+    // with the user's own library switched off, its items have no tile to show
+    const target =
+      found?.kind === "library" &&
+      this.props.personalLibrary === false &&
+      libraryItems.find((item) => item.id === found.itemId)?.status !==
+        "published"
+        ? null
+        : found;
     const key = selectionTargetKey(target);
     const quiet = this.quietSelection;
     this.quietSelection = false;
@@ -4931,7 +4935,10 @@ class App extends React.Component<AppProps, AppState> {
       ) {
         // Text Bubble shortcut: activate custom text bubble tool on 'T'
         if (event.key === KEYS.T) {
-          this.setActiveTool({ type: "custom", customType: "textbubble" } as any);
+          this.setActiveTool({
+            type: "custom",
+            customType: "textbubble",
+          } as any);
           event.stopPropagation();
           return;
         }
@@ -5102,7 +5109,6 @@ class App extends React.Component<AppProps, AppState> {
         if (pdfImage) {
           event.preventDefault();
           this.createTextBubble(scenePointer.x, scenePointer.y, pdfImage);
-          
         }
       }
       // -----------------------------------------------------------------------
@@ -6108,10 +6114,8 @@ class App extends React.Component<AppProps, AppState> {
           insertAtParentCenter: !event.altKey,
           container,
         });
-        
       }
       // Disable default double-click to start text editing elsewhere
-      
     }
   };
 
@@ -7280,7 +7284,10 @@ class App extends React.Component<AppProps, AppState> {
       (this.state.activeTool as any).customType === "textbubble"
     ) {
       const { clientX, clientY } = event;
-      const { x, y } = viewportCoordsToSceneCoords({ clientX, clientY } as any, this.state);
+      const { x, y } = viewportCoordsToSceneCoords(
+        { clientX, clientY } as any,
+        this.state,
+      );
       const pdfImage = this.getPdfImageAtPosition(x, y);
       this.createTextBubble(x, y, pdfImage);
       // switch back to selection after creating bubble
@@ -8046,9 +8053,7 @@ class App extends React.Component<AppProps, AppState> {
     }
     const scenePointer = viewportCoordsToSceneCoords(event, this.state);
     const threshold = 6 / this.state.zoom.value;
-    if (
-      hitTestTextBubbleAnchor(selectedElements[0], scenePointer, threshold)
-    ) {
+    if (hitTestTextBubbleAnchor(selectedElements[0], scenePointer, threshold)) {
       pointerDownState.textBubbleAnchor.elementId = selectedElements[0].id;
       setCursor(this.interactiveCanvas, CURSOR_TYPE.GRABBING);
       return true;
@@ -9154,7 +9159,10 @@ class App extends React.Component<AppProps, AppState> {
             if (shouldShowRulerMagnifier) {
               this.setState((prevState) => ({
                 magnifier: {
-                  position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                  position: {
+                    x: (event as PointerEvent).clientX,
+                    y: (event as PointerEvent).clientY,
+                  },
                   zoom: prevState.magnifier.zoom,
                   size: prevState.magnifier.size,
                 },
@@ -9236,7 +9244,10 @@ class App extends React.Component<AppProps, AppState> {
           if (isResizingRuler) {
             this.setState((prevState) => ({
               magnifier: {
-                position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                position: {
+                  x: (event as PointerEvent).clientX,
+                  y: (event as PointerEvent).clientY,
+                },
                 zoom: prevState.magnifier.zoom,
                 size: prevState.magnifier.size,
               },
@@ -9360,7 +9371,10 @@ class App extends React.Component<AppProps, AppState> {
           if (shouldShowRulerMagnifier) {
             this.setState((prevState) => ({
               magnifier: {
-                position: { x: (event as PointerEvent).clientX, y: (event as PointerEvent).clientY },
+                position: {
+                  x: (event as PointerEvent).clientX,
+                  y: (event as PointerEvent).clientY,
+                },
                 zoom: prevState.magnifier.zoom,
                 size: prevState.magnifier.size,
               },
@@ -10206,7 +10220,9 @@ class App extends React.Component<AppProps, AppState> {
             this.state.selectedLinearElement?.elementId ||
             this.state.editingLinearElement?.elementId ||
             null;
-          if (!id) {return false;}
+          if (!id) {
+            return false;
+          }
           const el = this.scene.getElement(id);
           return !!(
             el &&
@@ -10327,7 +10343,7 @@ class App extends React.Component<AppProps, AppState> {
           this.setState({ suggestedBindings: [], startBoundElement: null });
           if (!activeTool.locked) {
             resetCursor(this.interactiveCanvas);
-          this.setState((prevState) => ({
+            this.setState((prevState) => ({
               newElement: null,
               activeTool: updateActiveTool(this.state, {
                 type: "selection",
@@ -10347,8 +10363,8 @@ class App extends React.Component<AppProps, AppState> {
           } else {
             this.setState((prevState) => ({
               newElement: null,
-          }));
-        }
+            }));
+          }
           // so that the scene gets rendered again to display the newly drawn linear as well
           this.scene.triggerUpdate();
         }
@@ -11319,21 +11335,26 @@ class App extends React.Component<AppProps, AppState> {
     const existingElements = this.scene.getNonDeletedElements();
     const margin = 50 / this.state.zoom.value;
     const step = 100 / this.state.zoom.value;
-    
+
     // Helper to check if a rectangle overlaps with any existing element
-    const hasOverlap = (rectX: number, rectY: number, rectW: number, rectH: number): boolean => {
+    const hasOverlap = (
+      rectX: number,
+      rectY: number,
+      rectW: number,
+      rectH: number,
+    ): boolean => {
       return existingElements.some((element) => {
         const [elX1, elY1, elX2, elY2] = getElementAbsoluteCoords(
           element,
           this.scene.getNonDeletedElementsMap(),
         );
-        
+
         // Add margin around existing elements
         const elLeft = elX1 - margin;
         const elTop = elY1 - margin;
         const elRight = elX2 + margin;
         const elBottom = elY2 + margin;
-        
+
         // Check if rectangles intersect
         return !(
           rectX + rectW < elLeft ||
@@ -11372,12 +11393,16 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     // If no empty space found, return original position (far below existing content)
-    const allBounds = existingElements.length > 0
-      ? existingElements.map((el) => getElementAbsoluteCoords(el, this.scene.getNonDeletedElementsMap()))
-      : [];
-    const maxY = allBounds.length > 0
-      ? Math.max(...allBounds.map(([, , , y2]) => y2))
-      : startY;
+    const allBounds =
+      existingElements.length > 0
+        ? existingElements.map((el) =>
+            getElementAbsoluteCoords(el, this.scene.getNonDeletedElementsMap()),
+          )
+        : [];
+    const maxY =
+      allBounds.length > 0
+        ? Math.max(...allBounds.map(([, , , y2]) => y2))
+        : startY;
     return { x: startX, y: maxY + margin * 2 };
   };
 
@@ -11629,7 +11654,11 @@ class App extends React.Component<AppProps, AppState> {
           pages[i],
         );
         if (initialized) {
-          this.initializePdfImageDimensionsWithPosition(initialized, x, currentY);
+          this.initializePdfImageDimensionsWithPosition(
+            initialized,
+            x,
+            currentY,
+          );
           insertedElementsIds[initialized.id] = true;
           currentY = initialized.y + initialized.height + gap;
         }
@@ -12679,7 +12708,8 @@ class App extends React.Component<AppProps, AppState> {
       actionWrapTextInContainer,
       actionUngroup,
       CONTEXT_MENU_SEPARATOR,
-      actionAddToLibrary,
+      // nowhere to add to with the user's own library switched off
+      ...(this.props.personalLibrary === false ? [] : [actionAddToLibrary]),
       CONTEXT_MENU_SEPARATOR,
       actionSendBackward,
       actionBringForward,

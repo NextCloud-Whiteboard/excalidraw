@@ -15,6 +15,7 @@ import { useLibraryCache } from "../hooks/useLibraryItemSvg";
 import { useScrollPosition } from "../hooks/useScrollPosition";
 import { t } from "../i18n";
 
+import { useAppProps } from "./App";
 import { LibraryMenuControlButtons } from "./LibraryMenuControlButtons";
 import { groupLibraryItems } from "./libraryGroups";
 import { LibraryDropdownMenu } from "./LibraryMenuHeaderContent";
@@ -86,6 +87,8 @@ export default function LibraryMenuItems({
   /** the item the canvas selection was placed from: shown and highlighted */
   revealedItemId?: LibraryItem["id"] | null;
 }) {
+  // the user's own library can be switched off: only the bundled one shows
+  const showPersonal = useAppProps().personalLibrary !== false;
   const libraryContainerRef = useRef<HTMLDivElement>(null);
   const scrollPosition = useScrollPosition<HTMLDivElement>(libraryContainerRef);
 
@@ -292,7 +295,7 @@ export default function LibraryMenuItems({
           : { borderBottom: 0 }
       }
     >
-      {!isLibraryEmpty && (
+      {!isLibraryEmpty && showPersonal && (
         <LibraryDropdownMenu
           selectedItems={selectedItems}
           onSelectItems={onSelectItems}
@@ -309,62 +312,64 @@ export default function LibraryMenuItems({
         }}
         ref={libraryContainerRef}
       >
-        <>
-          {!isLibraryEmpty && (
-            <div className="library-menu-items-container__header">
-              {t("labels.personalLib")}
-            </div>
-          )}
-          {revealedItem?.status !== "published" && revealedCard}
-          {isLoading && (
-            <div
-              style={{
-                position: "absolute",
-                top: "var(--container-padding-y)",
-                right: "var(--container-padding-x)",
-                transform: "translateY(50%)",
-              }}
-            >
-              <Spinner />
-            </div>
-          )}
-          {!pendingElements.length && !unpublishedItems.length ? (
-            <div className="library-menu-items__no-items">
-              <div className="library-menu-items__no-items__label">
-                {t("library.noItems")}
+        {showPersonal && (
+          <>
+            {!isLibraryEmpty && (
+              <div className="library-menu-items-container__header">
+                {t("labels.personalLib")}
               </div>
-              <div className="library-menu-items__no-items__hint">
-                {publishedItems.length > 0
-                  ? t("library.hint_emptyPrivateLibrary")
-                  : t("library.hint_emptyLibrary")}
+            )}
+            {revealedItem?.status !== "published" && revealedCard}
+            {isLoading && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "var(--container-padding-y)",
+                  right: "var(--container-padding-x)",
+                  transform: "translateY(50%)",
+                }}
+              >
+                <Spinner />
               </div>
-            </div>
-          ) : (
-            <LibraryMenuSectionGrid>
-              {pendingElements.length > 0 && (
+            )}
+            {!pendingElements.length && !unpublishedItems.length ? (
+              <div className="library-menu-items__no-items">
+                <div className="library-menu-items__no-items__label">
+                  {t("library.noItems")}
+                </div>
+                <div className="library-menu-items__no-items__hint">
+                  {publishedItems.length > 0
+                    ? t("library.hint_emptyPrivateLibrary")
+                    : t("library.hint_emptyLibrary")}
+                </div>
+              </div>
+            ) : (
+              <LibraryMenuSectionGrid>
+                {pendingElements.length > 0 && (
+                  <LibraryMenuSection
+                    itemsRenderedPerBatch={itemsRenderedPerBatch}
+                    items={[{ id: null, elements: pendingElements }]}
+                    onItemSelectToggle={onItemSelectToggle}
+                    onItemDrag={onItemDrag}
+                    onClick={onAddToLibraryClick}
+                    isItemSelected={isItemSelected}
+                    svgCache={svgCache}
+                  />
+                )}
                 <LibraryMenuSection
                   itemsRenderedPerBatch={itemsRenderedPerBatch}
-                  items={[{ id: null, elements: pendingElements }]}
+                  items={unpublishedItems}
                   onItemSelectToggle={onItemSelectToggle}
                   onItemDrag={onItemDrag}
-                  onClick={onAddToLibraryClick}
+                  onClick={onItemClick}
                   isItemSelected={isItemSelected}
                   svgCache={svgCache}
+                  revealedItemId={revealedItemId}
                 />
-              )}
-              <LibraryMenuSection
-                itemsRenderedPerBatch={itemsRenderedPerBatch}
-                items={unpublishedItems}
-                onItemSelectToggle={onItemSelectToggle}
-                onItemDrag={onItemDrag}
-                onClick={onItemClick}
-                isItemSelected={isItemSelected}
-                svgCache={svgCache}
-                revealedItemId={revealedItemId}
-              />
-            </LibraryMenuSectionGrid>
-          )}
-        </>
+              </LibraryMenuSectionGrid>
+            )}
+          </>
+        )}
 
         <>
           {(publishedItems.length > 0 ||
@@ -458,7 +463,7 @@ export default function LibraryMenuItems({
                 );
               })}
             </>
-          ) : unpublishedItems.length > 0 ? (
+          ) : showPersonal && unpublishedItems.length > 0 ? (
             <div
               style={{
                 margin: "1rem 0",
@@ -475,7 +480,7 @@ export default function LibraryMenuItems({
           ) : null}
         </>
 
-        {showBtn && (
+        {showBtn && showPersonal && (
           <LibraryMenuControlButtons
             style={{ padding: "16px 0", width: "100%" }}
             id={id}
